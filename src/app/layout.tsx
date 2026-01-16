@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: "yvsh music",
     images: [
       {
-        url: "/avatar.png",
+        url: "https://yvshmusic.com/avatar.png",
         width: 1200,
         height: 1200,
         alt: "yvsh music",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "yvsh music",
     description: "yvsh music - Free downloads and exclusive tracks",
-    images: ["/avatar.png"],
+    images: ["https://yvshmusic.com/avatar.png"],
   },
 };
 
