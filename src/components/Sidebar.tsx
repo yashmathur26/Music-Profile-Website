@@ -21,8 +21,8 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        "hidden min-h-screen flex-col border-r border-purple-500/20 bg-[#150820] py-6 text-white/70 transition-all duration-300 ease-in-out md:flex",
-        expanded ? "w-72 px-5" : "w-20 px-3"
+        "flex min-h-screen flex-col border-r border-purple-500/20 bg-[#150820] py-6 text-white/70 transition-all duration-300 ease-in-out",
+        expanded ? "w-72 px-5" : "w-16 px-2 sm:w-20 sm:px-3"
       )}
     >
       {/* Toggle Button */}
@@ -32,7 +32,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
           // If collapsing, also close the downloads panel so next expand is clean.
           setDownloadsOpen(false);
         }}
-        className="mb-8 flex h-10 w-full items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-300 transition hover:bg-purple-500/20"
+        className="mb-10 flex h-10 w-full items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-300 transition hover:bg-purple-500/20"
       >
         <svg
           className={clsx("h-5 w-5 transition-transform", expanded && "rotate-180")}
@@ -50,7 +50,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
       </button>
 
       {/* Logo / Avatar */}
-      <div className={clsx("mb-8 flex items-center gap-3", expanded ? "px-1" : "justify-center")}>
+      <div className={clsx("mb-10 flex items-center gap-3", expanded ? "px-1" : "justify-center")}>
         <img
           src="/avatar.png"
           alt="YVSH"
@@ -67,7 +67,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
       </div>
 
       {/* Nav Buttons */}
-      <div className={clsx("mt-8 flex flex-col gap-3", !expanded && "items-center")}>
+      <div className={clsx("mb-10 flex flex-col gap-10", !expanded && "items-center")}>
         {/* Home Button */}
         <Link
           href="/"
@@ -105,7 +105,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
       </div>
 
       {/* Downloads */}
-      <div className={clsx("mt-8 flex flex-col gap-2", !expanded && "items-center")}>
+      <div className={clsx("flex flex-col gap-2", !expanded && "items-center")}>
         {expanded ? (
           <details
             open={downloadsOpen}

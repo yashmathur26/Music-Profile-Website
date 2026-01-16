@@ -73,7 +73,7 @@ export default function HomePage() {
         <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
       </div>
 
-      <div className="relative flex min-h-screen">
+      <div className="relative flex min-h-screen overflow-x-hidden">
         {/* Sidebar */}
         <Sidebar currentSlug="dont-stop-the-music-piano" tracks={tracks} />
 

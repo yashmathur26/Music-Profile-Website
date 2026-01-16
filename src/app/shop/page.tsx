@@ -9,7 +9,7 @@ export default function ShopPage() {
         <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
       </div>
 
-      <div className="relative flex min-h-screen">
+      <div className="relative flex min-h-screen overflow-x-hidden">
         <Sidebar currentSlug="dont-stop-the-music-piano" tracks={tracks} />
 
         <div className="flex-1 overflow-y-auto">
