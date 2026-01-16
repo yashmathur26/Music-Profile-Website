@@ -33,7 +33,7 @@ export default function HomePage() {
             className="group flex flex-col items-center gap-12"
           >
             {/* Avatar with glow and bounce */}
-            <div className="relative max-md:animate-none" style={{ animationDuration: '3s' }}>
+            <div className="relative animate-bounce-slow" style={{ animationDuration: '3s' }}>
               <div className="absolute -inset-6 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-2xl transition-all duration-500 group-hover:scale-125" />
               <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500 opacity-50 blur-sm" />
               <img
@@ -170,7 +170,7 @@ export default function HomePage() {
                 Free Downloads
               </h2>
               <div className="grid gap-2">
-                {tracks.map((track, i) => (
+                {tracks.slice(0, typeof window !== 'undefined' && window.innerWidth < 768 ? 3 : tracks.length).map((track, i) => (
                   <Link
                     key={track.slug}
                     href={`/${track.slug}`}
@@ -195,6 +195,11 @@ export default function HomePage() {
                     </svg>
                   </Link>
                 ))}
+                {typeof window !== 'undefined' && window.innerWidth < 768 && tracks.length > 3 && (
+                  <div className="flex items-center justify-center py-2">
+                    <span className="text-xs text-purple-300/50">...</span>
+                  </div>
+                )}
               </div>
             </section>
 
