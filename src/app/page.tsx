@@ -156,7 +156,7 @@ export default function HomePage() {
             {/* Featured Track */}
             <section className="mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-[10px] font-medium uppercase tracking-[0.3em] text-purple-300/50"
+                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.2s" }}
               >
                 Now Playing
@@ -174,7 +174,7 @@ export default function HomePage() {
             {/* Free Downloads Section */}
             <section className="mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-[10px] font-medium uppercase tracking-[0.3em] text-purple-300/50"
+                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.35s" }}
               >
                 Free Downloads
@@ -216,7 +216,7 @@ export default function HomePage() {
             {/* Shop Section */}
             <section className="mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-[10px] font-medium uppercase tracking-[0.3em] text-purple-300/50"
+                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.4s" }}
               >
                 Shop
