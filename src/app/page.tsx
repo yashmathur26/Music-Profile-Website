@@ -16,9 +16,9 @@ export default function HomePage() {
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#1a0a2e]">
         {/* Animated gradient orbs */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-[20%] top-[20%] h-[600px] w-[600px] animate-pulse rounded-full bg-purple-600/20 blur-[120px]" />
-          <div className="absolute bottom-[20%] right-[10%] h-[500px] w-[500px] animate-pulse rounded-full bg-pink-600/15 blur-[100px]" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-[10%] left-[50%] h-[400px] w-[400px] animate-pulse rounded-full bg-blue-600/15 blur-[80px]" style={{ animationDelay: '2s' }} />
+          <div className="absolute left-[20%] top-[20%] h-[600px] w-[600px] rounded-full bg-purple-600/20 blur-[120px] max-md:animate-none" />
+          <div className="absolute bottom-[20%] right-[10%] h-[500px] w-[500px] rounded-full bg-pink-600/15 blur-[100px] max-md:animate-none" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-[10%] left-[50%] h-[400px] w-[400px] rounded-full bg-blue-600/15 blur-[80px] max-md:animate-none" style={{ animationDelay: '2s' }} />
         </div>
 
         {/* Starfield */}
@@ -33,7 +33,7 @@ export default function HomePage() {
             className="group flex flex-col items-center gap-12"
           >
             {/* Avatar with glow and bounce */}
-            <div className="relative animate-bounce" style={{ animationDuration: '3s' }}>
+            <div className="relative max-md:animate-none" style={{ animationDuration: '3s' }}>
               <div className="absolute -inset-6 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-2xl transition-all duration-500 group-hover:scale-125" />
               <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500 opacity-50 blur-sm" />
               <img
@@ -45,7 +45,7 @@ export default function HomePage() {
 
             {/* Enter text */}
             <div className="flex flex-col items-center gap-3">
-              <span className="animate-pulse rounded-full border border-purple-400/40 bg-purple-500/20 px-8 py-3 text-sm font-medium uppercase tracking-[0.3em] text-purple-200 backdrop-blur-sm transition-all duration-300 group-hover:border-purple-400/80 group-hover:bg-purple-500/30 group-hover:shadow-lg group-hover:shadow-purple-500/20">
+              <span className="max-md:animate-none rounded-full border border-purple-400/40 bg-purple-500/20 px-8 py-3 text-sm font-medium uppercase tracking-[0.3em] text-purple-200 backdrop-blur-sm transition-all duration-300 group-hover:border-purple-400/80 group-hover:bg-purple-500/30 group-hover:shadow-lg group-hover:shadow-purple-500/20">
                 Click to Enter
               </span>
             </div>
@@ -63,9 +63,9 @@ export default function HomePage() {
     <main className="relative min-h-screen bg-[#1a0a2e]">
       {/* Animated background orbs */}
       <div className="pointer-events-none fixed inset-0">
-        <div className="absolute left-[10%] top-[10%] h-[500px] w-[500px] animate-pulse rounded-full bg-purple-600/10 blur-[100px]" />
-        <div className="absolute bottom-[30%] right-[20%] h-[400px] w-[400px] animate-pulse rounded-full bg-pink-600/10 blur-[80px]" style={{ animationDelay: '1s' }} />
-        <div className="absolute left-[60%] top-[50%] h-[300px] w-[300px] animate-pulse rounded-full bg-blue-600/10 blur-[60px]" style={{ animationDelay: '2s' }} />
+        <div className="absolute left-[10%] top-[10%] h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[100px] max-md:animate-none" />
+        <div className="absolute bottom-[30%] right-[20%] h-[400px] w-[400px] rounded-full bg-pink-600/10 blur-[80px] max-md:animate-none" style={{ animationDelay: '1s' }} />
+        <div className="absolute left-[60%] top-[50%] h-[300px] w-[300px] rounded-full bg-blue-600/10 blur-[60px] max-md:animate-none" style={{ animationDelay: '2s' }} />
       </div>
 
       {/* Starfield */}
@@ -111,7 +111,7 @@ export default function HomePage() {
                   href="https://soundcloud.com/yvshh"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 animate-bounce-slow items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110"
+                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110"
                   style={{ animationDelay: '0s' }}
                 >
                   <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
@@ -122,7 +122,7 @@ export default function HomePage() {
                   href="https://www.instagram.com/itsyvshhh/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 animate-bounce-slow items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110"
+                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110"
                   style={{ animationDelay: '0.2s' }}
                 >
                   <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@ export default function HomePage() {
                   href="https://www.tiktok.com/@yvsh.mp3"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 animate-bounce-slow items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110"
+                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110"
                   style={{ animationDelay: '0.4s' }}
                 >
                   <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
@@ -229,33 +229,54 @@ export default function HomePage() {
       <style jsx>{`
         /* Starfield is canvas-based now (avoids the streak bug). */
         @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
+          0%, 100% { transform: translateY(0px) translateZ(0); }
+          50% { transform: translateY(-10px) translateZ(0); }
         }
         @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
+          0%, 100% { transform: translateY(0px) translateZ(0); }
+          50% { transform: translateY(-8px) translateZ(0); }
         }
         @keyframes text-float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
+          0%, 100% { transform: translateY(0px) translateZ(0); }
+          50% { transform: translateY(-4px) translateZ(0); }
         }
         @keyframes slide-in {
-          from { opacity: 0; transform: translateX(-20px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateX(-20px) translateZ(0); }
+          to { opacity: 1; transform: translateX(0) translateZ(0); }
         }
         .animate-float {
           animation: float 3s ease-in-out infinite;
+          will-change: transform;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
         .animate-bounce-slow {
           animation: bounce-slow 2s ease-in-out infinite;
+          will-change: transform;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
         .animate-text-float {
           animation: text-float 2.8s ease-in-out infinite;
           will-change: transform;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
         .animate-slide-in {
           animation: slide-in 0.5s ease-out forwards;
+          will-change: transform, opacity;
+        }
+        
+        /* Reduce animations on mobile */
+        @media (max-width: 768px) {
+          .animate-float,
+          .animate-bounce-slow,
+          .animate-text-float {
+            animation: none !important;
+          }
+          .animate-slide-in {
+            animation: slide-in 0.3s ease-out forwards;
+          }
         }
       `}</style>
     </main>
