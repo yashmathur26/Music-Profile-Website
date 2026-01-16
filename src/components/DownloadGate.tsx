@@ -52,8 +52,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     process.env.NEXT_PUBLIC_TIKTOK_URL?.trim() ||
     "https://www.tiktok.com/@yvsh.mp3?lang=en";
 
-  // Allow downloads without requiring all steps
-  const downloadReady = true; // Always allow downloads
+  const downloadReady = gateState.soundcloudVerified;
 
   const persistState = useCallback(
     (next: GateState | ((prev: GateState) => GateState)) => {
