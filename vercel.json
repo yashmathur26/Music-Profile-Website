@@ -1,4 +1,4 @@
 {
-  "installCommand": "git lfs pull && npm install",
+  "installCommand": "(git lfs pull || true) && npm install",
   "buildCommand": "npm run build"
 }
