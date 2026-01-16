@@ -85,10 +85,50 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         sessionStorage.removeItem(STATE_KEY);
       }
     }
-  }, [OUTBOUND_KEY, STATE_KEY, trackSlug]);
+
+    // Check if user is already verified via OAuth
+    const checkVerification = async () => {
+      try {
+        const response = await fetch("/api/soundcloud/verify-follow");
+        const data = await response.json();
+        if (data.verified) {
+          persistState((prev) => ({
+            ...prev,
+            soundcloudVerified: true
+          }));
+        }
+      } catch {
+        // Silently fail - OAuth might not be configured
+      }
+    };
+    void checkVerification();
+  }, [OUTBOUND_KEY, STATE_KEY, trackSlug, persistState]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Listen for SoundCloud OAuth success message
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === "soundcloud-auth-success") {
+        // Verify the follow after OAuth completes
+        try {
+          const response = await fetch("/api/soundcloud/verify-follow");
+          const data = await response.json();
+          if (data.verified) {
+            persistState((prev) => ({
+              ...prev,
+              soundcloudVerified: true
+            }));
+          } else {
+            setNotice("Please make sure you're following on SoundCloud.");
+          }
+        } catch (error) {
+          setNotice("Failed to verify SoundCloud follow. Please try again.");
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
 
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
@@ -97,13 +137,17 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         outboundRef.current ?? (stored ? (JSON.parse(stored) as OutboundState) : null);
 
       if (!outbound) return;
+      // Skip SoundCloud - it uses OAuth flow instead
+      if (outbound.platform === "soundcloud") {
+        outboundRef.current = null;
+        sessionStorage.removeItem(OUTBOUND_KEY);
+        return;
+      }
       const elapsed = Date.now() - outbound.startedAt;
       if (elapsed < OUTBOUND_MIN_MS) return;
 
       persistState((prev) => ({
         ...prev,
-        soundcloudVerified:
-          prev.soundcloudVerified || outbound.platform === "soundcloud",
         instagramVisited:
           prev.instagramVisited || outbound.platform === "instagram",
         tiktokVisited: prev.tiktokVisited || outbound.platform === "tiktok"
@@ -113,7 +157,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [persistState]);
 
   const startOutbound = (
@@ -127,8 +174,6 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     if (!popup) {
       persistState((prev) => ({
         ...prev,
-        soundcloudVerified:
-          prev.soundcloudVerified || platform === "soundcloud",
         instagramVisited:
           prev.instagramVisited || platform === "instagram",
         tiktokVisited: prev.tiktokVisited || platform === "tiktok"
@@ -139,7 +184,11 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   };
 
   const handleSoundcloud = () => {
-    startOutbound("soundcloud", soundcloudUrl);
+    // Use OAuth flow instead of direct link
+    const popup = window.open("/api/soundcloud/login", "_blank", "noopener,noreferrer");
+    if (!popup) {
+      setNotice("Please allow popups to verify your SoundCloud follow.");
+    }
   };
 
   const handleDownload = async () => {
