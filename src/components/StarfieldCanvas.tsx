@@ -77,6 +77,8 @@ export default function StarfieldCanvas({
 
     let raf = 0;
     let t0 = performance.now();
+    let isScrolling = false;
+    let scrollTimeout: NodeJS.Timeout;
 
     const rnd = makeRng(seed);
     const stars: Star[] = [];
@@ -141,11 +143,46 @@ export default function StarfieldCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
+    // Pause animation during scroll on mobile for better performance
+    const handleScroll = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        isScrolling = true;
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          isScrolling = false;
+        }, 150);
+      }
+    };
+
     const ro = new ResizeObserver(resize);
     if (canvas.parentElement) ro.observe(canvas.parentElement);
     resize();
 
+    // Add scroll listener for mobile
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      window.addEventListener('touchmove', handleScroll, { passive: true });
+    }
+
+    // Throttle rendering on mobile for better scroll performance
+    let lastFrameTime = 0;
+    const targetFPS = typeof window !== 'undefined' && window.innerWidth < 768 ? 30 : 60;
+    const frameInterval = 1000 / targetFPS;
+
     const render = (now: number) => {
+      // Skip rendering during scroll on mobile
+      if (isScrolling && typeof window !== 'undefined' && window.innerWidth < 768) {
+        raf = requestAnimationFrame(render);
+        return;
+      }
+
+      const elapsed = now - lastFrameTime;
+      if (elapsed < frameInterval) {
+        raf = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = now - (elapsed % frameInterval);
+
       const dt = (now - t0) / 1000;
       t0 = now;
 
@@ -209,6 +246,11 @@ export default function StarfieldCanvas({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      clearTimeout(scrollTimeout);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('touchmove', handleScroll);
+      }
     };
   }, [seed, targetCounts.bright, targetCounts.dust, targetCounts.mid]);
 
@@ -216,6 +258,12 @@ export default function StarfieldCanvas({
     <canvas
       ref={canvasRef}
       className={clsx("absolute inset-0 h-full w-full", className)}
+      style={{
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+      }}
       aria-hidden="true"
     />
   );
