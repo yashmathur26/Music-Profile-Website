@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { tracks } from "@/lib/tracks";
 import Sidebar from "@/components/Sidebar";
@@ -9,6 +9,7 @@ import StarfieldCanvas from "@/components/StarfieldCanvas";
 export default function HomePage() {
   const [entered, setEntered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const widgetRef = useRef<any>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -18,6 +19,53 @@ export default function HomePage() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Initialize SoundCloud Widget and fade in
+  useEffect(() => {
+    if (!entered) return;
+
+    // Load SoundCloud Widget API
+    const script = document.createElement('script');
+    script.src = 'https://w.soundcloud.com/player/api.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      const iframe = document.querySelector('iframe[title="SoundCloud player"]') as HTMLIFrameElement;
+      if (iframe) {
+        const widget = (window as any).SC.Widget(iframe);
+        widgetRef.current = widget;
+
+        widget.bind((window as any).SC.Widget.Events.READY, () => {
+          // Set initial volume to 0 (silent)
+          widget.setVolume(0);
+          
+          // Fade in over 3 seconds
+          let volume = 0;
+          const targetVolume = 15; // 15% volume for background music
+          const fadeDuration = 3000; // 3 seconds
+          const steps = 30;
+          const stepDuration = fadeDuration / steps;
+          const volumeStep = targetVolume / steps;
+
+          const fadeInterval = setInterval(() => {
+            volume += volumeStep;
+            if (volume >= targetVolume) {
+              volume = targetVolume;
+              clearInterval(fadeInterval);
+            }
+            widget.setVolume(Math.round(volume));
+          }, stepDuration);
+        });
+      }
+    };
+
+    return () => {
+      if (script.parentNode) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [entered]);
   const artistName = "YVSH";
   const bio = "rest in peace my granny she got hit w a bazooka kabloom kablow";
 
@@ -164,7 +212,7 @@ export default function HomePage() {
               <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
                 <iframe
                   title="SoundCloud player"
-                  src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/chris-brown-yo-but-bounce-yvsh-flip&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&volume=50"
+                  src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/chris-brown-yo-but-bounce-yvsh-flip&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&volume=15"
                   allow="autoplay"
                   className="h-[166px] w-full border-0"
                 />
