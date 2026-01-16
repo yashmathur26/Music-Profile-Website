@@ -170,18 +170,16 @@ export default function StarfieldCanvas({
     const frameInterval = 1000 / targetFPS;
 
     const render = (now: number) => {
-      // Skip rendering during scroll on mobile
-      if (isScrolling && typeof window !== 'undefined' && window.innerWidth < 768) {
-        raf = requestAnimationFrame(render);
-        return;
-      }
-
+      // Continue rendering during scroll on mobile - just throttle more
       const elapsed = now - lastFrameTime;
-      if (elapsed < frameInterval) {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const scrollThrottle = isMobile && isScrolling ? frameInterval * 2 : frameInterval;
+      
+      if (elapsed < scrollThrottle) {
         raf = requestAnimationFrame(render);
         return;
       }
-      lastFrameTime = now - (elapsed % frameInterval);
+      lastFrameTime = now - (elapsed % scrollThrottle);
 
       const dt = (now - t0) / 1000;
       t0 = now;
@@ -263,6 +261,8 @@ export default function StarfieldCanvas({
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
+        position: 'fixed', // Keep stars stationary on scroll
+        pointerEvents: 'none',
       }}
       aria-hidden="true"
     />

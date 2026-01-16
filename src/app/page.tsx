@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { tracks } from "@/lib/tracks";
 import Sidebar from "@/components/Sidebar";
@@ -8,6 +8,16 @@ import StarfieldCanvas from "@/components/StarfieldCanvas";
 
 export default function HomePage() {
   const [entered, setEntered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const artistName = "YVSH";
   const bio = "rest in peace my granny she got hit w a bazooka kabloom kablow";
 
@@ -170,7 +180,7 @@ export default function HomePage() {
                 Free Downloads
               </h2>
               <div className="grid gap-2">
-                {tracks.slice(0, typeof window !== 'undefined' && window.innerWidth < 768 ? 3 : tracks.length).map((track, i) => (
+                {tracks.slice(0, isMobile ? 3 : tracks.length).map((track, i) => (
                   <Link
                     key={track.slug}
                     href={`/${track.slug}`}
@@ -195,7 +205,7 @@ export default function HomePage() {
                     </svg>
                   </Link>
                 ))}
-                {typeof window !== 'undefined' && window.innerWidth < 768 && tracks.length > 3 && (
+                {isMobile && tracks.length > 3 && (
                   <div className="flex items-center justify-center py-2">
                     <span className="text-xs text-purple-300/50">...</span>
                   </div>
