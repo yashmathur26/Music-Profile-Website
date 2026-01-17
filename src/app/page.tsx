@@ -9,6 +9,8 @@ import StarfieldCanvas from "@/components/StarfieldCanvas";
 export default function HomePage() {
   const [entered, setEntered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const widgetRef = useRef<any>(null);
 
   useEffect(() => {
@@ -19,6 +21,27 @@ export default function HomePage() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Track cursor position for color changes
+  useEffect(() => {
+    if (entered) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [entered]);
+
+  // Handle enter with transition animation
+  const handleEnter = () => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setEntered(true);
+      setIsTransitioning(false);
+    }, 800); // Transition duration
+  };
 
   // Initialize SoundCloud Widget and fade in
   useEffect(() => {
@@ -70,13 +93,42 @@ export default function HomePage() {
   const bio = "rest in peace my granny she got hit w a bazooka kabloom kablow";
 
   if (!entered) {
+    // Calculate color based on cursor position
+    const hue = (cursorPos.x / window.innerWidth) * 360;
+    const saturation = 60 + (cursorPos.y / window.innerHeight) * 20;
+    const lightness = 50 + (cursorPos.y / window.innerHeight) * 10;
+
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#1a0a2e]">
-        {/* Animated gradient orbs */}
+      <main className={`relative flex min-h-screen items-center justify-center overflow-hidden bg-[#1a0a2e] transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+        {/* Dynamic gradient orbs that follow cursor */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-[20%] top-[20%] h-[600px] w-[600px] rounded-full bg-purple-600/20 blur-[120px] max-md:animate-none" />
-          <div className="absolute bottom-[20%] right-[10%] h-[500px] w-[500px] rounded-full bg-pink-600/15 blur-[100px] max-md:animate-none" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-[10%] left-[50%] h-[400px] w-[400px] rounded-full bg-blue-600/15 blur-[80px] max-md:animate-none" style={{ animationDelay: '2s' }} />
+          <div 
+            className="absolute h-[600px] w-[600px] rounded-full blur-[120px] transition-all duration-700 ease-out"
+            style={{
+              left: `${cursorPos.x / window.innerWidth * 100}%`,
+              top: `${cursorPos.y / window.innerHeight * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, hsla(${hue}, ${saturation}%, ${lightness}%, 0.3), transparent)`,
+            }}
+          />
+          <div 
+            className="absolute h-[500px] w-[500px] rounded-full blur-[100px] transition-all duration-900 ease-out"
+            style={{
+              left: `${(1 - cursorPos.x / window.innerWidth) * 100}%`,
+              top: `${(1 - cursorPos.y / window.innerHeight) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, hsla(${(hue + 120) % 360}, ${saturation}%, ${lightness}%, 0.25), transparent)`,
+            }}
+          />
+          <div 
+            className="absolute h-[400px] w-[400px] rounded-full blur-[80px] transition-all duration-1100 ease-out"
+            style={{
+              left: `${(cursorPos.x / window.innerWidth + 0.3) * 100}%`,
+              top: `${(cursorPos.y / window.innerHeight + 0.2) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, hsla(${(hue + 240) % 360}, ${saturation}%, ${lightness}%, 0.2), transparent)`,
+            }}
+          />
         </div>
 
         {/* Starfield */}
@@ -87,38 +139,52 @@ export default function HomePage() {
         {/* Main content */}
         <div className="relative z-10">
           <button
-            onClick={() => setEntered(true)}
-            className="group flex flex-col items-center gap-12"
+            onClick={handleEnter}
+            className="group flex flex-col items-center gap-8 md:gap-12"
           >
             {/* Avatar with glow and bounce */}
             <div className="relative animate-bounce-slow" style={{ animationDuration: '3s' }}>
-              <div className="absolute -inset-6 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-2xl transition-all duration-500 group-hover:scale-125" />
-              <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500 opacity-50 blur-sm" />
+              <div 
+                className="absolute -inset-6 rounded-full blur-2xl transition-all duration-500 group-hover:scale-125"
+                style={{
+                  background: `radial-gradient(circle, hsla(${hue}, ${saturation}%, ${lightness}%, 0.4), transparent)`,
+                }}
+              />
+              <div 
+                className="absolute -inset-1 rounded-full opacity-50 blur-sm transition-all duration-300"
+                style={{
+                  background: `linear-gradient(135deg, hsla(${hue}, ${saturation}%, ${lightness}%, 0.6), hsla(${(hue + 60) % 360}, ${saturation}%, ${lightness}%, 0.4))`,
+                }}
+              />
               <img
                 src="/avatar.png"
                 alt={artistName}
-                className="relative h-36 w-36 rounded-full border-2 border-white/20 object-cover shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                className="relative h-28 w-28 md:h-36 md:w-36 rounded-full border-2 border-white/20 object-cover shadow-2xl transition-transform duration-300 group-hover:scale-105"
               />
             </div>
 
             {/* Enter text */}
             <div className="flex flex-col items-center gap-3">
-              <span className="max-md:animate-none rounded-full border border-purple-400/40 bg-purple-500/20 px-8 py-3 text-sm font-medium uppercase tracking-[0.3em] text-purple-200 backdrop-blur-sm transition-all duration-300 group-hover:border-purple-400/80 group-hover:bg-purple-500/30 group-hover:shadow-lg group-hover:shadow-purple-500/20">
+              <span 
+                className="rounded-full border px-6 py-2 md:px-8 md:py-3 text-xs md:text-sm font-medium uppercase tracking-[0.3em] backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg"
+                style={{
+                  borderColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.4)`,
+                  backgroundColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.2)`,
+                  color: `hsl(${hue}, ${saturation}%, ${lightness + 20}%)`,
+                  boxShadow: `0 0 20px hsla(${hue}, ${saturation}%, ${lightness}%, 0.3)`,
+                }}
+              >
                 Click to Enter
               </span>
             </div>
           </button>
         </div>
-
-        <style jsx>{`
-          /* (stars are now canvas-based; no CSS starfield here) */
-        `}</style>
       </main>
     );
   }
 
   return (
-    <main className="relative min-h-screen bg-[#1a0a2e]">
+    <main className={`relative min-h-screen bg-[#1a0a2e] transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
       {/* Animated background orbs */}
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute left-[10%] top-[10%] h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[100px] max-md:animate-none" />
@@ -137,42 +203,42 @@ export default function HomePage() {
 
         {/* Main content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-6 py-12">
+          <div className="mx-auto max-w-3xl px-4 md:px-6 py-8 md:py-12">
             {/* Header / Profile Section */}
             <header className="flex flex-col items-center text-center">
               {/* Avatar with float animation */}
-              <div className="relative mb-6 animate-float">
+              <div className="relative mb-4 md:mb-6 animate-float">
                 <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-xl" />
                 <img
                   src="/avatar.png"
                   alt={artistName}
-                  className="relative h-24 w-24 rounded-full border-2 border-purple-400/50 object-cover shadow-xl"
+                  className="relative h-20 w-20 md:h-24 md:w-24 rounded-full border-2 border-purple-400/50 object-cover shadow-xl"
                 />
               </div>
 
               {/* Name & Handle */}
-              <h1 className="animate-text-float text-2xl font-bold tracking-wide text-white">
+              <h1 className="animate-text-float text-xl md:text-2xl font-bold tracking-wide text-white">
                 {artistName}
               </h1>
               
               {/* Bio */}
               <p
-                className="animate-text-float mt-2 max-w-md text-sm leading-relaxed text-white/60"
+                className="animate-text-float mt-2 max-w-md text-xs md:text-sm leading-relaxed text-white/60 px-4"
                 style={{ animationDelay: "0.15s" }}
               >
                 {bio}
               </p>
 
               {/* Social Links with bounce animations */}
-              <div className="mt-5 flex items-center gap-5">
+              <div className="mt-4 md:mt-5 flex items-center gap-3 md:gap-5">
                 <a
                   href="https://soundcloud.com/yvshh"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110"
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110"
                   style={{ animationDelay: '0s' }}
                 >
-                  <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.7 10.4a4.77 4.77 0 0 0-3.9-1.9 5.1 5.1 0 0 0-4.7-3.2A5.1 5.1 0 0 0 4 10.4a3.6 3.6 0 0 0-.1 7.2h13.8a3.2 3.2 0 0 0 0-6.4z" />
                   </svg>
                 </a>
@@ -180,10 +246,10 @@ export default function HomePage() {
                   href="https://www.instagram.com/itsyvshhh/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110"
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110"
                   style={{ animationDelay: '0.2s' }}
                 >
-                  <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 5.5A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5zm6.2-1.9a.9.9 0 1 0 .9.9.9.9 0 0 0-.9-.9z" />
                   </svg>
                 </a>
@@ -191,10 +257,10 @@ export default function HomePage() {
                   href="https://www.tiktok.com/@yvsh.mp3"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-14 w-14 max-md:animate-none items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110"
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110"
                   style={{ animationDelay: '0.4s' }}
                 >
-                  <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M14.5 4.8c.7.7 1.6 1.2 2.6 1.3v2.5a6 6 0 0 1-3.4-1.1v6.9a4.8 4.8 0 1 1-4.2-4.8v2.6a2.2 2.2 0 1 0 1.6 2.1V3h2.6c.1.7.4 1.3.8 1.8z" />
                   </svg>
                 </a>
@@ -202,9 +268,9 @@ export default function HomePage() {
             </header>
 
             {/* Featured Track */}
-            <section className="mt-10">
+            <section className="mt-8 md:mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.2s" }}
               >
                 Now Playing
@@ -220,9 +286,9 @@ export default function HomePage() {
             </section>
 
             {/* Free Downloads Section */}
-            <section className="mt-10">
+            <section className="mt-8 md:mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.35s" }}
               >
                 Free Downloads
