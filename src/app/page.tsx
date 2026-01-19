@@ -134,7 +134,7 @@ export default function HomePage() {
         </div>
 
         {/* Starfield */}
-        <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="pointer-events-none absolute inset-0 z-0" style={{ minHeight: '100vh', height: '100%' }}>
           <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
         </div>
 

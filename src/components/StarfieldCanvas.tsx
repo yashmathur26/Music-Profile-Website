@@ -128,9 +128,17 @@ export default function StarfieldCanvas({
     starsRef.current = stars;
 
     const resize = () => {
-      // Use viewport dimensions and document height for full coverage
+      // Use parent container dimensions for full document coverage
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      
+      // Get the full document height, not just viewport
       const width = window.innerWidth;
-      const height = Math.max(window.innerHeight, document.documentElement.scrollHeight);
+      const height = Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight
+      );
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       dprRef.current = dpr;
 
@@ -232,20 +240,12 @@ export default function StarfieldCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={clsx("inset-0", className)}
+      className={clsx("absolute inset-0 h-full w-full", className)}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        minHeight: '100vh',
-        height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
       }}
