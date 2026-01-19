@@ -208,37 +208,51 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl px-4 md:px-6 py-8 md:py-12">
             {/* Header / Profile Section */}
             <header className="flex flex-col items-center text-center">
-              {/* Avatar with float animation */}
+              {/* Avatar with float animation and dynamic glow */}
               <div className="relative mb-4 md:mb-6 animate-float">
-                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-xl" />
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-xl animate-glow-pulse" />
                 <img
                   src="/avatar.png"
                   alt={artistName}
-                  className="relative h-20 w-20 md:h-24 md:w-24 rounded-full border-2 border-purple-400/50 object-cover shadow-xl"
+                  className="relative h-20 w-20 md:h-24 md:w-24 rounded-full border-2 border-purple-400/50 object-cover shadow-xl animate-glow-text"
+                  style={{
+                    filter: 'drop-shadow(0 0 10px rgba(139, 92, 246, 0.6)) drop-shadow(0 0 20px rgba(236, 72, 153, 0.4))',
+                  }}
                 />
               </div>
 
-              {/* Name & Handle */}
-              <h1 className="animate-text-float text-xl md:text-2xl font-bold tracking-wide text-white">
+              {/* Name & Handle with dynamic glow */}
+              <h1 
+                className="animate-text-float text-xl md:text-2xl font-bold tracking-wide text-white animate-glow-text"
+                style={{
+                  textShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(236, 72, 153, 0.4)',
+                }}
+              >
                 {artistName}
               </h1>
               
-              {/* Bio */}
+              {/* Bio with glow */}
               <p
-                className="animate-text-float mt-2 max-w-md text-xs md:text-sm leading-relaxed text-white/60 px-4"
-                style={{ animationDelay: "0.15s" }}
+                className="animate-text-float mt-2 max-w-md text-xs md:text-sm leading-relaxed text-white/60 px-4 animate-glow-text"
+                style={{ 
+                  animationDelay: "0.15s",
+                  textShadow: '0 0 8px rgba(139, 92, 246, 0.5), 0 0 15px rgba(139, 92, 246, 0.3)',
+                }}
               >
                 {bio}
               </p>
 
-              {/* Social Links with bounce animations */}
+              {/* Social Links with bounce animations and dynamic glow */}
               <div className="mt-4 md:mt-5 flex items-center gap-3 md:gap-5">
                 <a
                   href="https://soundcloud.com/yvshh"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110"
-                  style={{ animationDelay: '0s' }}
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/20 text-purple-200 transition hover:bg-purple-500/30 hover:scale-110 animate-glow-icon"
+                  style={{ 
+                    animationDelay: '0s',
+                    filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 15px rgba(139, 92, 246, 0.5))',
+                  }}
                 >
                   <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.7 10.4a4.77 4.77 0 0 0-3.9-1.9 5.1 5.1 0 0 0-4.7-3.2A5.1 5.1 0 0 0 4 10.4a3.6 3.6 0 0 0-.1 7.2h13.8a3.2 3.2 0 0 0 0-6.4z" />
@@ -248,8 +262,11 @@ export default function HomePage() {
                   href="https://www.instagram.com/itsyvshhh/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110"
-                  style={{ animationDelay: '0.2s' }}
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-pink-400/40 bg-pink-500/20 text-pink-200 transition hover:bg-pink-500/30 hover:scale-110 animate-glow-icon"
+                  style={{ 
+                    animationDelay: '0.2s',
+                    filter: 'drop-shadow(0 0 8px rgba(236, 72, 153, 0.8)) drop-shadow(0 0 15px rgba(236, 72, 153, 0.5))',
+                  }}
                 >
                   <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 5.5A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5zm6.2-1.9a.9.9 0 1 0 .9.9.9.9 0 0 0-.9-.9z" />
@@ -259,8 +276,11 @@ export default function HomePage() {
                   href="https://www.tiktok.com/@yvsh.mp3"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110"
-                  style={{ animationDelay: '0.4s' }}
+                  className="flex h-12 w-12 md:h-14 md:w-14 max-md:animate-none items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-white/80 transition hover:bg-white/20 hover:scale-110 animate-glow-icon"
+                  style={{ 
+                    animationDelay: '0.4s',
+                    filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(255, 255, 255, 0.4))',
+                  }}
                 >
                   <svg className="h-6 w-6 md:h-7 md:w-7" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M14.5 4.8c.7.7 1.6 1.2 2.6 1.3v2.5a6 6 0 0 1-3.4-1.1v6.9a4.8 4.8 0 1 1-4.2-4.8v2.6a2.2 2.2 0 1 0 1.6 2.1V3h2.6c.1.7.4 1.3.8 1.8z" />
@@ -272,8 +292,11 @@ export default function HomePage() {
             {/* Featured Track */}
             <section className="mt-8 md:mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
-                style={{ animationDelay: "0.2s" }}
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300 animate-glow-text"
+                style={{ 
+                  animationDelay: "0.2s",
+                  textShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(236, 72, 153, 0.4)',
+                }}
               >
                 Now Playing
               </h2>
@@ -306,8 +329,11 @@ export default function HomePage() {
             {/* Free Downloads Section - Hidden on mobile */}
             <section className="mt-8 md:mt-10 hidden md:block">
               <h2
-                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
-                style={{ animationDelay: "0.35s" }}
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300 animate-glow-text"
+                style={{ 
+                  animationDelay: "0.35s",
+                  textShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(236, 72, 153, 0.4)',
+                }}
               >
                 Free Downloads
               </h2>
@@ -343,8 +369,11 @@ export default function HomePage() {
             {/* Shop Section */}
             <section className="mt-8 md:mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
-                style={{ animationDelay: "0.4s" }}
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300 animate-glow-text"
+                style={{ 
+                  animationDelay: "0.4s",
+                  textShadow: '0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(236, 72, 153, 0.4)',
+                }}
               >
                 Shop
               </h2>
@@ -409,6 +438,54 @@ export default function HomePage() {
           will-change: transform, opacity;
         }
         
+        /* Dynamic glow animations */
+        @keyframes glow-pulse {
+          0%, 100% {
+            opacity: 0.4;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.05);
+          }
+        }
+        
+        @keyframes glow-text {
+          0%, 100% {
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(236, 72, 153, 0.4);
+          }
+          33% {
+            text-shadow: 0 0 15px rgba(236, 72, 153, 0.8), 0 0 25px rgba(236, 72, 153, 0.6), 0 0 35px rgba(59, 130, 246, 0.4);
+          }
+          66% {
+            text-shadow: 0 0 12px rgba(59, 130, 246, 0.8), 0 0 22px rgba(59, 130, 246, 0.6), 0 0 32px rgba(139, 92, 246, 0.4);
+          }
+        }
+        
+        @keyframes glow-icon {
+          0%, 100% {
+            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 15px rgba(139, 92, 246, 0.5));
+          }
+          33% {
+            filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.8)) drop-shadow(0 0 18px rgba(236, 72, 153, 0.5));
+          }
+          66% {
+            filter: drop-shadow(0 0 9px rgba(59, 130, 246, 0.8)) drop-shadow(0 0 16px rgba(59, 130, 246, 0.5));
+          }
+        }
+        
+        .animate-glow-pulse {
+          animation: glow-pulse 3s ease-in-out infinite;
+        }
+        
+        .animate-glow-text {
+          animation: glow-text 4s ease-in-out infinite;
+        }
+        
+        .animate-glow-icon {
+          animation: glow-icon 3.5s ease-in-out infinite;
+        }
+        
         /* Reduce animations on mobile */
         @media (max-width: 768px) {
           .animate-float,
@@ -418,6 +495,11 @@ export default function HomePage() {
           }
           .animate-slide-in {
             animation: slide-in 0.3s ease-out forwards;
+          }
+          .animate-glow-text,
+          .animate-glow-icon,
+          .animate-glow-pulse {
+            animation: none !important;
           }
         }
       `}</style>
