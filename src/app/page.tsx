@@ -280,9 +280,25 @@ export default function HomePage() {
               <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
                 <iframe
                   title="SoundCloud player"
-                  src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/chris-brown-yo-but-bounce-yvsh-flip&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&volume=15"
+                  src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/firestarter&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&volume=15"
                   allow="autoplay"
                   className="h-[166px] w-full border-0"
+                />
+              </div>
+              
+              {/* Spotify Album Embed */}
+              <div className="mt-4 overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
+                <iframe
+                  data-testid="embed-iframe"
+                  style={{ borderRadius: '12px' }}
+                  src="https://open.spotify.com/embed/album/2zZFreSSbJiBhJFb9fEFoG?utm_source=generator&theme=0"
+                  width="100%"
+                  height="352"
+                  frameBorder="0"
+                  allowFullScreen
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="w-full"
                 />
               </div>
             </section>
