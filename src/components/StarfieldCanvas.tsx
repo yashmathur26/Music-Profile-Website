@@ -272,7 +272,7 @@ export default function StarfieldCanvas({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
+      ro.disconnect();
     };
   }, [seed, targetCounts.bright, targetCounts.dust, targetCounts.mid]);
 
