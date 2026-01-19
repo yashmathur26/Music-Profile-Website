@@ -21,7 +21,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        "flex min-h-screen flex-col border-r border-purple-500/20 bg-[#150820] py-6 text-white/70 transition-all duration-300 ease-in-out",
+        "flex min-h-screen flex-col border-r border-purple-500/20 bg-[#150820]/95 backdrop-blur-sm py-6 text-white/70 transition-all duration-300 ease-in-out relative z-10",
         expanded ? "w-72 px-5" : "w-16 px-2 sm:w-20 sm:px-3"
       )}
     >

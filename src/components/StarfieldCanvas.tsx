@@ -227,20 +227,21 @@ export default function StarfieldCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={clsx("inset-0 h-full w-full", className)}
+      className={clsx("inset-0", className)}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        position: 'fixed', // Keep stars stationary on scroll
+        position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         pointerEvents: 'none',
+        zIndex: 0,
       }}
       aria-hidden="true"
     />

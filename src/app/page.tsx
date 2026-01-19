@@ -133,8 +133,8 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Starfield - Hidden on mobile */}
-        <div className="pointer-events-none absolute inset-0 hidden md:block">
+        {/* Starfield */}
+        <div className="pointer-events-none fixed inset-0 z-0">
           <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
         </div>
 
@@ -195,16 +195,16 @@ export default function HomePage() {
       </div>
 
       {/* Starfield */}
-      <div className="pointer-events-none fixed inset-0 hidden md:block">
+      <div className="pointer-events-none fixed inset-0 z-0">
         <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
       </div>
 
-      <div className="relative flex min-h-screen overflow-x-hidden">
+      <div className="relative flex min-h-screen overflow-x-hidden z-10">
         {/* Sidebar */}
         <Sidebar currentSlug="firestarter" tracks={tracks} />
 
         {/* Main content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative z-10">
           <div className="mx-auto max-w-3xl px-4 md:px-6 py-8 md:py-12">
             {/* Header / Profile Section */}
             <header className="flex flex-col items-center text-center">
