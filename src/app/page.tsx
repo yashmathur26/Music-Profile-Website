@@ -94,9 +94,11 @@ export default function HomePage() {
 
   if (!entered) {
     // Calculate color based on cursor position
-    const hue = (cursorPos.x / window.innerWidth) * 360;
-    const saturation = 60 + (cursorPos.y / window.innerHeight) * 20;
-    const lightness = 50 + (cursorPos.y / window.innerHeight) * 10;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const height = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    const hue = width > 0 ? (cursorPos.x / width) * 360 : 270;
+    const saturation = height > 0 ? 60 + (cursorPos.y / height) * 20 : 70;
+    const lightness = height > 0 ? 50 + (cursorPos.y / height) * 10 : 55;
 
     return (
       <main className={`relative flex min-h-screen items-center justify-center overflow-hidden bg-[#1a0a2e] transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
@@ -105,8 +107,8 @@ export default function HomePage() {
           <div 
             className="absolute h-[600px] w-[600px] rounded-full blur-[120px] transition-all duration-700 ease-out"
             style={{
-              left: `${cursorPos.x / window.innerWidth * 100}%`,
-              top: `${cursorPos.y / window.innerHeight * 100}%`,
+              left: width > 0 ? `${cursorPos.x / width * 100}%` : '50%',
+              top: height > 0 ? `${cursorPos.y / height * 100}%` : '50%',
               transform: 'translate(-50%, -50%)',
               background: `radial-gradient(circle, hsla(${hue}, ${saturation}%, ${lightness}%, 0.3), transparent)`,
             }}
@@ -114,8 +116,8 @@ export default function HomePage() {
           <div 
             className="absolute h-[500px] w-[500px] rounded-full blur-[100px] transition-all duration-900 ease-out"
             style={{
-              left: `${(1 - cursorPos.x / window.innerWidth) * 100}%`,
-              top: `${(1 - cursorPos.y / window.innerHeight) * 100}%`,
+              left: width > 0 ? `${(1 - cursorPos.x / width) * 100}%` : '50%',
+              top: height > 0 ? `${(1 - cursorPos.y / height) * 100}%` : '50%',
               transform: 'translate(-50%, -50%)',
               background: `radial-gradient(circle, hsla(${(hue + 120) % 360}, ${saturation}%, ${lightness}%, 0.25), transparent)`,
             }}
@@ -123,8 +125,8 @@ export default function HomePage() {
           <div 
             className="absolute h-[400px] w-[400px] rounded-full blur-[80px] transition-all duration-1100 ease-out"
             style={{
-              left: `${(cursorPos.x / window.innerWidth + 0.3) * 100}%`,
-              top: `${(cursorPos.y / window.innerHeight + 0.2) * 100}%`,
+              left: width > 0 ? `${(cursorPos.x / width + 0.3) * 100}%` : '50%',
+              top: height > 0 ? `${(cursorPos.y / height + 0.2) * 100}%` : '50%',
               transform: 'translate(-50%, -50%)',
               background: `radial-gradient(circle, hsla(${(hue + 240) % 360}, ${saturation}%, ${lightness}%, 0.2), transparent)`,
             }}
@@ -328,22 +330,22 @@ export default function HomePage() {
             </section>
 
             {/* Shop Section */}
-            <section className="mt-10">
+            <section className="mt-8 md:mt-10">
               <h2
-                className="animate-text-float mb-3 text-center text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
+                className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.4s" }}
               >
                 Shop
               </h2>
-              <div className="rounded-xl border border-purple-400/25 bg-purple-900/20 p-5 text-center shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
-                <p className="text-sm font-extrabold tracking-[0.25em] text-white/90">
+              <div className="rounded-xl border border-purple-400/25 bg-purple-900/20 p-4 md:p-5 text-center shadow-[0_12px_30px_rgba(0,0,0,0.25)]">
+                <p className="text-xs md:text-sm font-extrabold tracking-[0.25em] text-white/90">
                   COMING SOON
                 </p>
               </div>
             </section>
 
             {/* Footer */}
-            <footer className="mt-12 text-center">
+            <footer className="mt-8 md:mt-12 text-center">
               <p
                 className="animate-text-float text-[10px] text-white/20"
                 style={{ animationDelay: "0.45s" }}
