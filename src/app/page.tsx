@@ -133,8 +133,8 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Starfield */}
-        <div className="pointer-events-none absolute inset-0">
+        {/* Starfield - Hidden on mobile */}
+        <div className="pointer-events-none absolute inset-0 hidden md:block">
           <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
         </div>
 
@@ -195,7 +195,7 @@ export default function HomePage() {
       </div>
 
       {/* Starfield */}
-      <div className="pointer-events-none fixed inset-0">
+      <div className="pointer-events-none fixed inset-0 hidden md:block">
         <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
       </div>
 
@@ -303,8 +303,8 @@ export default function HomePage() {
               </div>
             </section>
 
-            {/* Free Downloads Section */}
-            <section className="mt-8 md:mt-10">
+            {/* Free Downloads Section - Hidden on mobile */}
+            <section className="mt-8 md:mt-10 hidden md:block">
               <h2
                 className="animate-text-float mb-3 text-center text-xl md:text-2xl font-bold uppercase tracking-[0.2em] text-purple-300"
                 style={{ animationDelay: "0.35s" }}
@@ -312,7 +312,7 @@ export default function HomePage() {
                 Free Downloads
               </h2>
               <div className="grid gap-2">
-                {tracks.slice(0, isMobile ? 3 : tracks.length).map((track, i) => (
+                {tracks.map((track, i) => (
                   <Link
                     key={track.slug}
                     href={`/${track.slug}`}
@@ -337,11 +337,6 @@ export default function HomePage() {
                     </svg>
                   </Link>
                 ))}
-                {isMobile && tracks.length > 3 && (
-                  <div className="flex items-center justify-center py-2">
-                    <span className="text-xs text-purple-300/50">...</span>
-                  </div>
-                )}
               </div>
             </section>
 
