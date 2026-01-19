@@ -40,6 +40,14 @@ export const tracks: TrackConfig[] = [
     soundcloudEmbedUrl:
       "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/chris-brown-yo-but-bounce-yvsh-flip&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
     downloadUrl: "https://drive.google.com/uc?export=download&id=1f9PvYeYC4SRUhGhkOXgmo0sq3UijaM5x"
+  },
+  {
+    slug: "firestarter",
+    title: "FIRESTARTER",
+    artworkUrl: "/dont-stop-the-music.png",
+    soundcloudEmbedUrl:
+      "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/firestarter&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
+    downloadUrl: "https://drive.google.com/uc?export=download&id=1rUwxnFjD_ML1eboSyva1jGGFvd34RnPo"
   }
 ];
 
