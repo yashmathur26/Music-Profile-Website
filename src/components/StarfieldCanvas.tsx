@@ -128,9 +128,18 @@ export default function StarfieldCanvas({
     starsRef.current = stars;
 
     const resize = () => {
-      // Use viewport dimensions - canvas stays fixed to viewport
+      // Use parent container dimensions for full document coverage
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      
+      // Get the full document height for scrolling background
       const width = window.innerWidth;
-      const height = window.innerHeight;
+      const height = Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight,
+        parent.scrollHeight || 0
+      );
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       dprRef.current = dpr;
 
@@ -143,14 +152,15 @@ export default function StarfieldCanvas({
       // Re-render immediately after resize to maintain brightness
       const w = canvas.width / dpr;
       const h = canvas.height / dpr;
-      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+      ctx.fillRect(0, 0, w, h);
       
       // Redraw all stars immediately
       for (const s of starsRef.current) {
         const { r, g, b } = starColor(s.temp);
-        const alphaBase = s.glow > 0.4 ? 0.55 : s.glow > 0.1 ? 0.35 : 0.18;
+        const alphaBase = s.glow > 0.4 ? 0.65 : s.glow > 0.1 ? 0.45 : 0.25;
         const tw = 0.55 + 0.45 * Math.sin(s.ph);
-        const alpha = alphaBase * tw;
+        const alpha = Math.min(1, alphaBase * tw);
 
         const px = s.x * w;
         const py = s.y * h;
@@ -173,8 +183,16 @@ export default function StarfieldCanvas({
       }
     };
 
-    // Only resize on window resize, not scroll
-    window.addEventListener('resize', resize);
+    // Resize on window resize and when content height changes
+    const handleResize = () => resize();
+    window.addEventListener('resize', handleResize);
+    
+    // Use ResizeObserver to detect when parent height changes
+    const ro = new ResizeObserver(() => resize());
+    if (canvas.parentElement) {
+      ro.observe(canvas.parentElement);
+    }
+    
     resize();
 
     // Throttle rendering on mobile for better scroll performance
@@ -261,19 +279,12 @@ export default function StarfieldCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={clsx("inset-0", className)}
+      className={clsx("absolute inset-0 h-full w-full", className)}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        height: '100vh',
         pointerEvents: 'none',
         zIndex: 0,
       }}
