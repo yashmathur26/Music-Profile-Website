@@ -201,7 +201,7 @@ export default function HomePage() {
 
       <div className="relative flex min-h-screen overflow-x-hidden">
         {/* Sidebar */}
-        <Sidebar currentSlug="dont-stop-the-music-piano" tracks={tracks} />
+        <Sidebar currentSlug="firestarter" tracks={tracks} />
 
         {/* Main content */}
         <div className="flex-1 overflow-y-auto">
