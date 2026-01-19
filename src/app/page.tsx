@@ -186,7 +186,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className={`relative min-h-screen bg-[#1a0a2e] transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+    <main className={`relative min-h-screen bg-[#1a0a2e] transition-all duration-1000 ${isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`} style={{ minHeight: '100vh' }}>
       {/* Animated background orbs */}
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute left-[10%] top-[10%] h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[100px] max-md:animate-none" />

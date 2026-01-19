@@ -128,9 +128,9 @@ export default function StarfieldCanvas({
     starsRef.current = stars;
 
     const resize = () => {
-      // Use viewport dimensions instead of parent for fixed positioning
+      // Use viewport dimensions and document height for full coverage
       const width = window.innerWidth;
-      const height = window.innerHeight;
+      const height = Math.max(window.innerHeight, document.documentElement.scrollHeight);
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       dprRef.current = dpr;
 
@@ -141,8 +141,12 @@ export default function StarfieldCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    // Resize on window resize for fixed positioning
-    window.addEventListener('resize', resize);
+    // Resize on window resize and scroll for full coverage
+    const handleResize = () => resize();
+    const handleScroll = () => resize();
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll);
     resize();
 
     // Throttle rendering on mobile for better scroll performance
@@ -220,7 +224,8 @@ export default function StarfieldCanvas({
     raf = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, [seed, targetCounts.bright, targetCounts.dust, targetCounts.mid]);
 
@@ -239,7 +244,8 @@ export default function StarfieldCanvas({
         right: 0,
         bottom: 0,
         width: '100vw',
-        height: '100vh',
+        minHeight: '100vh',
+        height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
       }}
