@@ -128,17 +128,9 @@ export default function StarfieldCanvas({
     starsRef.current = stars;
 
     const resize = () => {
-      // Use parent container dimensions for full document coverage
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      
-      // Get the full document height, not just viewport
+      // Use viewport dimensions - canvas stays fixed to viewport
       const width = window.innerWidth;
-      const height = Math.max(
-        window.innerHeight,
-        document.documentElement.scrollHeight,
-        document.body.scrollHeight
-      );
+      const height = window.innerHeight;
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       dprRef.current = dpr;
 
@@ -147,14 +139,42 @@ export default function StarfieldCanvas({
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      
+      // Re-render immediately after resize to maintain brightness
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      ctx.clearRect(0, 0, w, h);
+      
+      // Redraw all stars immediately
+      for (const s of starsRef.current) {
+        const { r, g, b } = starColor(s.temp);
+        const alphaBase = s.glow > 0.4 ? 0.55 : s.glow > 0.1 ? 0.35 : 0.18;
+        const tw = 0.55 + 0.45 * Math.sin(s.ph);
+        const alpha = alphaBase * tw;
+
+        const px = s.x * w;
+        const py = s.y * h;
+
+        if (s.glow > 0.01) {
+          const halo = ctx.createRadialGradient(px, py, 0, px, py, s.r * (6 + 10 * s.glow));
+          halo.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.35})`);
+          halo.addColorStop(0.35, `rgba(139,92,246,${alpha * 0.18})`);
+          halo.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(px, py, s.r * (6 + 10 * s.glow), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+        ctx.beginPath();
+        ctx.arc(px, py, s.r * (0.9 + 0.25 * tw), 0, Math.PI * 2);
+        ctx.fill();
+      }
     };
 
-    // Resize on window resize and scroll for full coverage
-    const handleResize = () => resize();
-    const handleScroll = () => resize();
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleScroll);
+    // Only resize on window resize, not scroll
+    window.addEventListener('resize', resize);
     resize();
 
     // Throttle rendering on mobile for better scroll performance
@@ -193,15 +213,16 @@ export default function StarfieldCanvas({
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, w, h);
 
-      // draw stars
+      // draw stars with consistent brightness
       for (const s of starsRef.current) {
         // twinkle is independent
         s.ph += dt * s.tw;
         const tw = 0.55 + 0.45 * Math.sin(s.ph);
 
         const { r, g, b } = starColor(s.temp);
-        const alphaBase = s.glow > 0.4 ? 0.55 : s.glow > 0.1 ? 0.35 : 0.18;
-        const alpha = alphaBase * tw;
+        // Ensure full brightness - no dimming
+        const alphaBase = s.glow > 0.4 ? 0.65 : s.glow > 0.1 ? 0.45 : 0.25;
+        const alpha = Math.min(1, alphaBase * tw); // Cap at 1.0 for full brightness
 
         const px = s.x * w;
         const py = s.y * h;
@@ -240,12 +261,19 @@ export default function StarfieldCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className={clsx("absolute inset-0 h-full w-full", className)}
+      className={clsx("inset-0", className)}
       style={{
         willChange: 'transform',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
         pointerEvents: 'none',
         zIndex: 0,
       }}
