@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { tracks } from "@/lib/tracks";
+import { tracks, DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
 import Sidebar from "@/components/Sidebar";
 import StarfieldCanvas from "@/components/StarfieldCanvas";
 
@@ -201,7 +201,7 @@ export default function HomePage() {
 
       <div className="relative flex min-h-screen overflow-x-hidden z-10">
         {/* Sidebar */}
-        <Sidebar currentSlug="firestarter" tracks={tracks} />
+        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
 
         {/* Main content */}
         <div className="flex-1 overflow-y-auto relative z-10">
@@ -303,25 +303,9 @@ export default function HomePage() {
               <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
                 <iframe
                   title="SoundCloud player"
-                  src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/firestarter&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&volume=15"
+                  src={`${(getTrackBySlug(DEFAULT_TRACK_SLUG)?.soundcloudEmbedUrl ?? "").replace("auto_play=false", "auto_play=true").replace("visual=true", "visual=false")}&volume=15`}
                   allow="autoplay"
                   className="h-[166px] w-full border-0"
-                />
-              </div>
-              
-              {/* Spotify Album Embed */}
-              <div className="mt-4 overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
-                <iframe
-                  data-testid="embed-iframe"
-                  style={{ borderRadius: '12px' }}
-                  src="https://open.spotify.com/embed/album/2zZFreSSbJiBhJFb9fEFoG?utm_source=generator&theme=0"
-                  width="100%"
-                  height="352"
-                  frameBorder="0"
-                  allowFullScreen
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="w-full"
                 />
               </div>
             </section>

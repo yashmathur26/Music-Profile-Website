@@ -6,7 +6,7 @@ type TrackConfig = {
   soundcloudEmbedUrl: string;
 };
 
-export const DEFAULT_TRACK_SLUG = "firestarter";
+export const DEFAULT_TRACK_SLUG = "john-summit-lights-go-out-yvsh";
 
 export const tracks: TrackConfig[] = [
   {
