@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { campaign } from "@/config/campaign";
 
 type Track = {
   slug: string;
@@ -15,8 +17,8 @@ type SidebarProps = {
 };
 
 export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
+  const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
-  const [downloadsOpen, setDownloadsOpen] = useState(false);
 
   return (
     <aside
@@ -27,11 +29,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
     >
       {/* Toggle Button */}
       <button
-        onClick={() => {
-          setExpanded((v) => !v);
-          // If collapsing, also close the downloads panel so next expand is clean.
-          setDownloadsOpen(false);
-        }}
+        onClick={() => setExpanded((v) => !v)}
         className="mb-10 flex h-10 w-full items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-300 transition hover:bg-purple-500/20"
       >
         {expanded ? (
@@ -86,10 +84,11 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
       <div className={clsx("mb-10 flex flex-col gap-10", !expanded && "items-center")}>
         {/* Home Button */}
         <Link
-          href="/"
+          href="/home"
           className={clsx(
             "flex items-center gap-3 rounded-xl border border-purple-400/25 bg-purple-500/[0.12] text-purple-100 transition hover:bg-purple-500/20",
-            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center"
+            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
+            pathname === "/home" && "border-purple-400/50 bg-purple-500/25"
           )}
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,12 +97,33 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
           {expanded && <span className="text-sm font-medium">Home</span>}
         </Link>
 
+        {/* Pre-save (only when campaign active) */}
+        {campaign.isActive && (
+          <Link
+            href="/presave"
+            className={clsx(
+              "flex items-center gap-3 rounded-xl border transition",
+              expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
+              pathname?.startsWith("/presave")
+                ? "border-current bg-white/15"
+                : "border-white/30 bg-white/10 hover:bg-white/15"
+            )}
+            style={{ borderColor: campaign.accentColor, color: campaign.accentColor }}
+          >
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02z" />
+            </svg>
+            {expanded && <span className="text-sm font-medium">Pre-save</span>}
+          </Link>
+        )}
+
         {/* Shop Button */}
         <Link
           href="/shop"
           className={clsx(
             "flex items-center gap-3 rounded-xl border border-blue-400/20 bg-blue-500/[0.12] text-blue-100 transition hover:bg-blue-500/20",
-            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center"
+            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
+            pathname === "/shop" && "border-blue-400/50 bg-blue-500/25"
           )}
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,68 +137,20 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
           {expanded && <span className="text-sm font-medium">Shop</span>}
         </Link>
 
-        {/* Presave removed (placeholder for later if needed) */}
-      </div>
-
-      {/* Downloads */}
-      <div className={clsx("flex flex-col gap-2", !expanded && "items-center")}>
-        {expanded ? (
-          <details
-            open={downloadsOpen}
-            onToggle={(e) =>
-              setDownloadsOpen((e.target as HTMLDetailsElement).open)
-            }
-            className="group"
-          >
-            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl border border-purple-400/25 bg-purple-500/[0.12] px-4 py-2.5 text-purple-100 transition hover:bg-purple-500/20">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span className="text-sm font-medium">Downloads</span>
-              <svg
-                className="ml-auto h-4 w-4 text-white/70 transition-transform duration-300 group-open:rotate-180"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 15l7-7 7 7"
-                />
-              </svg>
-            </summary>
-
-            {/* Animated dropdown */}
-            <div className="mt-2 overflow-hidden transition-all duration-300 ease-out group-open:max-h-96 group-open:opacity-100 group-open:translate-y-0 max-h-0 opacity-0 -translate-y-2">
-              <div className="space-y-2 text-[11px] font-normal normal-case tracking-normal">
-                {tracks.map((item) => (
-                  <Link
-                    key={item.slug}
-                    href={`/${item.slug}`}
-                    className="flex items-center justify-between rounded-lg border border-purple-400/20 bg-purple-500/[0.10] px-3 py-2 text-white/90 transition hover:border-purple-300/35 hover:bg-purple-500/[0.16]"
-                  >
-                    <span className="truncate text-xs">{item.title}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </details>
-        ) : (
-          <button
-            onClick={() => {
-              setExpanded(true);
-              setDownloadsOpen(true);
-            }}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-purple-400/25 bg-purple-500/[0.12] text-purple-100 transition hover:bg-purple-500/20"
-            title="Downloads"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-        )}
+        {/* Downloads Button */}
+        <Link
+          href="/downloads"
+          className={clsx(
+            "flex items-center gap-3 rounded-xl border border-purple-400/25 bg-purple-500/[0.12] text-purple-100 transition hover:bg-purple-500/20",
+            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
+            pathname === "/downloads" && "border-purple-400/50 bg-purple-500/25"
+          )}
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          {expanded && <span className="text-sm font-medium">Downloads</span>}
+        </Link>
       </div>
     </aside>
   );

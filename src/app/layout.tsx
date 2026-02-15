@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import type { Metadata } from "next";
+import StarfieldCanvas from "@/components/StarfieldCanvas";
 
 export const metadata: Metadata = {
   title: "yvsh music",
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
@@ -42,7 +43,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeProvider>
-          <div className="min-h-screen bg-surface">
+          <div className="min-h-screen bg-surface relative">
+            <div className="pointer-events-none fixed inset-0 z-0">
+              <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
+            </div>
             {children}
           </div>
         </ThemeProvider>

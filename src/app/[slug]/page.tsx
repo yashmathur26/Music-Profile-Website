@@ -1,6 +1,5 @@
 import DownloadGate from "@/components/DownloadGate";
 import Sidebar from "@/components/Sidebar";
-import StarfieldCanvas from "@/components/StarfieldCanvas";
 import { getTrackBySlug, tracks } from "@/lib/tracks";
 
 type PageProps = {
@@ -15,10 +14,7 @@ export default function TrackPage({ params }: PageProps) {
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
 
   return (
-    <main className="min-h-screen bg-[#1a0a2e]">
-      <div className="pointer-events-none fixed inset-0">
-        <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
-      </div>
+    <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(139,92,246,0.15),_transparent_50%),radial-gradient(ellipse_at_bottom_left,_rgba(236,72,153,0.1),_transparent_50%)]" />
       <div className="relative flex min-h-screen w-full">
         <Sidebar currentSlug={track.slug} tracks={tracks} />

@@ -1,16 +1,11 @@
 import Sidebar from "@/components/Sidebar";
-import StarfieldCanvas from "@/components/StarfieldCanvas";
-import { tracks } from "@/lib/tracks";
+import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 
 export default function ShopPage() {
   return (
-    <main className="relative min-h-screen bg-[#1a0a2e]">
-      <div className="pointer-events-none fixed inset-0">
-        <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
-      </div>
-
+    <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="relative flex min-h-screen overflow-x-hidden">
-        <Sidebar currentSlug="dont-stop-the-music-piano" tracks={tracks} />
+        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-6 py-12">
