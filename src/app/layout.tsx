@@ -45,7 +45,7 @@ export default function RootLayout({
         <ThemeProvider>
           <div className="min-h-screen bg-surface relative">
             <div className="pointer-events-none fixed inset-0 z-0">
-              <StarfieldCanvas density={1.0} seed={1337} className="opacity-90" />
+              <StarfieldCanvas density={1.0} seed={1337} className="opacity-100" />
             </div>
             {children}
           </div>

@@ -158,7 +158,7 @@ export default function StarfieldCanvas({
       // Redraw all stars immediately
       for (const s of starsRef.current) {
         const { r, g, b } = starColor(s.temp);
-        const alphaBase = s.glow > 0.4 ? 0.65 : s.glow > 0.1 ? 0.45 : 0.25;
+        const alphaBase = s.glow > 0.4 ? 0.9 : s.glow > 0.1 ? 0.7 : 0.5;
         const tw = 0.55 + 0.45 * Math.sin(s.ph);
         const alpha = Math.min(1, alphaBase * tw);
 
@@ -167,8 +167,8 @@ export default function StarfieldCanvas({
 
         if (s.glow > 0.01) {
           const halo = ctx.createRadialGradient(px, py, 0, px, py, s.r * (6 + 10 * s.glow));
-          halo.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.35})`);
-          halo.addColorStop(0.35, `rgba(139,92,246,${alpha * 0.18})`);
+          halo.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.5})`);
+          halo.addColorStop(0.35, `rgba(139,92,246,${alpha * 0.28})`);
           halo.addColorStop(1, "rgba(0,0,0,0)");
           ctx.fillStyle = halo;
           ctx.beginPath();
@@ -238,19 +238,16 @@ export default function StarfieldCanvas({
         const tw = 0.55 + 0.45 * Math.sin(s.ph);
 
         const { r, g, b } = starColor(s.temp);
-        // Ensure full brightness - no dimming
-        const alphaBase = s.glow > 0.4 ? 0.65 : s.glow > 0.1 ? 0.45 : 0.25;
-        const alpha = Math.min(1, alphaBase * tw); // Cap at 1.0 for full brightness
+        const alphaBase = s.glow > 0.4 ? 0.9 : s.glow > 0.1 ? 0.7 : 0.5;
+        const alpha = Math.min(1, alphaBase * tw);
 
         const px = s.x * w;
         const py = s.y * h;
 
-        // glow halo for mid/bright
         if (s.glow > 0.01) {
           const halo = ctx.createRadialGradient(px, py, 0, px, py, s.r * (6 + 10 * s.glow));
-          halo.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.35})`);
-          // purple-ish halo tint for vibe
-          halo.addColorStop(0.35, `rgba(139,92,246,${alpha * 0.18})`);
+          halo.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.5})`);
+          halo.addColorStop(0.35, `rgba(139,92,246,${alpha * 0.28})`);
           halo.addColorStop(1, "rgba(0,0,0,0)");
           ctx.fillStyle = halo;
           ctx.beginPath();
