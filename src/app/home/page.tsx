@@ -71,13 +71,21 @@ export default function HomePage() {
                 <p className="text-sm font-semibold text-white/90">
                   {campaign.trackTitle} — dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </p>
-                <Link
-                  href="/api/spotify/authorize"
-                  className="mt-2 inline-block text-sm font-medium underline"
-                  style={{ color: campaign.accentColor }}
-                >
-                  Pre-save now →
-                </Link>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
+                  <Link
+                    href="/api/spotify/authorize"
+                    className="text-sm font-medium underline"
+                    style={{ color: campaign.accentColor }}
+                  >
+                    Pre-save now →
+                  </Link>
+                  <Link
+                    href="/stats"
+                    className="text-sm font-medium text-purple-300 underline hover:text-purple-200"
+                  >
+                    View My YVSH Stats →
+                  </Link>
+                </div>
               </div>
             )}
 

@@ -36,7 +36,9 @@ Replace `YOUR_TRIGGER_SAVES_SECRET` with the same value as `TRIGGER_SAVES_SECRET
 
 1. Go to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
 2. Create an app (e.g. "YVSH Music").
-3. **Redirect URI**: add `https://yvshmusic.com/api/spotify/callback` (and for local dev: `http://localhost:3000/api/spotify/callback`).
+3. **Redirect URIs**: add both:
+   - Presave: `https://yvshmusic.com/api/spotify/callback` (and `http://localhost:3000/api/spotify/callback` for local dev).
+   - Stats: `https://yvshmusic.com/api/auth/spotify/callback` (and `http://localhost:3000/api/auth/spotify/callback` for local dev).
 4. Copy Client ID and Client Secret into env.
 5. **Quota**: In Development Mode only 25 users can authorize. Submit a **quota extension request** in the dashboard before your first campaign so unlimited fans can presave.
 
