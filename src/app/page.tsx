@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { campaign, isReleaseLive } from "@/config/campaign";
+import CountdownTimer from "@/components/CountdownTimer";
 
 const artistName = "YVSH";
 
@@ -65,13 +66,13 @@ export default function SplashPage() {
 
           <div className="relative">
             <div
-              className="absolute -inset-4 rounded-2xl blur-xl opacity-60"
-              style={{ background: accent, boxShadow: `0 0 60px ${accent}80` }}
+              className="absolute -inset-3 rounded-2xl blur-xl opacity-60"
+              style={{ background: accent, boxShadow: `0 0 50px ${accent}80` }}
             />
             <img
               src={campaign.coverArt}
               alt={campaign.trackTitle}
-              className="relative h-48 w-48 rounded-2xl object-cover shadow-2xl md:h-64 md:w-64"
+              className="relative h-36 w-36 rounded-2xl object-cover shadow-2xl md:h-44 md:w-44"
             />
           </div>
 
@@ -91,38 +92,51 @@ export default function SplashPage() {
             <p className="mt-2 text-xs text-white/50">{campaign.trackDescription}</p>
           </div>
 
-          {!released ? (
-            <Link
-              href="/presave"
-              className="flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-bold text-white transition hover:scale-105"
-              style={{
-                backgroundColor: accent,
-                boxShadow: `0 0 30px ${accent}60`,
-              }}
-            >
-              <SpotifyIcon className="h-6 w-6" />
-              Pre-save on Spotify
-            </Link>
-          ) : (
-            <Link
-              href="/presave"
-              className="flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-bold text-white transition hover:scale-105"
-              style={{
-                backgroundColor: accent,
-                boxShadow: `0 0 30px ${accent}60`,
-              }}
-            >
-              <SpotifyIcon className="h-6 w-6" />
-              Listen on Spotify
-            </Link>
+          {campaign.showCountdown && !released && (
+            <div className="w-full max-w-xs">
+              <CountdownTimer releaseDate={campaign.releaseDate} accentColor={accent} />
+            </div>
           )}
 
-          <Link
-            href="/home"
-            className="text-sm text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
-          >
-            or enter site →
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            {!released ? (
+              <Link
+                href="/api/spotify/authorize"
+                className="flex items-center justify-center gap-2 rounded-2xl px-8 py-4 text-lg font-bold text-white transition hover:scale-105"
+                style={{
+                  backgroundColor: accent,
+                  boxShadow: `0 0 30px ${accent}60`,
+                }}
+              >
+                <SpotifyIcon className="h-6 w-6" />
+                Pre-save on Spotify
+              </Link>
+            ) : (
+              <Link
+                href={campaign.spotify.trackUri ? (campaign.spotify.trackUri.startsWith("http") ? campaign.spotify.trackUri : `https://open.spotify.com/track/${campaign.spotify.trackUri.replace("spotify:track:", "")}`) : "/presave"}
+                className="flex items-center justify-center gap-2 rounded-2xl px-8 py-4 text-lg font-bold text-white transition hover:scale-105"
+                style={{
+                  backgroundColor: accent,
+                  boxShadow: `0 0 30px ${accent}60`,
+                }}
+              >
+                <SpotifyIcon className="h-6 w-6" />
+                Listen on Spotify
+              </Link>
+            )}
+            <Link
+              href="/home"
+              className="flex items-center justify-center gap-2 rounded-2xl border-2 px-8 py-4 text-lg font-bold transition hover:scale-105"
+              style={{
+                borderColor: accent,
+                color: accent,
+                backgroundColor: `${accent}15`,
+                boxShadow: `0 0 20px ${accent}30`,
+              }}
+            >
+              See socials
+            </Link>
+          </div>
         </motion.div>
       </main>
     );

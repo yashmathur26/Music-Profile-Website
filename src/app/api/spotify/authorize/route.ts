@@ -5,14 +5,12 @@ import { randomBytes } from "crypto";
 
 export async function GET(req: NextRequest) {
   if (!campaign.isActive || !campaign.spotify.enabled) {
-    return NextResponse.redirect(new URL("/presave", req.url));
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Preview mode: no Spotify app yet — redirect back so you can see the presave page without errors
+  // Preview mode: no Spotify app yet — redirect back to landing
   if (!process.env.SPOTIFY_CLIENT_ID) {
-    const presaveUrl = new URL("/presave", req.nextUrl.origin);
-    presaveUrl.searchParams.set("preview", "1");
-    return NextResponse.redirect(presaveUrl);
+    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
   }
 
   const state = randomBytes(16).toString("hex");

@@ -40,6 +40,65 @@ Replace `YOUR_TRIGGER_SAVES_SECRET` with the same value as `TRIGGER_SAVES_SECRET
 4. Copy Client ID and Client Secret into env.
 5. **Quota**: In Development Mode only 25 users can authorize. Submit a **quota extension request** in the dashboard before your first campaign so unlimited fans can presave.
 
+## Storing user data: safe and cheap
+
+### What you store
+
+Each presave is one row in the `presaves` table:
+
+| Column | What it is | Why you need it |
+|--------|------------|------------------|
+| `id` | UUID | Primary key. |
+| `campaign_id` | e.g. `10-outta-10` | Which release; lets you run triggers per campaign. |
+| `spotify_user_id` | Spotify’s user ID | Identifies the fan; avoids saving twice for the same person. |
+| `refresh_token` | Spotify OAuth refresh token | Lets you get a fresh access token on release day and call “save this track” for that user. |
+| `email` | optional | Not used right now; there if you add email later. |
+| `saved` | boolean | So you know who’s already been saved and don’t re-run. |
+| `created_at` | timestamp | When they presaved. |
+
+You do **not** store passwords, payment info, or anything except what’s above. The only sensitive value is the **refresh token** (so only your server should ever read it).
+
+---
+
+### Keeping it safe
+
+1. **Secrets only in env**
+   - `SPOTIFY_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SAVES_SECRET` live only in env (e.g. Vercel env vars or `.env.local`). They are never in the repo or sent to the browser.
+
+2. **Database locked down (RLS)**
+   - Supabase Row-Level Security is on for `presaves` with a policy that allows **no one** by default. Only your backend, using the **service role** key, can read/write. Browsers and anonymous users cannot query the table at all.
+
+3. **No client-side DB access**
+   - The frontend never talks to Supabase. It only calls your API routes. The service role key is used only in server-side code (API routes, server components). So users can’t touch the DB or see tokens.
+
+4. **HTTPS only**
+   - All traffic to your site and to Supabase/Spotify is over HTTPS, so data in transit is encrypted.
+
+5. **Refresh tokens**
+   - Stored in Supabase. Supabase encrypts data at rest. If you want an extra layer, you can add **application-level encryption**: encrypt the token with a key in env before saving, decrypt only in the trigger route when calling Spotify. (Not required for Supabase’s security; optional if you want token values protected even if someone got DB access.)
+
+6. **Admin link**
+   - Your stats/trigger URL contains your secret. Treat it like a password: bookmark it, don’t share it, use it only on your own device.
+
+---
+
+### Keeping it cheap
+
+1. **Supabase free tier**
+   - Free tier includes: **500 MB database**, **50,000 rows** in tables, generous API usage. One presave ≈ one row (~0.5 KB). So you can store **tens of thousands of presaves** before hitting limits. No credit card required for the free tier.
+
+2. **Row size**
+   - Each row is small: UUID, a few short strings (`campaign_id`, `spotify_user_id`), one longer string (`refresh_token`, ~200–400 chars), optional email, boolean, timestamp. Even 50,000 rows is only on the order of tens of MB, well under 500 MB.
+
+3. **When you’d pay**
+   - **Supabase:** Only if you outgrow free (e.g. many campaigns and 50K+ presaves total). Paid plans start around $25/mo.
+   - **Vercel:** Serverless and hosting are fine on the free tier for this. You’d pay if you need more builds or higher limits.
+   - **Spotify:** API use for presave (authorize + save track) is free; no extra cost for storing or using tokens.
+
+So with one Supabase project and env vars set correctly, your user data stays safe and the setup stays free for a long time.
+
+---
+
 ## Supabase: `presaves` table
 
 Run in Supabase SQL editor:

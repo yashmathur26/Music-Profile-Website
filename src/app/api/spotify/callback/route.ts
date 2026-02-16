@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const returnTo = cookieStore.get("spotify_return_to")?.value || "/presave/success";
 
   const baseUrl = req.nextUrl.origin;
-  const errorUrl = new URL("/presave", baseUrl);
+  const errorUrl = new URL("/", baseUrl);
   errorUrl.searchParams.set("error", "oauth_failed");
 
   if (!code || !state || state !== savedState) {

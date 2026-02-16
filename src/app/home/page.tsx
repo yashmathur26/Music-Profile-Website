@@ -72,7 +72,7 @@ export default function HomePage() {
                   {campaign.trackTitle} — dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </p>
                 <Link
-                  href="/presave"
+                  href="/api/spotify/authorize"
                   className="mt-2 inline-block text-sm font-medium underline"
                   style={{ color: campaign.accentColor }}
                 >

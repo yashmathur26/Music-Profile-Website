@@ -100,7 +100,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {/* Pre-save (only when campaign active) */}
         {campaign.isActive && (
           <Link
-            href="/presave"
+            href="/api/spotify/authorize"
             className={clsx(
               "flex items-center gap-3 rounded-xl border transition",
               expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
