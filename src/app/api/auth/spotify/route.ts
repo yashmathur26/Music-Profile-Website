@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStatsAuthorizeUrl } from "@/lib/spotifyStatsAuth";
+import { features } from "@/config/features";
 import { randomBytes } from "crypto";
 
 export async function GET(req: NextRequest) {
+  if (!features.stats) {
+    return NextResponse.redirect(new URL("/home", req.nextUrl.origin));
+  }
   if (!process.env.SPOTIFY_CLIENT_ID) {
     return NextResponse.redirect(new URL("/stats?error=config", req.nextUrl.origin));
   }

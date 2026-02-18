@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { tracks, DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
 import { campaign } from "@/config/campaign";
+import { features } from "@/config/features";
 import Sidebar from "@/components/Sidebar";
 
 const artistName = "YVSH";
@@ -71,21 +72,27 @@ export default function HomePage() {
                 <p className="text-sm font-semibold text-white/90">
                   {campaign.trackTitle} — dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
-                  <Link
-                    href="/api/spotify/authorize"
-                    className="text-sm font-medium underline"
-                    style={{ color: campaign.accentColor }}
-                  >
-                    Pre-save now →
-                  </Link>
-                  <Link
-                    href="/stats"
-                    className="text-sm font-medium text-purple-300 underline hover:text-purple-200"
-                  >
-                    View My YVSH Stats →
-                  </Link>
-                </div>
+                {(features.presave || features.stats) && (
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
+                    {features.presave && (
+                      <Link
+                        href="/api/spotify/authorize"
+                        className="text-sm font-medium underline"
+                        style={{ color: campaign.accentColor }}
+                      >
+                        Pre-save now →
+                      </Link>
+                    )}
+                    {features.stats && (
+                      <Link
+                        href="/stats"
+                        className="text-sm font-medium text-purple-300 underline hover:text-purple-200"
+                      >
+                        View My YVSH Stats →
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { useRouter } from "next/navigation";
 import { formatHour } from "@/lib/statsCalculator";
 import type { YvshStats, SpotifyTrackItem } from "@/lib/statsCalculator";
+import { features } from "@/config/features";
 
 const PLACEHOLDER_STATS: YvshStats = {
   isYvshFan: true,
@@ -28,6 +30,7 @@ const PLACEHOLDER_STATS: YvshStats = {
 };
 
 function StatsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [stats, setStats] = useState<YvshStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +75,12 @@ function StatsContent() {
   const isFan = stats?.isYvshFan ?? false;
   const displayStats = stats ?? (notConnected ? PLACEHOLDER_STATS : null);
   const isPlaceholder = notConnected && !urlError;
+
+  useEffect(() => {
+    if (!features.stats) router.replace("/home");
+  }, [router]);
+
+  if (!features.stats) return null;
 
   return (
     <main className="relative z-10 min-h-screen bg-[#0d0d0d]" style={{ minHeight: "100vh" }}>

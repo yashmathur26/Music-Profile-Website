@@ -2,6 +2,8 @@
 
 The **My YVSH Stats** feature lets fans connect Spotify and see personalized listening stats (fan level, most played song, peak hour, streaks, top tracks, listening personality). It uses the **same Spotify app** as the presave flow but a **different redirect URI** and **Supabase** for session storage.
 
+**How we get listener data:** See **[STATS_LISTENER_DATA.md](./STATS_LISTENER_DATA.md)** for a detailed walkthrough of the OAuth flow, which Spotify API endpoints we call, how we filter for YVSH tracks, and how each stat is computed.
+
 ## Environment variables
 
 Reuse your existing Spotify and Supabase env from presave. Optional:

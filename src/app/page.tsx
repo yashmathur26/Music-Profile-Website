@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { campaign, isReleaseLive } from "@/config/campaign";
+import { features } from "@/config/features";
 import CountdownTimer from "@/components/CountdownTimer";
 
 const artistName = "YVSH";
@@ -29,7 +30,7 @@ export default function SplashPage() {
   const lightness = height > 0 ? 50 + (cursorPos.y / height) * 10 : 55;
   const accent = campaign.accentColor;
 
-  if (campaign.isActive) {
+  if (campaign.isActive && features.presave) {
     const released = isReleaseLive(campaign);
     return (
       <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#1a0a2e] px-4 py-12">

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthorizeUrl } from "@/lib/spotify";
 import { campaign } from "@/config/campaign";
+import { features } from "@/config/features";
 import { randomBytes } from "crypto";
 
 export async function GET(req: NextRequest) {
-  if (!campaign.isActive || !campaign.spotify.enabled) {
-    return NextResponse.redirect(new URL("/", req.url));
+  if (!features.presave || !campaign.isActive || !campaign.spotify.enabled) {
+    return NextResponse.redirect(new URL("/home", req.nextUrl.origin));
   }
 
   // Preview mode: no Spotify app yet — redirect back to landing
