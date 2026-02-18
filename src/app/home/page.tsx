@@ -63,14 +63,14 @@ export default function HomePage() {
           <div className="mx-auto max-w-3xl px-4 py-8 md:px-6 md:py-12">
             {campaign.isActive && (
               <div
-                className="mb-6 rounded-xl border p-4 text-center"
+                className="mb-6 rounded-2xl border-2 px-5 py-4 text-center"
                 style={{
-                  borderColor: `${campaign.accentColor}40`,
-                  backgroundColor: `${campaign.accentColor}15`,
+                  borderColor: campaign.accentColor,
+                  backgroundColor: "rgba(13, 13, 26, 0.95)",
                 }}
               >
-                <p className="text-sm font-semibold text-white/90">
-                  {campaign.trackTitle} — dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                <p className="text-sm font-semibold text-white">
+                  {campaign.trackTitle} – dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </p>
                 {(features.presave || features.stats) && (
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
