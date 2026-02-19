@@ -37,11 +37,11 @@ export const campaign: CampaignConfig = {
 
   trackTitle: "10 outta 10",
   trackArtist: "YVSH",
-  trackDescription: "dropping Feb 28, 2026",
+  trackDescription: "dropping Feb 27, 2026",
   // Use /avatar.png for preview when you don't have cover art yet; switch to /covers/10outta10.jpg for real campaign
   coverArt: "/avatar.png",
 
-  releaseDate: "2026-02-28T00:00:00Z",
+  releaseDate: "2026-02-27T00:00:00Z",
   showCountdown: true,
 
   spotify: {
