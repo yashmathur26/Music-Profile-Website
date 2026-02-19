@@ -15,6 +15,11 @@ export type CampaignConfig = {
     enabled: boolean;
     trackUri: string; // Set on release day e.g. "spotify:track:4iV5W9uYEdYUVa..."
   };
+  appleMusic: {
+    enabled: boolean;
+    preAddUrl: string; // Pre-add link from distributor / Apple Music for Artists; empty = hide button
+    trackUrl?: string; // When set and release is live, used for "Listen on Apple Music"
+  };
   additionalLinks: { platform: string; url: string }[];
   streamLinks: { platform: string; url: string; primary: boolean }[];
   accentColor: string;
@@ -46,7 +51,15 @@ export const campaign: CampaignConfig = {
 
   spotify: {
     enabled: true,
+    // Leave empty until the track is on Spotify. Presave still collects Spotify user + refresh token now.
+    // When the track is live: set trackUri (e.g. "spotify:track:xxx") here, then run "Trigger saves now" from your admin page so it gets added to every presaver's library.
     trackUri: "",
+  },
+
+  appleMusic: {
+    enabled: true,
+    preAddUrl: "", // Paste your Apple Music pre-add link when you have it from your distributor
+    trackUrl: "", // Optional: set when track is live for "Listen on Apple Music"
   },
 
   additionalLinks: [

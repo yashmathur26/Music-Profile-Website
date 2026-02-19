@@ -1,5 +1,86 @@
 # Spotify Presave — Setup
 
+Yes, the Spotify API is wired up: OAuth (authorize → callback), token exchange, and “save track to library” all work. You just need to create a Spotify app, set env vars, and create the Supabase table. Follow the steps below in order.
+
+---
+
+## Step-by-step: Get the Spotify API working
+
+### Step 1 — Create a Spotify app
+
+1. Go to **[developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)** and log in.
+2. Click **Create app**.
+3. Fill in:
+   - **App name:** e.g. `YVSH Presave`
+   - **App description:** optional (e.g. `Presave for 10 outta 10`)
+   - **Redirect URI:** add **both** of these (click “Add” for each):
+     - `https://yvshmusic.com/api/spotify/callback`
+     - `http://localhost:3000/api/spotify/callback` (for local testing)
+   - **Website:** your site URL (e.g. `https://yvshmusic.com`)
+   - **API/SDKs:** leave unchecked unless you need them.
+4. Check the **Terms** box and click **Save**.
+5. Open your new app → **Settings**. Copy **Client ID** and click **Show client secret** and copy **Client secret**. You’ll put these in `.env.local` next.
+
+### Step 2 — Set environment variables
+
+In your project root, create or edit **`.env.local`** (this file is gitignored; never commit it):
+
+```bash
+# Spotify (from Step 1)
+SPOTIFY_CLIENT_ID=paste_your_client_id_here
+SPOTIFY_CLIENT_SECRET=paste_your_client_secret_here
+
+# Supabase (Step 3)
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Admin + trigger (you choose a random secret; use it in your admin URL)
+TRIGGER_SAVES_SECRET=some_long_random_string_you_make_up
+
+# For local dev only
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+For **production** (e.g. Vercel), set the same variables in the Vercel project, and use `NEXT_PUBLIC_APP_URL=https://yvshmusic.com` (or your real domain).
+
+### Step 3 — Create the Supabase `presaves` table
+
+1. Go to [supabase.com](https://supabase.com) → your project (or create one).
+2. Open **SQL Editor** and run the SQL from the [Supabase: `presaves` table](#supabase-presaves-table) section below (creates `presaves` table + RLS).
+3. In **Project Settings → API**: copy **Project URL** → `SUPABASE_URL`, and **service_role** key (under “Project API keys”) → `SUPABASE_SERVICE_ROLE_KEY`. Put them in `.env.local` as in Step 2.
+
+### Step 4 — Test the presave flow
+
+1. Restart your dev server so it picks up `.env.local`:
+   ```bash
+   npm run dev
+   ```
+2. Open **http://localhost:3000** (with `NEXT_PUBLIC_APP_URL=http://localhost:3000`).
+3. Click **Pre-save on Spotify**. You should be sent to Spotify to log in and authorize.
+4. After authorizing, you should land on **/presave/success**.
+5. Open your **admin page**:  
+   `http://localhost:3000/admin/YOUR_TRIGGER_SAVES_SECRET`  
+   (use the same value as `TRIGGER_SAVES_SECRET` in `.env.local`). You should see **Presaves: 1** (or more if you tested multiple times).
+
+If anything fails:
+
+- **Redirected to home or “Invalid or expired link”** → Check `SPOTIFY_CLIENT_ID`, redirect URIs in the Spotify dashboard, and that `presave` is `true` in `src/config/features.ts`.
+- **OAuth error / callback fails** → Check the terminal or Vercel logs for “Spotify callback error”. Usually means wrong `redirect_uri`, wrong `SPOTIFY_CLIENT_SECRET`, or Supabase not configured (missing env or table).
+- **Presaves count stays 0** → Check Supabase env vars and that the `presaves` table exists and RLS is set so only the service role can write (see SQL below).
+
+### Step 5 — Production (when you deploy)
+
+- In the **Spotify app** redirect URIs, keep `https://yvshmusic.com/api/spotify/callback` (you added it in Step 1).
+- In **Vercel** (or your host), set all the same env vars and `NEXT_PUBLIC_APP_URL=https://yvshmusic.com`.
+- Your admin URL in production: `https://yvshmusic.com/admin/YOUR_TRIGGER_SAVES_SECRET`.
+
+### Spotify Development Mode (25 users)
+
+- New Spotify apps start in **Development Mode**: only **25 users** can complete the “Log in with Spotify” step.
+- For more than 25 presavers, open your app in the Spotify Dashboard and submit a **Quota extension request** (in Settings or the dashboard notice). Approval is usually for “unlimited” users.
+
+---
+
 ## Environment variables (Vercel / `.env.local`)
 
 ```bash
@@ -128,6 +209,10 @@ create policy "Service role only"
 ```
 
 (With RLS enabled and a policy that allows no one, only the service role key can read/write.)
+
+## Presave before the track is on Spotify
+
+You can run the presave campaign **before** the track is on Spotify. Leave `campaign.spotify.trackUri` empty. When users click “Pre-save on Spotify” they sign in with Spotify and you store their Spotify user ID and refresh token—no track link needed yet. When the track is live, set `trackUri` in config and run “Trigger saves now” from your admin page (or call the trigger endpoint); the track will be added to every presaver’s library.
 
 ## Release day: trigger saves
 

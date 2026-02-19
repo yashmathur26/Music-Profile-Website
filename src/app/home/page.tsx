@@ -75,13 +75,26 @@ export default function HomePage() {
                 {(features.presave || features.stats) && (
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
                     {features.presave && (
-                      <Link
-                        href="/api/spotify/authorize"
-                        className="text-sm font-medium underline"
-                        style={{ color: campaign.accentColor }}
-                      >
-                        Pre-save now →
-                      </Link>
+                      <>
+                        <Link
+                          href="/api/spotify/authorize"
+                          className="text-sm font-medium underline"
+                          style={{ color: "#1DB954" }}
+                        >
+                          Pre-save on Spotify →
+                        </Link>
+                        {campaign.appleMusic?.enabled && campaign.appleMusic?.preAddUrl?.trim() && (
+                          <a
+                            href={campaign.appleMusic.preAddUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium underline"
+                            style={{ color: "#FA243C" }}
+                          >
+                            Pre-add on Apple Music →
+                          </a>
+                        )}
+                      </>
                     )}
                     {features.stats && (
                       <Link
