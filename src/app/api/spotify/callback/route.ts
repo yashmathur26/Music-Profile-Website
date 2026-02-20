@@ -50,7 +50,8 @@ export async function GET(req: NextRequest) {
     }
   } catch (e) {
     console.error("Spotify callback error:", e);
-    return NextResponse.redirect(errorUrl);
+    homeUrl.searchParams.set("error", "oauth_failed");
+    return NextResponse.redirect(homeUrl);
   }
 
   const redirectUrl = new URL(returnTo.startsWith("/") ? returnTo : `/presave/success`, baseUrl);
