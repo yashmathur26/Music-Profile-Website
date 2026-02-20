@@ -76,7 +76,7 @@ export default function HomePage() {
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
                     {features.presave && (
                       <Link
-                        href="/api/spotify/authorize"
+                        href="/presave/confirm"
                         className="text-sm font-medium underline"
                         style={{ color: "#1DB954" }}
                       >

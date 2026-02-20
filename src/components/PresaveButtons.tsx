@@ -18,7 +18,7 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
     ? campaign.spotify.trackUri.startsWith("http")
       ? campaign.spotify.trackUri
       : `https://open.spotify.com/track/${campaign.spotify.trackUri.replace("spotify:track:", "")}`
-    : "/api/spotify/authorize";
+    : "/presave/confirm";
 
   return (
     <>
@@ -36,7 +36,7 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
         </Link>
       ) : (
         <Link
-          href="/api/spotify/authorize"
+          href="/presave/confirm"
           className={buttonBase}
           style={{
             backgroundColor: SPOTIFY_GREEN,

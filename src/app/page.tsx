@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { campaign, isReleaseLive } from "@/config/campaign";
 import { features } from "@/config/features";
@@ -10,7 +11,9 @@ import PresaveButtons from "@/components/PresaveButtons";
 
 const artistName = "YVSH";
 
-export default function SplashPage() {
+function SplashContent() {
+  const searchParams = useSearchParams();
+  const oauthFailed = searchParams.get("error") === "oauth_failed";
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [mounted, setMounted] = useState(false);
 
@@ -53,6 +56,11 @@ export default function SplashPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
+          {oauthFailed && (
+            <div className="w-full max-w-md rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              Sign-in didn&apos;t complete. Please try again. If it keeps failing, check that you're using the same browser and that cookies are enabled.
+            </div>
+          )}
           <span
             className="rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-widest"
             style={{
@@ -184,5 +192,13 @@ export default function SplashPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function SplashPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#1a0a2e]" />}>
+      <SplashContent />
+    </Suspense>
   );
 }
