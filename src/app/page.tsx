@@ -116,6 +116,9 @@ export default function SplashPage() {
             </Link>
           </div>
           <p className="mt-4 text-xs text-white/50">
+            One-time sign-in · We&apos;ll add it to your library on release day
+          </p>
+          <p className="mt-1 text-xs text-white/40">
             Apple Music presave coming soon
           </p>
         </motion.div>
