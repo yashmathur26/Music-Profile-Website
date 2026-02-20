@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { campaign } from "@/config/campaign";
 import Sidebar from "@/components/Sidebar";
@@ -9,7 +10,9 @@ import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 
 const PRESAVED_KEY = "yvsh_presaved";
 
-export default function PresaveSuccessPage() {
+function PresaveSuccessContent() {
+  const searchParams = useSearchParams();
+  const alreadyPresaved = searchParams.get("already") === "1";
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
@@ -69,16 +72,18 @@ export default function PresaveSuccessPage() {
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               >
-                🔒
+                {alreadyPresaved ? "✓" : "🔒"}
               </motion.div>
               <h1 className="text-2xl font-bold text-white md:text-3xl">
-                You&apos;re locked in
+                {alreadyPresaved ? "You already presaved" : "You're locked in"}
               </h1>
               <p className="mt-2 text-lg font-semibold" style={{ color: campaign.accentColor }}>
                 {campaign.trackTitle}
               </p>
               <p className="mt-4 text-sm text-white/70">
-                This track will be saved to your Spotify library on <strong>{releaseDateStr}</strong>.
+                {alreadyPresaved
+                  ? "You're all set — we'll add it to your library on release day."
+                  : <>This track will be saved to your Spotify library on <strong>{releaseDateStr}</strong>.</>}
               </p>
 
               {campaign.showEmailCapture && (
@@ -158,5 +163,19 @@ export default function PresaveSuccessPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function PresaveSuccessPage() {
+  return (
+    <Suspense fallback={
+      <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-white/50">Loading...</p>
+        </div>
+      </main>
+    }>
+      <PresaveSuccessContent />
+    </Suspense>
   );
 }

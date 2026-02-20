@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { exchangeCodeForTokens, getSpotifyUserId } from "@/lib/spotify";
-import { insertPresave } from "@/lib/presaves";
+import { insertPresave, getPresaveByCampaignAndUser, updatePresaveRefreshToken } from "@/lib/presaves";
 import { campaign, getCampaignId } from "@/config/campaign";
 
 export async function GET(req: NextRequest) {
@@ -22,22 +22,32 @@ export async function GET(req: NextRequest) {
   }
 
   let presaveId: string | null = null;
+  let alreadyPresaved = false;
   try {
     const { access_token, refresh_token } = await exchangeCodeForTokens(code);
     const spotifyUserId = await getSpotifyUserId(access_token);
     const campaignId = getCampaignId(campaign);
 
-    presaveId = await insertPresave({
-      campaign_id: campaignId,
-      spotify_user_id: spotifyUserId,
-      refresh_token,
-    });
+    const existing = await getPresaveByCampaignAndUser(campaignId, spotifyUserId);
+    if (existing) {
+      presaveId = existing.id;
+      alreadyPresaved = true;
+      await updatePresaveRefreshToken(existing.id, refresh_token);
+    } else {
+      presaveId = await insertPresave({
+        campaign_id: campaignId,
+        spotify_user_id: spotifyUserId,
+        refresh_token,
+      });
+    }
   } catch (e) {
     console.error("Spotify callback error:", e);
     return NextResponse.redirect(errorUrl);
   }
 
   const redirectUrl = new URL(returnTo.startsWith("/") ? returnTo : `/presave/success`, baseUrl);
+  if (alreadyPresaved) redirectUrl.searchParams.set("already", "1");
+
   const res = NextResponse.redirect(redirectUrl);
 
   res.cookies.set("spotify_oauth_state", "", { maxAge: 0, path: "/" });

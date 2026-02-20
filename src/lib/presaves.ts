@@ -50,6 +50,22 @@ export async function updatePresaveEmail(id: string, email: string): Promise<voi
   if (error) throw error;
 }
 
+export async function getPresaveByCampaignAndUser(
+  campaignId: string,
+  spotifyUserId: string
+): Promise<PresaveRow | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("presaves")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .eq("spotify_user_id", spotifyUserId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as PresaveRow) ?? null;
+}
+
 export async function getPresaveCount(campaignId: string): Promise<number> {
   if (!supabase) return 0;
   const { count, error } = await supabase
@@ -74,4 +90,10 @@ export async function getPresavesForCampaign(campaignId: string): Promise<Presav
 export async function markPresaveSaved(id: string): Promise<void> {
   if (!supabase) return;
   await supabase.from("presaves").update({ saved: true }).eq("id", id);
+}
+
+export async function updatePresaveRefreshToken(id: string, refresh_token: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { error } = await supabase.from("presaves").update({ refresh_token }).eq("id", id);
+  if (error) throw error;
 }
