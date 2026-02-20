@@ -53,6 +53,7 @@ export const campaign: CampaignConfig = {
 
   additionalLinks: [
     { platform: "SoundCloud", url: "https://soundcloud.com/yvshh" },
+    { platform: "Spotify", url: "https://open.spotify.com/artist/2mBs3Kdfu7pvYu4w8Hac5y" },
     { platform: "Spotify (album)", url: "https://open.spotify.com/album/14Op5wPZiammre4YBJV6dn" },
   ],
 
