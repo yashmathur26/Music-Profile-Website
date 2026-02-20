@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
+  const error = searchParams.get("error");
 
   const cookieStore = await cookies();
   const savedState = cookieStore.get("spotify_oauth_state")?.value;
@@ -16,15 +17,33 @@ export async function GET(req: NextRequest) {
   const baseUrl = req.nextUrl.origin;
   const homeUrl = new URL("/", baseUrl);
 
+  // Log for debugging
+  console.log("Spotify callback:", { 
+    hasCode: !!code, 
+    hasState: !!state, 
+    hasSavedState: !!savedState,
+    statesMatch: state === savedState,
+    spotifyError: error
+  });
+
+  // If Spotify returned an error (e.g., user denied access)
+  if (error) {
+    console.log("Spotify returned error:", error);
+    homeUrl.searchParams.set("error", "oauth_failed");
+    return NextResponse.redirect(homeUrl);
+  }
+
   // If there's no saved state cookie, the user never started the OAuth flow
   // (e.g. they visited this URL directly). Just redirect home without an error.
   if (!savedState) {
+    console.log("No saved state cookie found");
     return NextResponse.redirect(homeUrl);
   }
 
   // If there IS a saved state but code/state is missing or doesn't match,
   // that's an actual OAuth failure mid-flow — show the error.
   if (!code || !state || state !== savedState) {
+    console.log("State mismatch or missing code:", { code: !!code, state, savedState });
     homeUrl.searchParams.set("error", "oauth_failed");
     return NextResponse.redirect(homeUrl);
   }
