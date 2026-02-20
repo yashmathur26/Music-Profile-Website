@@ -97,3 +97,15 @@ export async function updatePresaveRefreshToken(id: string, refresh_token: strin
   const { error } = await supabase.from("presaves").update({ refresh_token }).eq("id", id);
   if (error) throw error;
 }
+
+/** Delete all presaves (use for reset / from-scratch). */
+export async function deleteAllPresaves(): Promise<number> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { data: rows, error: selectError } = await supabase.from("presaves").select("id");
+  if (selectError) throw selectError;
+  if (!rows?.length) return 0;
+  const ids = rows.map((r) => r.id);
+  const { error: deleteError } = await supabase.from("presaves").delete().in("id", ids);
+  if (deleteError) throw deleteError;
+  return ids.length;
+}

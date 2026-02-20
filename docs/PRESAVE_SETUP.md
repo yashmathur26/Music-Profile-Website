@@ -37,6 +37,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 # Admin + trigger (you choose a random secret; use it in your admin URL)
 TRIGGER_SAVES_SECRET=some_long_random_string_you_make_up
 
+# Optional: one-time reset of all presaves + cookies (GET /api/admin/reset-presaves?secret=THIS)
+PRESAVE_RESET_SECRET=another_random_string
+
 # For local dev only
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -112,6 +115,16 @@ Replace `YOUR_TRIGGER_SAVES_SECRET` with the same value as `TRIGGER_SAVES_SECRET
 - **Stats** update automatically every 4 seconds.
 - **“Trigger saves now”** runs the release-day save for all presaved fans.
 - If the link is wrong or expired, the page shows “Invalid or expired link”.
+
+## Reset presaves (start from scratch)
+
+To wipe all presaves in the database and clear OAuth/presave cookies for your browser:
+
+1. In `.env.local` and Vercel, set **`PRESAVE_RESET_SECRET`** to a random string (e.g. `openssl rand -hex 16`).
+2. Visit: **`https://yvshmusic.com/api/admin/reset-presaves?secret=YOUR_PRESAVE_RESET_SECRET`** (use the same value as the env var).
+3. You’ll be redirected to the homepage; all presave rows are deleted and your app cookies for this site are cleared.
+
+Only use this when you want to reset everything. Keep the secret private.
 
 ## Spotify app setup
 
