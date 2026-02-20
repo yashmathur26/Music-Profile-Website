@@ -14,11 +14,19 @@ export async function GET(req: NextRequest) {
   const returnTo = cookieStore.get("spotify_return_to")?.value || "/presave/success";
 
   const baseUrl = req.nextUrl.origin;
-  const errorUrl = new URL("/", baseUrl);
-  errorUrl.searchParams.set("error", "oauth_failed");
+  const homeUrl = new URL("/", baseUrl);
 
+  // If there's no saved state cookie, the user never started the OAuth flow
+  // (e.g. they visited this URL directly). Just redirect home without an error.
+  if (!savedState) {
+    return NextResponse.redirect(homeUrl);
+  }
+
+  // If there IS a saved state but code/state is missing or doesn't match,
+  // that's an actual OAuth failure mid-flow — show the error.
   if (!code || !state || state !== savedState) {
-    return NextResponse.redirect(errorUrl);
+    homeUrl.searchParams.set("error", "oauth_failed");
+    return NextResponse.redirect(homeUrl);
   }
 
   let presaveId: string | null = null;

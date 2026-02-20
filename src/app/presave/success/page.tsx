@@ -13,10 +13,15 @@ const PRESAVED_KEY = "yvsh_presaved";
 function PresaveSuccessContent() {
   const searchParams = useSearchParams();
   const alreadyPresaved = searchParams.get("already") === "1";
+  const [openedInNewTab, setOpenedInNewTab] = useState(false);
   const [email, setEmail] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenedInNewTab(typeof window !== "undefined" && !!window.opener);
+  }, []);
 
   useEffect(() => {
     try {
@@ -152,6 +157,11 @@ function PresaveSuccessContent() {
                 </button>
               </div>
 
+              {openedInNewTab && (
+                <p className="mt-6 text-xs text-white/50">
+                  You can close this tab to return to where you were.
+                </p>
+              )}
               <Link
                 href="/home"
                 className="mt-10 inline-block text-sm text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
