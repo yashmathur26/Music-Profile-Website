@@ -21,12 +21,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(errorUrl);
   }
 
+  let presaveId: string | null = null;
   try {
     const { access_token, refresh_token } = await exchangeCodeForTokens(code);
     const spotifyUserId = await getSpotifyUserId(access_token);
     const campaignId = getCampaignId(campaign);
 
-    await insertPresave({
+    presaveId = await insertPresave({
       campaign_id: campaignId,
       spotify_user_id: spotifyUserId,
       refresh_token,
@@ -41,5 +42,14 @@ export async function GET(req: NextRequest) {
 
   res.cookies.set("spotify_oauth_state", "", { maxAge: 0, path: "/" });
   res.cookies.set("spotify_return_to", "", { maxAge: 0, path: "/" });
+  if (presaveId) {
+    res.cookies.set("presave_id", presaveId, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 600,
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
   return res;
 }

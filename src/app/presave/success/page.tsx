@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { campaign } from "@/config/campaign";
@@ -10,6 +10,11 @@ import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 const PRESAVED_KEY = "yvsh_presaved";
 
 export default function PresaveSuccessPage() {
+  const [email, setEmail] = useState("");
+  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       localStorage.setItem(PRESAVED_KEY, "true");
@@ -23,6 +28,27 @@ export default function PresaveSuccessPage() {
     day: "numeric",
     year: "numeric",
   });
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailLoading(true);
+    try {
+      const res = await fetch("/api/presave/update-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEmailError(data.error ?? "Something went wrong");
+        return;
+      }
+      setEmailSubmitted(true);
+    } finally {
+      setEmailLoading(false);
+    }
+  }
 
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
@@ -54,6 +80,44 @@ export default function PresaveSuccessPage() {
               <p className="mt-4 text-sm text-white/70">
                 This track will be saved to your Spotify library on <strong>{releaseDateStr}</strong>.
               </p>
+
+              {campaign.showEmailCapture && (
+                <div className="mt-6 w-full max-w-sm">
+                  {emailSubmitted ? (
+                    <p className="text-sm font-medium text-white/80">
+                      Thanks! We&apos;ll notify you when it drops.
+                    </p>
+                  ) : (
+                    <form onSubmit={handleEmailSubmit} className="flex flex-col gap-2 text-left">
+                      <label htmlFor="presave-email" className="text-xs font-medium text-white/60">
+                        Get notified when it drops (optional)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          id="presave-email"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/40 focus:outline-none"
+                          disabled={emailLoading}
+                        />
+                        <button
+                          type="submit"
+                          disabled={emailLoading}
+                          className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                          style={{ backgroundColor: campaign.accentColor }}
+                        >
+                          {emailLoading ? "..." : "Notify me"}
+                        </button>
+                      </div>
+                      {emailError && (
+                        <p className="text-xs text-red-400">{emailError}</p>
+                      )}
+                    </form>
+                  )}
+                </div>
+              )}
 
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <a

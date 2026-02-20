@@ -26,16 +26,27 @@ export async function insertPresave(params: {
   spotify_user_id: string;
   refresh_token: string;
   email?: string | null;
-}): Promise<void> {
+}): Promise<string | null> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase.from("presaves").insert({
-    campaign_id: params.campaign_id,
-    spotify_user_id: params.spotify_user_id,
-    refresh_token: params.refresh_token,
-    email: params.email ?? null,
-    saved: false,
-    created_at: new Date().toISOString(),
-  });
+  const { data, error } = await supabase
+    .from("presaves")
+    .insert({
+      campaign_id: params.campaign_id,
+      spotify_user_id: params.spotify_user_id,
+      refresh_token: params.refresh_token,
+      email: params.email ?? null,
+      saved: false,
+      created_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+export async function updatePresaveEmail(id: string, email: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { error } = await supabase.from("presaves").update({ email: email.trim() || null }).eq("id", id);
   if (error) throw error;
 }
 
