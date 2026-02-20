@@ -100,7 +100,7 @@ export default function HomePage() {
               <div className="relative mb-4 md:mb-6 animate-float">
                 <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-xl animate-glow-pulse" />
                 <img
-                  src="/avatar.png"
+                  src="/avatar.svg"
                   alt={artistName}
                   className="relative h-20 w-20 rounded-full border-2 border-purple-400/50 object-cover shadow-xl animate-glow-text md:h-24 md:w-24"
                   style={{

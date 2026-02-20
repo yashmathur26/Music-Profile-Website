@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: "yvsh music",
   description: "yvsh music - Free downloads and exclusive tracks",
   icons: {
-    icon: "/avatar.png",
-    apple: "/avatar.png",
+    icon: "/avatar.svg",
+    apple: "/avatar.svg",
   },
   openGraph: {
     title: "yvsh music",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     siteName: "yvsh music",
     images: [
       {
-        url: "https://yvshmusic.com/avatar.png",
+        url: "https://yvshmusic.com/avatar.svg",
         width: 1200,
         height: 1200,
         alt: "yvsh music",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "yvsh music",
     description: "yvsh music - Free downloads and exclusive tracks",
-    images: ["https://yvshmusic.com/avatar.png"],
+    images: ["https://yvshmusic.com/avatar.svg"],
   },
 };
 

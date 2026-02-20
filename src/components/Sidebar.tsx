@@ -67,7 +67,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
       {/* Logo / Avatar */}
       <div className={clsx("mb-10 flex items-center gap-3", expanded ? "px-1" : "justify-center")}>
         <img
-          src="/avatar.png"
+          src="/avatar.svg"
           alt="YVSH"
           className={clsx(
             "rounded-full border-2 border-purple-400/40 object-cover shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all",
