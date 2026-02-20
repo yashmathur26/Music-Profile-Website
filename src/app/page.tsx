@@ -115,6 +115,9 @@ export default function SplashPage() {
               See socials
             </Link>
           </div>
+          <p className="mt-4 text-xs text-white/50">
+            Apple Music presave coming soon
+          </p>
         </motion.div>
       </main>
     );
