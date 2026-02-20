@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { exchangeCodeForTokens, getSpotifyUserId } from "@/lib/spotify";
+import { exchangeCodeForTokens, getSpotifyUserId, verifySignedState } from "@/lib/spotify";
 import { insertPresave, getPresaveByCampaignAndUser, updatePresaveRefreshToken } from "@/lib/presaves";
 import { campaign, getCampaignId } from "@/config/campaign";
 
@@ -10,21 +9,8 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const cookieStore = await cookies();
-  const savedState = cookieStore.get("spotify_oauth_state")?.value;
-  const returnTo = cookieStore.get("spotify_return_to")?.value || "/presave/success";
-
   const baseUrl = req.nextUrl.origin;
   const homeUrl = new URL("/", baseUrl);
-
-  // Log for debugging
-  console.log("Spotify callback:", { 
-    hasCode: !!code, 
-    hasState: !!state, 
-    hasSavedState: !!savedState,
-    statesMatch: state === savedState,
-    spotifyError: error
-  });
 
   // If Spotify returned an error (e.g., user denied access)
   if (error) {
@@ -33,22 +19,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(homeUrl);
   }
 
-  // No code in URL = not a real OAuth return (e.g. user opened callback link directly,
-  // or bookmark, or stale link). Redirect home without error; don't punish for missing code.
+  // No code in URL = not a real OAuth return (e.g. user opened callback link directly).
   if (!code) {
-    console.log("No code in callback URL, redirecting home");
     const res = NextResponse.redirect(homeUrl);
     res.cookies.set("spotify_oauth_state", "", { maxAge: 0, path: "/" });
     res.cookies.set("spotify_return_to", "", { maxAge: 0, path: "/" });
     return res;
   }
 
-  // We have a code from Spotify. Only then do we require state to match; otherwise show error.
-  if (!savedState || !state || state !== savedState) {
-    console.log("State mismatch or missing:", { hasSavedState: !!savedState, state, savedState });
+  // Verify signed state (no cookies — works with ad/cookie blockers).
+  const parsed = state ? verifySignedState(state) : null;
+  if (!parsed) {
+    console.log("Invalid or expired state");
     homeUrl.searchParams.set("error", "oauth_failed");
     return NextResponse.redirect(homeUrl);
   }
+  const returnTo = parsed.returnTo;
 
   let presaveId: string | null = null;
   let alreadyPresaved = false;
@@ -80,6 +66,7 @@ export async function GET(req: NextRequest) {
 
   const res = NextResponse.redirect(redirectUrl);
 
+  // Clear any old OAuth cookies (state is now in URL; this just cleans up).
   res.cookies.set("spotify_oauth_state", "", { maxAge: 0, path: "/" });
   res.cookies.set("spotify_return_to", "", { maxAge: 0, path: "/" });
   if (presaveId) {

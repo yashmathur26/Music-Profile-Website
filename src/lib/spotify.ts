@@ -1,13 +1,51 @@
 /**
  * Spotify API helpers: OAuth token exchange, refresh, and save track to user library.
+ * OAuth state is signed (no cookies) so presave works with ad/cookie blockers.
  */
+
+import { createHmac, randomBytes } from "crypto";
 
 const SPOTIFY_ACCOUNTS = "https://accounts.spotify.com";
 const SPOTIFY_API = "https://api.spotify.com/v1";
+const STATE_TTL_MS = 10 * 60 * 1000; // 10 min
 
 function getRedirectUri(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL || "https://yvshmusic.com";
   return `${base.replace(/\/$/, "")}/api/spotify/callback`;
+}
+
+/** Create signed state (no cookie needed) — works with cookie blockers. */
+export function createSignedState(returnTo: string): string {
+  const secret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!secret) throw new Error("SPOTIFY_CLIENT_SECRET not set");
+  const nonce = randomBytes(16).toString("hex");
+  const ts = Date.now().toString();
+  const payload = `${nonce}|${returnTo}|${ts}`;
+  const sig = createHmac("sha256", secret).update(payload).digest("base64url");
+  const payloadB64 = Buffer.from(payload, "utf8").toString("base64url");
+  return `${payloadB64}.${sig}`;
+}
+
+/** Verify signed state from callback; returns returnTo or null if invalid/expired. */
+export function verifySignedState(state: string): { returnTo: string } | null {
+  const secret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!secret) return null;
+  const parts = state.split(".");
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+  let payload: string;
+  try {
+    payload = Buffer.from(payloadB64, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+  const expectedSig = createHmac("sha256", secret).update(payload).digest("base64url");
+  if (sig !== expectedSig) return null;
+  const [, returnTo, tsStr] = payload.split("|");
+  if (!returnTo || !tsStr) return null;
+  const ts = parseInt(tsStr, 10);
+  if (Number.isNaN(ts) || Date.now() - ts > STATE_TTL_MS || ts > Date.now() + 60000) return null;
+  return { returnTo };
 }
 
 export function getAuthorizeUrl(state: string): string {

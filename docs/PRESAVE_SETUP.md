@@ -77,10 +77,12 @@ If anything fails:
 - In **Vercel** (or your host), set all the same env vars and `NEXT_PUBLIC_APP_URL=https://yvshmusic.com`.
 - Your admin URL in production: `https://yvshmusic.com/admin/YOUR_TRIGGER_SAVES_SECRET`.
 
-### Spotify Development Mode (25 users)
+### Ad blockers / cookie blockers
 
-- New Spotify apps start in **Development Mode**: only **25 users** can complete the “Log in with Spotify” step.
-- For more than 25 presavers, open your app in the Spotify Dashboard and submit a **Quota extension request** (in Settings or the dashboard notice). Approval is usually for “unlimited” users.
+- The presave OAuth flow uses **signed state in the URL** (no cookies) for the Spotify redirect. So sign-in works even when users have ad blockers or strict cookie settings.
+- The only cookie we set after a successful presave is `presave_id` (for optional email capture on the success page). If that cookie is blocked, the presave still completes; only “Notify me” email capture may not attach to their record.
+
+### Spotify Development Mode (25 users)
 
 ---
 
