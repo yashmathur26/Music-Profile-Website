@@ -12,7 +12,7 @@ export const tracks: TrackConfig[] = [
   {
     slug: "dont-forget",
     title: "DON'T FORGET",
-    artworkUrl: "/avatar.svg",
+    artworkUrl: "/avatar.png",
     soundcloudEmbedUrl:
       "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/dont-forget&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
     downloadUrl: "",

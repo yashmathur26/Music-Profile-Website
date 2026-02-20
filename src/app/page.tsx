@@ -155,7 +155,7 @@ export default function SplashPage() {
               }}
             />
             <img
-              src="/avatar.svg"
+              src="/avatar.png"
               alt={artistName}
               className="relative h-28 w-28 rounded-full border-2 border-white/20 object-cover shadow-2xl transition-transform duration-300 group-hover:scale-105 md:h-36 md:w-36"
             />
