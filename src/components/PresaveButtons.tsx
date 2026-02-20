@@ -4,7 +4,6 @@ import Link from "next/link";
 import { campaign } from "@/config/campaign";
 
 const SPOTIFY_GREEN = "#1DB954";
-const APPLE_MUSIC_RED = "#FA243C";
 
 const buttonBase =
   "flex items-center justify-center gap-2 rounded-2xl px-8 py-4 text-lg font-bold text-white transition hover:scale-105 min-w-0";
@@ -20,15 +19,6 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
       ? campaign.spotify.trackUri
       : `https://open.spotify.com/track/${campaign.spotify.trackUri.replace("spotify:track:", "")}`
     : "/api/spotify/authorize";
-
-  const appleMusicEnabled = campaign.appleMusic?.enabled ?? false;
-  const applePreAddUrl = (campaign.appleMusic?.preAddUrl ?? "").trim();
-  const appleTrackUrl = (campaign.appleMusic?.trackUrl ?? "").trim();
-  const showAppleListen = released && appleTrackUrl;
-  const showApplePreAdd = !released && applePreAddUrl;
-  const showAppleMusic = appleMusicEnabled && (showAppleListen || showApplePreAdd);
-
-  const appleHref = showAppleListen ? appleTrackUrl : applePreAddUrl;
 
   return (
     <>
@@ -57,34 +47,6 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
           Pre-save on Spotify
         </Link>
       )}
-
-      {showAppleMusic ? (
-        <a
-          href={appleHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={buttonBase}
-          style={{
-            backgroundColor: APPLE_MUSIC_RED,
-            boxShadow: `0 0 30px ${APPLE_MUSIC_RED}60`,
-          }}
-        >
-          <AppleMusicIcon className="h-6 w-6 shrink-0" />
-          {showAppleListen ? "Listen on Apple Music" : "Pre-add on Apple Music"}
-        </a>
-      ) : appleMusicEnabled && !released ? (
-        <span
-          className={`${buttonBase} cursor-not-allowed opacity-60`}
-          style={{
-            backgroundColor: APPLE_MUSIC_RED,
-            boxShadow: `0 0 20px ${APPLE_MUSIC_RED}40`,
-          }}
-          aria-hidden
-        >
-          <AppleMusicIcon className="h-6 w-6 shrink-0" />
-          Pre-add on Apple Music (link soon)
-        </span>
-      ) : null}
     </>
   );
 }
@@ -97,12 +59,4 @@ function SpotifyIcon({ className }: { className?: string }) {
   );
 }
 
-function AppleMusicIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm0 3v10.5c0 1.38-1.12 2.5-2.5 2.5S7 16.88 7 15.5s1.12-2.5 2.5-2.5c.465 0 .905.128 1.28.35V8.2L7 9.4V7.4l5-1.4z" />
-    </svg>
-  );
-}
-
-export { SPOTIFY_GREEN, APPLE_MUSIC_RED };
+export { SPOTIFY_GREEN };

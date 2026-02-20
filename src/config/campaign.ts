@@ -15,11 +15,6 @@ export type CampaignConfig = {
     enabled: boolean;
     trackUri: string; // Set on release day e.g. "spotify:track:4iV5W9uYEdYUVa..."
   };
-  appleMusic: {
-    enabled: boolean;
-    preAddUrl: string; // Pre-add link from distributor / Apple Music for Artists; empty = hide button
-    trackUrl?: string; // When set and release is live, used for "Listen on Apple Music"
-  };
   additionalLinks: { platform: string; url: string }[];
   streamLinks: { platform: string; url: string; primary: boolean }[];
   accentColor: string;
@@ -56,21 +51,13 @@ export const campaign: CampaignConfig = {
     trackUri: "",
   },
 
-  appleMusic: {
-    enabled: true,
-    preAddUrl: "", // Paste your Apple Music pre-add link when you have it from your distributor
-    trackUrl: "", // Optional: set when track is live for "Listen on Apple Music"
-  },
-
   additionalLinks: [
     { platform: "SoundCloud", url: "https://soundcloud.com/yvshh" },
-    { platform: "Apple Music", url: "https://music.apple.com/" },
   ],
 
   streamLinks: [
     { platform: "Spotify", url: "https://open.spotify.com/track/", primary: true },
     { platform: "SoundCloud", url: "https://soundcloud.com/yvshh", primary: false },
-    { platform: "Apple Music", url: "https://music.apple.com/", primary: false },
   ],
 
   accentColor: "#1DB954",
