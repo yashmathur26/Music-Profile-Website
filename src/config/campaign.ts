@@ -46,13 +46,14 @@ export const campaign: CampaignConfig = {
 
   spotify: {
     enabled: true,
-    // Leave empty until the track is on Spotify. Presave still collects Spotify user + refresh token now.
-    // When the track is live: set trackUri (e.g. "spotify:track:xxx") here, then run "Trigger saves now" from your admin page so it gets added to every presaver's library.
+    // Album dropping Feb 27: spotify:album:14Op5wPZiammre4YBJV6dn
+    // When the TRACK is live: set trackUri to the track URI (spotify:track:xxx — get it from the track page on Spotify), then run "Trigger saves now" from admin so it gets added to every presaver's library.
     trackUri: "",
   },
 
   additionalLinks: [
     { platform: "SoundCloud", url: "https://soundcloud.com/yvshh" },
+    { platform: "Spotify (album)", url: "https://open.spotify.com/album/14Op5wPZiammre4YBJV6dn" },
   ],
 
   streamLinks: [
