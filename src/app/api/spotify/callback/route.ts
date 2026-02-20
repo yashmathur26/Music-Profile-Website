@@ -33,17 +33,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(homeUrl);
   }
 
-  // If there's no saved state cookie, the user never started the OAuth flow
-  // (e.g. they visited this URL directly). Just redirect home without an error.
-  if (!savedState) {
-    console.log("No saved state cookie found");
-    return NextResponse.redirect(homeUrl);
+  // No code in URL = not a real OAuth return (e.g. user opened callback link directly,
+  // or bookmark, or stale link). Redirect home without error; don't punish for missing code.
+  if (!code) {
+    console.log("No code in callback URL, redirecting home");
+    const res = NextResponse.redirect(homeUrl);
+    res.cookies.set("spotify_oauth_state", "", { maxAge: 0, path: "/" });
+    res.cookies.set("spotify_return_to", "", { maxAge: 0, path: "/" });
+    return res;
   }
 
-  // If there IS a saved state but code/state is missing or doesn't match,
-  // that's an actual OAuth failure mid-flow — show the error.
-  if (!code || !state || state !== savedState) {
-    console.log("State mismatch or missing code:", { code: !!code, state, savedState });
+  // We have a code from Spotify. Only then do we require state to match; otherwise show error.
+  if (!savedState || !state || state !== savedState) {
+    console.log("State mismatch or missing:", { hasSavedState: !!savedState, state, savedState });
     homeUrl.searchParams.set("error", "oauth_failed");
     return NextResponse.redirect(homeUrl);
   }
