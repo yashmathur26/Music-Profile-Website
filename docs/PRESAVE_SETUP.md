@@ -15,6 +15,7 @@ Yes, the Spotify API is wired up: OAuth (authorize → callback), token exchange
    - **App description:** optional (e.g. `Presave for 10 outta 10`)
    - **Redirect URI:** add **both** of these (click “Add” for each):
      - `https://yvshmusic.com/api/spotify/callback`
+     - `https://www.yvshmusic.com/api/spotify/callback` (if you use www)
      - `http://localhost:3000/api/spotify/callback` (for local testing)
    - **Website:** your site URL (e.g. `https://yvshmusic.com`)
    - **API/SDKs:** leave unchecked unless you need them.
