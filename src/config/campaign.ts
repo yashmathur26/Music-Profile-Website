@@ -38,8 +38,7 @@ export const campaign: CampaignConfig = {
   trackTitle: "10 outta 10",
   trackArtist: "YVSH",
   trackDescription: "dropping Feb 27, 2026",
-  // Use /avatar.png for preview when you don't have cover art yet; switch to /covers/10outta10.jpg for real campaign
-  coverArt: "/avatar.png",
+  coverArt: "/covers/10outta10.jpg",
 
   releaseDate: "2026-02-27T05:00:00Z", // midnight EST (05:00 UTC)
   showCountdown: true,
