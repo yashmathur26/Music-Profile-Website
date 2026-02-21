@@ -25,7 +25,7 @@ export default function TrackPage({ params }: PageProps) {
               <iframe
                 title="SoundCloud player"
                 src={track.soundcloudEmbedUrl}
-                allow="autoplay"
+                allow="autoplay; encrypted-media"
                 className="h-full w-full border-0"
               />
             ) : (

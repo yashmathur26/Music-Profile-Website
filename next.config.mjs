@@ -14,6 +14,19 @@ const nextConfig = {
     // Allow build to continue even with lint errors (for now)
     ignoreDuringBuilds: true,
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "encrypted-media=(self \"https://w.soundcloud.com\")",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

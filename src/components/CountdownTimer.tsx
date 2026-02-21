@@ -52,13 +52,7 @@ export default function CountdownTimer({ releaseDate, accentColor }: CountdownTi
         <div
           key={label}
           className="flex flex-1 flex-col rounded-xl border px-3 py-3 md:px-4 md:py-4"
-          style={{
-            borderColor: `${accentColor}50`,
-            backgroundColor: `${accentColor}10`,
-            transform: "translateZ(0)",
-            WebkitBackfaceVisibility: "hidden",
-            backfaceVisibility: "hidden",
-          }}
+          style={{ borderColor: `${accentColor}50`, backgroundColor: `${accentColor}10` }}
         >
           <span className="font-mono text-2xl font-bold md:text-3xl" style={{ color: accentColor }}>
             {pad(value)}

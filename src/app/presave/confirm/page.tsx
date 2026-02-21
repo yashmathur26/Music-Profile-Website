@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { campaign } from "@/config/campaign";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 
 const SPOTIFY_GREEN = "#1DB954";
+const AUTHORIZE_URL = "/api/spotify/authorize?returnTo=/presave/success";
 
 export default function PresaveConfirmPage() {
-  const router = useRouter();
   const [ageOk, setAgeOk] = useState(false);
   const [termsOk, setTermsOk] = useState(false);
   const accent = campaign.accentColor;
@@ -20,7 +19,8 @@ export default function PresaveConfirmPage() {
 
   function handleContinue() {
     if (!canContinue) return;
-    router.push("/api/spotify/authorize?returnTo=/presave/success");
+    // Full navigation so the browser follows the 302 redirect to Spotify (router.push doesn't)
+    window.location.href = AUTHORIZE_URL;
   }
 
   return (

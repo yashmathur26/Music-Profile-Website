@@ -14,42 +14,59 @@ export default function HomePage() {
   const widgetRef = useRef<unknown>(null);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const script = document.createElement("script");
     script.src = "https://w.soundcloud.com/player/api.js";
     script.async = true;
     document.body.appendChild(script);
 
     script.onload = () => {
-      const iframe = document.querySelector('iframe[title="SoundCloud player"]') as HTMLIFrameElement;
-      if (iframe && (window as unknown as { SC?: { Widget: (el: HTMLIFrameElement) => unknown } }).SC) {
-        const widget = (window as unknown as { SC: { Widget: (el: HTMLIFrameElement) => unknown } }).SC.Widget(iframe);
-        (widgetRef as React.MutableRefObject<unknown>).current = widget;
-        if (typeof (widget as { bind?: (e: string, fn: () => void) => void }).bind === "function") {
-          (widget as { bind: (e: string, fn: () => void) => void }).bind(
-            (window as unknown as { SC: { Widget: { Events: { READY: string } } } }).SC.Widget.Events.READY,
-            () => {
-              (widget as { setVolume: (n: number) => void }).setVolume(0);
-              let volume = 0;
-              const targetVolume = 15;
-              const fadeDuration = 3000;
-              const steps = 30;
-              const stepDuration = fadeDuration / steps;
-              const volumeStep = targetVolume / steps;
-              const fadeInterval = setInterval(() => {
-                volume += volumeStep;
-                if (volume >= targetVolume) {
-                  (widget as { setVolume: (n: number) => void }).setVolume(targetVolume);
-                  clearInterval(fadeInterval);
-                } else {
-                  (widget as { setVolume: (n: number) => void }).setVolume(Math.round(volume));
-                }
-              }, stepDuration);
-            }
-          );
+      // Defer so the iframe is in the DOM and has a contentWindow (avoids postMessage on null)
+      timeoutId = setTimeout(() => {
+        const iframe = document.querySelector('iframe[title="SoundCloud player"]') as HTMLIFrameElement | null;
+        if (!iframe?.contentWindow) return;
+        try {
+          const SC = (window as unknown as { SC?: { Widget: ((el: HTMLIFrameElement) => unknown) & { Events: { READY: string } } } }).SC;
+          if (!SC?.Widget) return;
+          const widget = SC.Widget(iframe);
+          widgetRef.current = widget;
+          if (typeof (widget as { bind?: (e: string, fn: () => void) => void }).bind === "function") {
+            (widget as { bind: (e: string, fn: () => void) => void }).bind(SC.Widget.Events.READY, () => {
+              try {
+                (widget as { setVolume: (n: number) => void }).setVolume(0);
+                let volume = 0;
+                const targetVolume = 15;
+                const fadeDuration = 3000;
+                const steps = 30;
+                const stepDuration = fadeDuration / steps;
+                const volumeStep = targetVolume / steps;
+                const fadeInterval = setInterval(() => {
+                  try {
+                    volume += volumeStep;
+                    if (volume >= targetVolume) {
+                      (widget as { setVolume: (n: number) => void }).setVolume(targetVolume);
+                      clearInterval(fadeInterval);
+                    } else {
+                      (widget as { setVolume: (n: number) => void }).setVolume(Math.round(volume));
+                    }
+                  } catch {
+                    clearInterval(fadeInterval);
+                  }
+                }, stepDuration);
+              } catch {
+                // Widget may have been unmounted
+              }
+            });
+          }
+        } catch {
+          // SC.Widget or postMessage can throw if iframe is torn down
         }
-      }
+      }, 500);
     };
+
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      widgetRef.current = null;
       if (script.parentNode) document.body.removeChild(script);
     };
   }, []);
@@ -180,7 +197,7 @@ export default function HomePage() {
                 <iframe
                   title="SoundCloud player"
                   src={`${(getTrackBySlug(DEFAULT_TRACK_SLUG)?.soundcloudEmbedUrl ?? "").replace("auto_play=false", "auto_play=true").replace("visual=true", "visual=false")}&volume=15`}
-                  allow="autoplay"
+                  allow="autoplay; encrypted-media"
                   className="h-[166px] w-full border-0"
                 />
               </div>
