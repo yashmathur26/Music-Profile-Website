@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { campaign } from "@/config/campaign";
 
 const PRESAVED_KEY = "yvsh_presaved";
 
@@ -9,6 +10,10 @@ type SpotifyPresaveButtonProps = {
   accentColor: string;
   spotifyTrackUrl?: string;
 };
+
+function openPresaveInNewTab() {
+  window.open(campaign.spotify.hyperFollowUrl, "_blank", "noopener,noreferrer");
+}
 
 export default function SpotifyPresaveButton({ released, accentColor, spotifyTrackUrl }: SpotifyPresaveButtonProps) {
   const [presaved, setPresaved] = useState(false);
@@ -30,7 +35,7 @@ export default function SpotifyPresaveButton({ released, accentColor, spotifyTra
       window.open("https://open.spotify.com/", "_blank");
       return;
     }
-    window.location.href = "/api/spotify/authorize";
+    openPresaveInNewTab();
   };
 
   if (presaved && !released) {

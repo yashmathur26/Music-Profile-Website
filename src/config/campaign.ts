@@ -14,6 +14,7 @@ export type CampaignConfig = {
   spotify: {
     enabled: boolean;
     trackUri: string; // Set on release day e.g. "spotify:track:4iV5W9uYEdYUVa..."
+    hyperFollowUrl: string; // DistroKid HyperFollow URL for presave (unlimited users)
   };
   additionalLinks: { platform: string; url: string }[];
   streamLinks: { platform: string; url: string; primary: boolean }[];
@@ -45,8 +46,9 @@ export const campaign: CampaignConfig = {
 
   spotify: {
     enabled: true,
-    // Album dropping Feb 27: spotify:album:14Op5wPZiammre4YBJV6dn
-    // When the TRACK is live: set trackUri to the track URI (spotify:track:xxx — get it from the track page on Spotify), then run "Trigger saves now" from admin so it gets added to every presaver's library.
+    // DistroKid HyperFollow for presave - this bypasses Spotify's 5-user dev mode limit
+    hyperFollowUrl: "https://distrokid.com/hyperfollow/yvsh1/10-outta-10",
+    // When the TRACK is live: set trackUri to the track URI (spotify:track:xxx)
     trackUri: "",
   },
 

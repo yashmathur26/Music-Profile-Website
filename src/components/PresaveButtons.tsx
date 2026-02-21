@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { campaign } from "@/config/campaign";
 
 const SPOTIFY_GREEN = "#1DB954";
@@ -13,18 +15,35 @@ type PresaveButtonsProps = {
   released?: boolean;
 };
 
+function openPresaveInNewTab() {
+  window.open(campaign.spotify.hyperFollowUrl, "_blank", "noopener,noreferrer");
+}
+
 export default function PresaveButtons({ released }: PresaveButtonsProps) {
+  const [showOverlay, setShowOverlay] = useState(false);
+
   const spotifyUrl = released && campaign.spotify.trackUri
     ? campaign.spotify.trackUri.startsWith("http")
       ? campaign.spotify.trackUri
       : `https://open.spotify.com/track/${campaign.spotify.trackUri.replace("spotify:track:", "")}`
-    : "/presave/confirm";
+    : null;
+
+  const handlePresaveClick = () => {
+    openPresaveInNewTab();
+    setShowOverlay(true);
+  };
+
+  useEffect(() => {
+    if (!showOverlay) return;
+    const t = setTimeout(() => setShowOverlay(false), 4000);
+    return () => clearTimeout(t);
+  }, [showOverlay]);
 
   return (
     <>
       {released ? (
         <Link
-          href={spotifyUrl}
+          href={spotifyUrl || "https://open.spotify.com/artist/2mBs3Kdfu7pvYu4w8Hac5y"}
           className={buttonBase}
           style={{
             backgroundColor: SPOTIFY_GREEN,
@@ -35,17 +54,39 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
           Listen on Spotify
         </Link>
       ) : (
-        <Link
-          href="/presave/confirm"
-          className={buttonBase}
-          style={{
-            backgroundColor: SPOTIFY_GREEN,
-            boxShadow: `0 0 30px ${SPOTIFY_GREEN}60`,
-          }}
-        >
-          <LockIcon className="h-6 w-6 shrink-0" />
-          Pre-save on Spotify
-        </Link>
+        <>
+          <button
+            type="button"
+            onClick={handlePresaveClick}
+            className={buttonBase}
+            style={{
+              backgroundColor: SPOTIFY_GREEN,
+              boxShadow: `0 0 30px ${SPOTIFY_GREEN}60`,
+            }}
+          >
+            <LockIcon className="h-6 w-6 shrink-0" />
+            Pre-save on Spotify
+          </button>
+
+          <AnimatePresence>
+            {showOverlay && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl px-4 py-3 text-sm text-white shadow-lg"
+                style={{
+                  backgroundColor: "rgba(26, 10, 46, 0.95)",
+                  borderColor: "rgba(29, 185, 84, 0.5)",
+                  borderWidth: 1,
+                  boxShadow: `0 0 24px ${SPOTIFY_GREEN}30`,
+                }}
+              >
+                New tab opened — complete your presave there, then come back
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </>
   );
