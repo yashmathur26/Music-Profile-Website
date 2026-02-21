@@ -12,7 +12,7 @@ type SpotifyPresaveButtonProps = {
 };
 
 function openPresaveInNewTab() {
-  window.open(campaign.spotify.presaveUrl, "_blank", "noopener,noreferrer");
+  window.open(campaign.spotify.hyperFollowUrl, "_blank", "noopener,noreferrer");
 }
 
 export default function SpotifyPresaveButton({ released, accentColor, spotifyTrackUrl }: SpotifyPresaveButtonProps) {

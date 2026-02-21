@@ -93,7 +93,7 @@ export default function HomePage() {
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
                     {features.presave && (
                       <a
-                        href={campaign.spotify.presaveUrl}
+                        href={campaign.spotify.hyperFollowUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm font-medium underline"
