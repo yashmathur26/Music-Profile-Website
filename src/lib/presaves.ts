@@ -98,6 +98,14 @@ export async function updatePresaveRefreshToken(id: string, refresh_token: strin
   if (error) throw error;
 }
 
+/** Delete a single presave by ID (e.g. for user-initiated removal). */
+export async function deletePresaveById(id: string): Promise<boolean> {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { data, error } = await supabase.from("presaves").delete().eq("id", id).select("id").maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
 /** Delete all presaves (use for reset / from-scratch). */
 export async function deleteAllPresaves(): Promise<number> {
   if (!supabase) throw new Error("Supabase not configured");

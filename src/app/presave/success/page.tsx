@@ -17,6 +17,9 @@ function PresaveSuccessContent() {
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [removeSuccess, setRemoveSuccess] = useState(false);
 
   useEffect(() => {
     try {
@@ -31,6 +34,27 @@ function PresaveSuccessContent() {
     day: "numeric",
     year: "numeric",
   });
+
+  async function handleRemovePresave() {
+    setRemoveError(null);
+    setRemoveLoading(true);
+    try {
+      const res = await fetch("/api/presave/remove", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRemoveError(data.error ?? "Something went wrong");
+        return;
+      }
+      setRemoveSuccess(true);
+      try {
+        localStorage.removeItem(PRESAVED_KEY);
+      } catch {
+        // ignore
+      }
+    } finally {
+      setRemoveLoading(false);
+    }
+  }
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -151,6 +175,28 @@ function PresaveSuccessContent() {
                   Copy link
                 </button>
               </div>
+
+              {removeSuccess ? (
+                <p className="mt-8 text-sm font-medium text-white/80">
+                  Your presave has been removed. You can presave again anytime.
+                </p>
+              ) : (
+                <div className="mt-8 flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRemovePresave}
+                    disabled={removeLoading}
+                    className="rounded-xl border border-white/20 bg-transparent px-5 py-2.5 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white/90 disabled:opacity-50"
+                  >
+                    {removeLoading ? "Removing…" : "Remove my presave"}
+                  </button>
+                  {removeError && (
+                    <p className="max-w-xs text-center text-xs text-red-400">
+                      {removeError}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <Link
                 href="/home"

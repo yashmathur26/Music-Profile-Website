@@ -66,6 +66,10 @@ export default function PresaveConfirmPage() {
                     I agree to the{" "}
                     <Link href="/terms" className="underline underline-offset-2 hover:text-white" target="_blank" rel="noopener noreferrer">
                       Terms & Conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="underline underline-offset-2 hover:text-white" target="_blank" rel="noopener noreferrer">
+                      Privacy Policy
                     </Link>.
                   </span>
                 </label>

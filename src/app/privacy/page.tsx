@@ -16,45 +16,41 @@ function Check({ className }: { className?: string }) {
   );
 }
 
-export default function TermsPage() {
+export default function PrivacyPage() {
   const accent = campaign.accentColor;
 
   const sections = [
     {
-      title: "Acceptance",
-      body: "By using this site and the presave feature, you agree to these terms. If you don’t agree, please don’t use the service.",
+      title: "Overview",
+      body: "This Privacy Policy describes how we collect, use, and protect your information when you use this website and the presave feature.",
     },
     {
-      title: "Age requirement",
-      body: "You must be at least 13 years old to use this site. In the European Economic Area and the UK you must be at least 16. We don’t knowingly collect data from anyone under those ages.",
+      title: "Information we collect",
+      body: "When you pre-save a track, we collect: your Spotify user ID, a refresh token (so we can add the track to your library on release day), and optionally your email if you choose to receive release notifications. We do not sell your data.",
     },
     {
-      title: "What we do with presave",
-      body: "When you pre-save, we store your Spotify user ID and a token so we can add the track to your Spotify library on release day. We may store an optional email if you give it. We don’t sell your data. See our Privacy Policy for details.",
+      title: "How we use it",
+      body: "We use your Spotify user ID and token solely to add the pre-saved track to your Spotify library on release day. If you provide an email, we use it to notify you when the track is released. We do not use your data for advertising or share it with third parties for marketing.",
+    },
+    {
+      title: "Cookies",
+      body: "We use cookies (including an httpOnly session cookie) to keep you logged in during the presave flow. This cookie expires shortly after you complete the flow. We do not use tracking or advertising cookies.",
     },
     {
       title: "Spotify",
-      body: "The presave feature uses Spotify's platform. Spotify is a third-party beneficiary of these Terms. You may not reverse-engineer, decompile, disassemble, or otherwise attempt to derive the source code of the Spotify platform or our integration. To disconnect our app from your Spotify account: Spotify app → Settings → Apps → find this app → Remove access.",
+      body: "Our presave feature uses the Spotify Web API. Your use of the presave feature is also subject to Spotify's Terms of Use and Privacy Policy. Spotify is a third-party beneficiary of our Terms.",
     },
     {
-      title: "Remove your presave",
-      body: "You can remove your presave at any time from the presave success page using the 'Remove my presave' button. For data deletion requests, contact us via the Contact page.",
+      title: "Data retention",
+      body: "We retain your presave data (Spotify user ID, token) until the track is released and added to your library, or until you remove your presave. You can remove your presave at any time from the presave success page.",
     },
     {
-      title: "Your responsibility",
-      body: "You use the site at your own risk. Don’t misuse the service, attempt to access systems you’re not allowed to, or use it for anything illegal.",
+      title: "Your rights",
+      body: "You can remove your presave at any time using the 'Remove my presave' option on the presave success page. For a copy of your data or other deletion requests, contact us via the Contact page. We will respond to legitimate requests in a reasonable time.",
     },
     {
-      title: "No warranty",
-      body: "The site and presave feature are provided “as is.” We don’t guarantee the site will be error-free or that the track will be added at an exact time.",
-    },
-    {
-      title: "Changes",
-      body: "We may update these terms. Continued use after changes means you accept the new terms. The current version is always on this page.",
-    },
-    {
-      title: "Contact & data rights",
-      body: "For a copy of your data or to request deletion, see our Contact page. We’ll respond to legitimate requests in a reasonable time.",
+      title: "Contact",
+      body: "For privacy questions or data requests, contact us at yvshmusic@gmail.com or through our Contact page.",
     },
   ];
 
@@ -66,7 +62,7 @@ export default function TermsPage() {
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-4 py-10 md:px-6 md:py-14">
             <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-              Terms & Conditions
+              Privacy Policy
             </h1>
             <p className="mt-1 text-sm text-white/50">
               Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
@@ -99,11 +95,11 @@ export default function TermsPage() {
                 ← Back to site
               </Link>
               <Link
-                href="/privacy"
+                href="/terms"
                 className="text-sm font-medium text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
                 style={{ color: accent }}
               >
-                Privacy Policy
+                Terms & Conditions
               </Link>
             </div>
           </div>
