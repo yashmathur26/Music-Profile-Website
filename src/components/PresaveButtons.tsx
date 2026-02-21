@@ -16,7 +16,7 @@ type PresaveButtonsProps = {
 };
 
 function openPresaveInNewTab() {
-  window.open(campaign.spotify.hyperFollowUrl, "_blank", "noopener,noreferrer");
+  window.open(campaign.spotify.presaveUrl, "_blank", "noopener,noreferrer");
 }
 
 export default function PresaveButtons({ released }: PresaveButtonsProps) {
@@ -82,7 +82,7 @@ export default function PresaveButtons({ released }: PresaveButtonsProps) {
                   boxShadow: `0 0 24px ${SPOTIFY_GREEN}30`,
                 }}
               >
-                New tab opened — complete your presave there, then come back
+                New tab opened — sign in on Spotify to complete your presave
               </motion.div>
             )}
           </AnimatePresence>

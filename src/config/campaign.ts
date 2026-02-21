@@ -14,7 +14,9 @@ export type CampaignConfig = {
   spotify: {
     enabled: boolean;
     trackUri: string; // Set on release day e.g. "spotify:track:4iV5W9uYEdYUVa..."
-    hyperFollowUrl: string; // DistroKid HyperFollow URL for presave (unlimited users)
+    /** Direct Spotify auth link (from DistroKid) - skips HyperFollow, goes straight to Spotify login */
+    presaveUrl: string;
+    hyperFollowUrl: string; // Fallback: full HyperFollow page
   };
   additionalLinks: { platform: string; url: string }[];
   streamLinks: { platform: string; url: string; primary: boolean }[];
@@ -46,9 +48,9 @@ export const campaign: CampaignConfig = {
 
   spotify: {
     enabled: true,
-    // DistroKid HyperFollow for presave - this bypasses Spotify's 5-user dev mode limit
+    // Direct Spotify auth link - skips DistroKid page, goes straight to Spotify
+    presaveUrl: "https://accounts.spotify.com/en/login?continue=https%3A%2F%2Faccounts.spotify.com%2Fauthorize%3Fscope%3Duser-follow-modify%2Buser-read-email%2Buser-follow-read%2Buser-library-modify%2Buser-read-birthdate%2Bplaylist-modify-private%2Buser-read-recently-played%2Buser-top-read%26response_type%3Dcode%26redirect_uri%3Dhttps%3A%2F%2Fdistrokid.com%2Fspotify%2Fcallback%26state%3DFBD3%26client_id%3D4a85c6638c3743928bee71feacbbcbf5%26show_dialog%3Dfalse&client_id=4a85c6638c3743928bee71feacbbcbf5",
     hyperFollowUrl: "https://distrokid.com/hyperfollow/yvsh1/10-outta-10",
-    // When the TRACK is live: set trackUri to the track URI (spotify:track:xxx)
     trackUri: "",
   },
 

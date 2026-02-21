@@ -50,7 +50,7 @@ export default function PrivacyPage() {
     },
     {
       title: "Contact",
-      body: "For privacy questions or data requests, contact us at yvshmusic@gmail.com or through our Contact page.",
+      body: "For privacy questions or data requests, contact us at ymbeats26@gmail.com or through our Contact page.",
     },
   ];
 

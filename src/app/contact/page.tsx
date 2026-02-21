@@ -26,11 +26,11 @@ export default function ContactPage() {
                   Business / Press
                 </h2>
                 <a
-                  href="mailto:yvshmusic@gmail.com"
+                  href="mailto:ymbeats26@gmail.com"
                   className="mt-2 inline-block text-white/80 underline-offset-2 hover:text-white hover:underline"
                   style={{ color: accent }}
                 >
-                  yvshmusic@gmail.com
+                  ymbeats26@gmail.com
                 </a>
               </div>
               <div>
