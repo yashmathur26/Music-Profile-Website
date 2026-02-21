@@ -22,12 +22,24 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <aside
-      className={clsx(
-        "flex min-h-screen flex-col border-r border-purple-500/20 bg-[#150820]/95 backdrop-blur-sm py-6 text-white/70 transition-all duration-300 ease-in-out relative z-10",
-        expanded ? "w-72 px-5" : "w-16 px-2 sm:w-20 sm:px-3"
+    <>
+      {/* Backdrop on mobile when expanded — tap to close */}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setExpanded(false)}
+          aria-hidden
+        />
       )}
-    >
+      <aside
+        className={clsx(
+          "flex flex-col border-r border-purple-500/20 bg-[#150820]/95 backdrop-blur-sm py-6 text-white/70 transition-all duration-300 ease-in-out",
+          "relative z-10 min-h-screen",
+          expanded
+            ? "fixed inset-0 z-50 h-screen w-full max-w-none px-5 md:relative md:inset-auto md:h-auto md:min-h-screen md:w-72 md:max-w-[18rem]"
+            : "w-16 px-2 sm:w-20 sm:px-3"
+        )}
+      >
       {/* Toggle Button */}
       <button
         onClick={() => setExpanded((v) => !v)}
@@ -86,6 +98,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {/* Home Button */}
         <Link
           href="/home"
+          onClick={() => expanded && setExpanded(false)}
           className={clsx(
             "flex items-center gap-3 rounded-xl border border-purple-400/25 bg-purple-500/[0.12] text-purple-100 transition hover:bg-purple-500/20",
             expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
@@ -101,11 +114,12 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {/* Pre-save (only when campaign + presave feature on) — goes to splash for Spotify presave */}
         {campaign.isActive && features.presave && (
           <Link
-            href="/"
+            href="/presave"
+            onClick={() => expanded && setExpanded(false)}
             className={clsx(
               "flex items-center gap-3 rounded-xl transition text-white hover:opacity-95",
               expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
-              pathname === "/" || pathname?.startsWith("/presave")
+              pathname?.startsWith("/presave")
                 ? "bg-[#1DB954] shadow-lg shadow-[#1DB954]/30"
                 : "bg-[#1DB954] hover:bg-[#1ed760]"
             )}
@@ -122,6 +136,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {/* Shop Button */}
         <Link
           href="/shop"
+          onClick={() => expanded && setExpanded(false)}
           className={clsx(
             "flex items-center gap-3 rounded-xl border border-blue-400/20 bg-blue-500/[0.12] text-blue-100 transition hover:bg-blue-500/20",
             expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
@@ -142,6 +157,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {/* Downloads Button */}
         <Link
           href="/downloads"
+          onClick={() => expanded && setExpanded(false)}
           className={clsx(
             "flex items-center gap-3 rounded-xl border border-purple-400/25 bg-purple-500/[0.12] text-purple-100 transition hover:bg-purple-500/20",
             expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
@@ -158,6 +174,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         {features.stats && (
           <Link
             href="/stats"
+            onClick={() => expanded && setExpanded(false)}
             className={clsx(
               "flex items-center gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/[0.12] text-emerald-100 transition hover:bg-emerald-500/20",
               expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
@@ -172,5 +189,6 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
         )}
       </div>
     </aside>
+    </>
   );
 }

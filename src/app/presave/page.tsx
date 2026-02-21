@@ -107,6 +107,13 @@ function PresaveContent() {
         <p className="mt-1 text-xs text-white/40">
           Apple Music presave coming soon
         </p>
+        <Link
+          href="/contact"
+          className="mt-6 text-sm font-medium underline-offset-2 hover:underline"
+          style={{ color: accent }}
+        >
+          Contact →
+        </Link>
       </motion.div>
     </main>
   );
