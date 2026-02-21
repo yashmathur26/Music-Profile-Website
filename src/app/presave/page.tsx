@@ -109,7 +109,7 @@ function PresaveContent() {
         </p>
         <Link
           href="/contact"
-          className="mt-6 text-sm font-medium underline-offset-2 hover:underline"
+          className="mt-3 text-sm font-medium underline-offset-2 hover:underline"
           style={{ color: accent }}
         >
           Contact →
