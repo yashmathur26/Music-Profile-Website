@@ -98,14 +98,14 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
           {expanded && <span className="text-sm font-medium">Home</span>}
         </Link>
 
-        {/* Pre-save (only when campaign + presave feature on) — goes to splash for Spotify presave */}
+        {/* Pre-save (only when campaign + presave feature on) */}
         {campaign.isActive && features.presave && (
           <Link
-            href="/"
+            href="/presave"
             className={clsx(
               "flex items-center gap-3 rounded-xl transition text-white hover:opacity-95",
               expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
-              pathname === "/" || pathname?.startsWith("/presave")
+              pathname?.startsWith("/presave")
                 ? "bg-[#1DB954] shadow-lg shadow-[#1DB954]/30"
                 : "bg-[#1DB954] hover:bg-[#1ed760]"
             )}

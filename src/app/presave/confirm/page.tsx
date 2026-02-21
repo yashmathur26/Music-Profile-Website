@@ -85,7 +85,7 @@ export default function PresaveConfirmPage() {
                   Continue to Spotify
                 </button>
                 <Link
-                  href="/"
+                  href="/presave"
                   className="rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-center text-sm font-medium text-white/80 transition hover:bg-white/10"
                 >
                   Cancel
@@ -94,7 +94,7 @@ export default function PresaveConfirmPage() {
             </motion.div>
 
             <p className="mt-6 text-center text-xs text-white/50">
-              <Link href="/" className="underline-offset-2 hover:underline">← Back to presave</Link>
+              <Link href="/presave" className="underline-offset-2 hover:underline">← Back to presave</Link>
             </p>
           </div>
         </div>
