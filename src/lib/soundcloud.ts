@@ -117,6 +117,127 @@ export const exchangeCodeForToken = (code: string, codeVerifier: string) =>
     })
   );
 
+/**
+ * Diagnostic exchange: SoundCloud accepts our request shape for every
+ * synthetic probe yet rejects real codes with a bare `invalid_request`, so
+ * this tries each plausible request shape in sequence against the real code
+ * and reports what happened. The first success wins (and completes the
+ * connection); total failure returns a per-variant report for the popup.
+ */
+export const exchangeCodeMatrix = async (
+  code: string,
+  codeVerifier: string
+): Promise<
+  | { ok: true; tokens: SoundcloudTokens; via: string }
+  | { ok: false; report: string }
+> => {
+  const id = env.soundcloudClientId as string;
+  const secret = env.soundcloudClientSecret as string;
+  const redirect = env.soundcloudRedirectUri as string;
+
+  const variants: {
+    name: string;
+    url: string;
+    basic: boolean;
+    body: Record<string, string>;
+  }[] = [
+    {
+      name: "v1-api-basic",
+      url: "https://api.soundcloud.com/oauth2/token",
+      basic: true,
+      body: {
+        grant_type: "authorization_code",
+        redirect_uri: redirect,
+        code_verifier: codeVerifier,
+        code
+      }
+    },
+    {
+      name: "v2-api-bodycreds",
+      url: "https://api.soundcloud.com/oauth2/token",
+      basic: false,
+      body: {
+        grant_type: "authorization_code",
+        client_id: id,
+        client_secret: secret,
+        redirect_uri: redirect,
+        code_verifier: codeVerifier,
+        code
+      }
+    },
+    {
+      name: "v3-api-basic+id",
+      url: "https://api.soundcloud.com/oauth2/token",
+      basic: true,
+      body: {
+        grant_type: "authorization_code",
+        client_id: id,
+        redirect_uri: redirect,
+        code_verifier: codeVerifier,
+        code
+      }
+    },
+    {
+      name: "v4-secure-bodycreds",
+      url: "https://secure.soundcloud.com/oauth/token",
+      basic: false,
+      body: {
+        grant_type: "authorization_code",
+        client_id: id,
+        client_secret: secret,
+        redirect_uri: redirect,
+        code_verifier: codeVerifier,
+        code
+      }
+    }
+  ];
+
+  const report: string[] = [];
+  for (const variant of variants) {
+    try {
+      const response = await fetch(variant.url, {
+        method: "POST",
+        headers: {
+          ...(variant.basic
+            ? {
+                Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`
+              }
+            : {}),
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json; charset=utf-8"
+        },
+        body: new URLSearchParams(variant.body),
+        cache: "no-store"
+      });
+      const text = await response.text();
+      if (response.ok) {
+        console.log(`[gate] exchange matrix: ${variant.name} SUCCEEDED`);
+        return {
+          ok: true,
+          via: variant.name,
+          tokens: parseTokenResponse(JSON.parse(text))
+        };
+      }
+      let brief = `${response.status}`;
+      try {
+        const parsed = JSON.parse(text) as {
+          error?: string | null;
+          error_code?: string;
+        };
+        brief += `:${parsed.error || parsed.error_code || "?"}`;
+      } catch {
+        brief += `:${text.slice(0, 40)}`;
+      }
+      report.push(`${variant.name}=${brief}`);
+      console.log(`[gate] exchange matrix: ${variant.name} -> ${brief}`);
+    } catch (error) {
+      report.push(`${variant.name}=network_error`);
+      console.log(`[gate] exchange matrix: ${variant.name} threw`, error);
+    }
+  }
+  return { ok: false, report: report.join(" | ") };
+};
+
 /** Refresh tokens are single-use — always persist the new one you get back. */
 export const refreshAccessToken = (refreshToken: string) =>
   postToken(

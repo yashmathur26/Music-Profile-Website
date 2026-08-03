@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { clearOauthHandoff, getOauthHandoff } from "@/lib/session";
 import {
   SoundcloudApiError,
-  exchangeCodeForToken,
+  exchangeCodeMatrix,
   fetchMe,
   soundcloudConfigured
 } from "@/lib/soundcloud";
@@ -96,12 +96,16 @@ export async function GET(request: NextRequest) {
     );
   };
 
-  let tokens;
-  try {
-    tokens = await exchangeCodeForToken(code, codeVerifier);
-  } catch (error) {
-    return failPopup("exchange", error);
+  const exchanged = await exchangeCodeMatrix(code, codeVerifier);
+  if (!exchanged.ok) {
+    console.error("[gate] all exchange variants failed:", exchanged.report);
+    return popupResponse(
+      { ok: false, reason: "exchange_matrix", detail: exchanged.report },
+      `/${slug}?sc=error`,
+      500
+    );
   }
+  const tokens = exchanged.tokens;
 
   let me;
   try {

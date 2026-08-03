@@ -65,7 +65,8 @@ const FAILURE_COPY: Record<string, string> = {
   exchange_401:
     "SoundCloud rejected the app credentials (401). The client secret on the server is likely mistyped.",
   exchange_403: "SoundCloud refused the connection (403).",
-  exchange_429: "SoundCloud is rate-limiting us. Wait a minute, then retry."
+  exchange_429: "SoundCloud is rate-limiting us. Wait a minute, then retry.",
+  exchange_matrix: "Every exchange variant failed. Variant report:"
 };
 
 const failureCopy = (reason: string) => {
