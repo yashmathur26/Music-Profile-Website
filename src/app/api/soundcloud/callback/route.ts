@@ -81,7 +81,12 @@ export async function GET(request: NextRequest) {
     if (error instanceof SoundcloudApiError) {
       reason = `exchange_${error.status}`;
       try {
-        const scError = (JSON.parse(error.body) as { error?: string }).error;
+        // The two SoundCloud token hosts use different error shapes.
+        const parsed = JSON.parse(error.body) as {
+          error?: string | null;
+          error_code?: string;
+        };
+        const scError = parsed.error || parsed.error_code;
         if (scError && /^[a-z_]+$/.test(scError)) reason += `_${scError}`;
       } catch {
         /* body wasn't JSON — keep the bare status */

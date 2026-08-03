@@ -2,7 +2,14 @@ import { createHash, randomBytes } from "crypto";
 import { env } from "@/utils/env";
 
 const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
-const TOKEN_URL = "https://secure.soundcloud.com/oauth/token";
+/**
+ * NOT secure.soundcloud.com/oauth/token: that endpoint answers every
+ * authorization_code request with a blanket `invalid_request` (it only
+ * services client_credentials). Verified live: a bogus code here fails with
+ * `invalid_grant` — i.e. full param validation passes — while the secure.
+ * host rejects the identical request outright.
+ */
+const TOKEN_URL = "https://api.soundcloud.com/oauth2/token";
 const API_BASE = "https://api.soundcloud.com";
 
 export type SoundcloudTokens = {
