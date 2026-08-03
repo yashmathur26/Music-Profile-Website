@@ -13,11 +13,8 @@ import {
 import { readGate, recordGateEngagement, writeGate } from "@/lib/gateStore";
 import { updateSession } from "@/lib/db";
 import { getOrCreateSessionId } from "@/lib/session";
-import {
-  ARTIST_SOUNDCLOUD_URL,
-  getTrackBySlug,
-  getTrackPermalink
-} from "@/lib/tracks";
+import { ARTIST_SOUNDCLOUD_URL, getTrackPermalink } from "@/lib/tracks";
+import { findTrack } from "@/lib/trackStore";
 import { env } from "@/utils/env";
 
 export type GateStatus = {
@@ -76,7 +73,7 @@ const getArtistId = async (accessToken: string) => {
 };
 
 const getTrackId = async (accessToken: string, trackSlug: string) => {
-  const track = getTrackBySlug(trackSlug);
+  const track = await findTrack(trackSlug);
   if (!track) return "";
   if (track.soundcloudTrackId) return numericId(track.soundcloudTrackId);
   const permalink = getTrackPermalink(track);

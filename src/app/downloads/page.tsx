@@ -1,10 +1,13 @@
-"use client";
-
 import Link from "next/link";
-import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { getAllTracks } from "@/lib/trackStore";
 import Sidebar from "@/components/Sidebar";
 
-export default function DownloadsPage() {
+// Tracks added from the admin page must show up without a redeploy.
+export const dynamic = "force-dynamic";
+
+export default async function DownloadsPage() {
+  const tracks = await getAllTracks();
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="relative flex min-h-screen overflow-x-hidden">

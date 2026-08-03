@@ -7,14 +7,15 @@ import {
 } from "@/lib/soundcloud";
 import { getOrCreateSessionId, setOauthHandoff } from "@/lib/session";
 import { popupResponse } from "@/lib/popupResponse";
-import { DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
+import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { findTrack } from "@/lib/trackStore";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const requested = searchParams.get("track") || DEFAULT_TRACK_SLUG;
-  const trackSlug = getTrackBySlug(requested)?.slug || DEFAULT_TRACK_SLUG;
+  const trackSlug = (await findTrack(requested))?.slug || DEFAULT_TRACK_SLUG;
 
   if (!soundcloudConfigured()) {
     return popupResponse(

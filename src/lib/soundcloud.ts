@@ -305,6 +305,62 @@ export const fetchMe = async (accessToken: string) => {
   };
 };
 
+/**
+ * App-level token for admin-side lookups (no fan involved). Cached per server
+ * instance because SoundCloud caps client_credentials issuance at 50 tokens
+ * per 12 hours per app.
+ */
+let clientToken: { token: string; expiresAt: number } | null = null;
+
+export const getClientToken = async () => {
+  if (clientToken && clientToken.expiresAt - Date.now() > 60_000) {
+    return clientToken.token;
+  }
+  const tokens = await postToken(
+    new URLSearchParams({ grant_type: "client_credentials" })
+  );
+  clientToken = {
+    token: tokens.accessToken,
+    expiresAt: tokens.expiresAt
+      ? Date.parse(tokens.expiresAt)
+      : Date.now() + 50 * 60 * 1000
+  };
+  return clientToken.token;
+};
+
+export type ResolvedTrackMeta = {
+  kind: string;
+  id: string;
+  title: string;
+  artworkUrl: string;
+  permalinkUrl: string;
+};
+
+/** Full track metadata for the admin "add a gate" flow. */
+export const resolveTrackMeta = async (
+  url: string
+): Promise<ResolvedTrackMeta> => {
+  const token = await getClientToken();
+  const data = await asJson<{
+    id?: number | string;
+    urn?: string;
+    kind?: string;
+    title?: string;
+    artwork_url?: string | null;
+    permalink_url?: string;
+  }>(await apiRequest(`/resolve?url=${encodeURIComponent(url)}`, token));
+  return {
+    kind: data.kind || "",
+    id: numericId(data.id ?? data.urn),
+    title: data.title || "",
+    // The API hands back the 100x100 "-large" crop; the gate page wants more.
+    artworkUrl: (data.artwork_url || "").replace("-large", "-t500x500"),
+    // permalink_url arrives with ?utm_… tracking params appended — drop them,
+    // they'd otherwise leak into the slug and the stored permalink.
+    permalinkUrl: (data.permalink_url || "").split(/[?#]/)[0]
+  };
+};
+
 /** Resolves a soundcloud.com permalink to its API resource (user or track). */
 export const resolvePermalink = async (accessToken: string, url: string) => {
   const resolved = await asJson<{

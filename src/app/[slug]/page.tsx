@@ -1,13 +1,19 @@
 import DownloadGate from "@/components/DownloadGate";
 import Sidebar from "@/components/Sidebar";
-import { getTrackBySlug, tracks } from "@/lib/tracks";
+import { findTrack, getAllTracks } from "@/lib/trackStore";
 
 type PageProps = {
   params: { slug: string };
 };
 
-export default function TrackPage({ params }: PageProps) {
-  const track = getTrackBySlug(params.slug);
+// Tracks added from the admin page must show up without a redeploy.
+export const dynamic = "force-dynamic";
+
+export default async function TrackPage({ params }: PageProps) {
+  const [track, tracks] = await Promise.all([
+    findTrack(params.slug),
+    getAllTracks()
+  ]);
   if (!track) {
     return <main className="p-8 text-sm text-muted">Track not found.</main>;
   }
@@ -57,6 +63,3 @@ export default function TrackPage({ params }: PageProps) {
     </main>
   );
 }
-
-export const generateStaticParams = () =>
-  tracks.map((track) => ({ slug: track.slug }));

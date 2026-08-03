@@ -3,7 +3,6 @@
 import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import DownloadSuccess from "@/components/DownloadSuccess";
-import { randomComment } from "@/lib/comments";
 
 /** Mirror of the server's GateStatus. */
 type GateStatus = {
@@ -167,16 +166,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const [downloaded, setDownloaded] = useState(false);
   const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // The fan's choices, made before the popup opens. Both default to on;
-  // the comment text itself is a random suggestion the fan can edit.
+  // The fan's choices, made before the popup opens. The comment is theirs to
+  // write — the gate won't open the popup until it has one.
   const [repost, setRepost] = useState(true);
-  const [leaveComment, setLeaveComment] = useState(true);
   const [comment, setComment] = useState("");
-
-  // Seeded client-side so the server render stays deterministic.
-  useEffect(() => {
-    setComment(randomComment());
-  }, [trackSlug]);
   const outboundStartedAt = useRef<number | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -300,15 +293,19 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   }, [MANUAL_KEY, OUTBOUND_KEY, artistName]);
 
   const handleConnect = () => {
+    const trimmed = comment.trim().slice(0, COMMENT_MAX);
+    if (!trimmed) {
+      setNotice("Write a comment for the track first — it posts under your name.");
+      return;
+    }
     setNotice(null);
     setConnecting(true);
 
     const params = new URLSearchParams({
       track: trackSlug,
-      repost: repost ? "1" : "0"
+      repost: repost ? "1" : "0",
+      comment: trimmed
     });
-    const trimmed = comment.trim().slice(0, COMMENT_MAX);
-    if (leaveComment && trimmed) params.set("comment", trimmed);
 
     const popup = window.open(
       `/api/soundcloud/login?${params.toString()}`,
@@ -368,9 +365,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         body: JSON.stringify({
           track: trackSlug,
           repost,
-          comment: leaveComment
-            ? comment.trim().slice(0, COMMENT_MAX) || undefined
-            : undefined
+          comment: comment.trim().slice(0, COMMENT_MAX) || undefined
         })
       });
       applyStatus((await response.json()) as GateStatus);
@@ -489,60 +484,31 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               </p>
             </div>
 
-            {/* Comment first — pre-filled with a random suggestion the fan
-                can edit, re-roll, or switch off below. */}
-            <div className="relative">
-              <input
-                type="text"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                maxLength={COMMENT_MAX}
-                placeholder="Drop a comment on the track"
-                className="w-full rounded-xl border border-purple-500/15 bg-black/20 py-2.5 pl-3 pr-10 text-sm text-white placeholder:text-purple-200/40 focus:border-purple-400/50 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setComment(randomComment(comment))}
-                aria-label="Suggest a different comment"
-                title="Suggest a different comment"
-                className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-purple-300/60 transition hover:bg-purple-500/15 hover:text-purple-200"
-              >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.36 6.36L3 16M3 21v-5h5" />
-                </svg>
-              </button>
-            </div>
+            {/* The fan writes their own comment — required before the popup
+                opens, and it posts under their name. */}
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={COMMENT_MAX}
+              required
+              placeholder="Write a comment for the track (required)"
+              className="w-full rounded-xl border border-purple-500/15 bg-black/20 px-3 py-2.5 text-sm text-white placeholder:text-purple-200/40 focus:border-purple-400/50 focus:outline-none"
+            />
 
-            {/* The fan's choices — small, both on by default. */}
-            <div className="space-y-1.5">
-              <PrefRow
-                checked={leaveComment}
-                onChange={setLeaveComment}
-                label="Leave this comment on the track"
-              />
-              <PrefRow
-                checked={repost}
-                onChange={setRepost}
-                label="Repost to my followers"
-              />
-            </div>
+            <PrefRow
+              checked={repost}
+              onChange={setRepost}
+              label="Repost to my followers"
+            />
 
             <button
               onClick={handleConnect}
-              disabled={connecting}
+              disabled={connecting || !comment.trim()}
               className={clsx(
                 "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
                 "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
-                connecting && "opacity-70"
+                (connecting || !comment.trim()) && "opacity-70"
               )}
             >
               <span className="flex items-center gap-3">
@@ -578,7 +544,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               {(repost || status.reposted) && (
                 <ActionRow done={status.reposted} label="Reposted to your followers" />
               )}
-              {((leaveComment && comment.trim()) || status.commented) && (
+              {(comment.trim() || status.commented) && (
                 <ActionRow done={status.commented} label="Comment posted" />
               )}
             </ul>

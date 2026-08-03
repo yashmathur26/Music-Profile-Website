@@ -1,4 +1,4 @@
-type TrackConfig = {
+export type TrackConfig = {
   slug: string;
   title: string;
   artworkUrl: string;
@@ -15,6 +15,12 @@ export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";
 export const ARTIST_SOUNDCLOUD_URL =
   process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||
   "https://soundcloud.com/yvshh";
+
+/** Same player styling every hard-coded entry uses, for tracks added at runtime. */
+export const buildEmbedUrl = (permalink: string) =>
+  `https://w.soundcloud.com/player/?url=${encodeURIComponent(permalink)}` +
+  "&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false" +
+  "&show_user=true&show_reposts=false&show_teaser=false&visual=true";
 
 export const tracks: TrackConfig[] = [
   {

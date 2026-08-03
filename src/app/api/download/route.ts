@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
+import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { findTrack } from "@/lib/trackStore";
 
 /**
  * Resolves a track slug to its download URL.
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
       typeof body?.track === "string" && body.track.trim()
         ? body.track.trim()
         : DEFAULT_TRACK_SLUG;
-    const track = getTrackBySlug(slug);
+    const track = await findTrack(slug);
 
     if (!track) {
       return NextResponse.json(

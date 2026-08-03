@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emptyStatus, runEngagement } from "@/lib/soundcloudGate";
-import { DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
+import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { findTrack } from "@/lib/trackStore";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const requested =
     typeof body?.track === "string" ? body.track : DEFAULT_TRACK_SLUG;
-  const trackSlug = getTrackBySlug(requested)?.slug || DEFAULT_TRACK_SLUG;
+  const trackSlug = (await findTrack(requested))?.slug || DEFAULT_TRACK_SLUG;
   const prefs = {
     repost: body?.repost !== false,
     comment:
