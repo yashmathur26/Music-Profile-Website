@@ -4,19 +4,19 @@ type TrackConfig = {
   artworkUrl: string;
   downloadUrl: string;
   soundcloudEmbedUrl: string;
+  /** Only needed when the permalink can't be read off the embed URL. */
+  soundcloudUrl?: string;
+  /** Set this to skip the /resolve lookup for the like call. */
+  soundcloudTrackId?: string;
 };
 
-export const DEFAULT_TRACK_SLUG = "firestarter";
+export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";
+
+export const ARTIST_SOUNDCLOUD_URL =
+  process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||
+  "https://soundcloud.com/yvshh";
 
 export const tracks: TrackConfig[] = [
-  {
-    slug: "firestarter",
-    title: "FIRESTARTER",
-    artworkUrl: "/dont-stop-the-music.png",
-    soundcloudEmbedUrl:
-      "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/firestarter&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
-    downloadUrl: "https://drive.google.com/uc?export=download&id=1rUwxnFjD_ML1eboSyva1jGGFvd34RnPo"
-  },
   {
     slug: "dont-stop-the-music-piano",
     title: "RIHANNA - DON'T STOP THE MUSIC BUT PIANO HOUSE (YVSH FLIP)",
@@ -56,8 +56,33 @@ export const tracks: TrackConfig[] = [
     soundcloudEmbedUrl:
       "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/john-summit-lights-go-out-yvsh&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
     downloadUrl: "https://drive.google.com/uc?export=download&id=1bDmzCURDmGRUGHf0Q8b6f17ryy1ls_2A"
+  },
+  {
+    slug: "california-gurls-yvsh-flip",
+    title: "KATY PERRY - CALIFORNIA GURLS REMIX (YVSH FLIP)",
+    artworkUrl: "/dont-stop-the-music.png",
+    soundcloudEmbedUrl:
+      "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/california-gurls-yvsh-flip&color=%238b5cf6&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true",
+    downloadUrl: "https://drive.google.com/uc?export=download&id=1QcrSPyiNsRfwMbcHZTNq_ZM1r2GG3X6D"
   }
 ];
 
 export const getTrackBySlug = (slug: string) =>
   tracks.find((track) => track.slug === slug);
+
+/**
+ * The gate needs the track's soundcloud.com permalink to resolve its API id.
+ * The embed URL already carries it as the `url` param, so new tracks work
+ * without any extra config.
+ */
+export const getTrackPermalink = (track: TrackConfig) => {
+  if (track.soundcloudUrl) {
+    return track.soundcloudUrl;
+  }
+  const match = track.soundcloudEmbedUrl.match(/[?&]url=([^&]+)/);
+  if (!match) {
+    return "";
+  }
+  const decoded = decodeURIComponent(match[1]);
+  return decoded.startsWith("http") ? decoded : `https:${decoded}`;
+};

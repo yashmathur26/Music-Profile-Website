@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { campaign } from "@/config/campaign";
 import { features } from "@/config/features";
 
 type Track = {
@@ -109,49 +108,6 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
           {expanded && <span className="text-sm font-medium">Home</span>}
-        </Link>
-
-        {/* Pre-save (only when campaign + presave feature on) — goes to splash for Spotify presave */}
-        {campaign.isActive && features.presave && (
-          <Link
-            href="/presave"
-            onClick={() => expanded && setExpanded(false)}
-            className={clsx(
-              "flex items-center gap-3 rounded-xl transition text-white hover:opacity-95",
-              expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
-              pathname?.startsWith("/presave")
-                ? "bg-[#1DB954] shadow-lg shadow-[#1DB954]/30"
-                : "bg-[#1DB954] hover:bg-[#1ed760]"
-            )}
-            style={{ color: "white" }}
-          >
-            <svg className="h-5 w-5 shrink-0" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" role="img" aria-label="Presave">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-            {expanded && <span className="text-sm font-medium">Presave</span>}
-          </Link>
-        )}
-
-        {/* Shop Button */}
-        <Link
-          href="/shop"
-          onClick={() => expanded && setExpanded(false)}
-          className={clsx(
-            "flex items-center gap-3 rounded-xl border border-blue-400/20 bg-blue-500/[0.12] text-blue-100 transition hover:bg-blue-500/20",
-            expanded ? "w-full px-4 py-2.5" : "h-10 w-10 justify-center",
-            pathname === "/shop" && "border-blue-400/50 bg-blue-500/25"
-          )}
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M3 7h18l-1.5 13.5a2 2 0 0 1-2 1.8H6.5a2 2 0 0 1-2-1.8L3 7zm4 0a5 5 0 0 1 10 0"
-            />
-          </svg>
-          {expanded && <span className="text-sm font-medium">Shop</span>}
         </Link>
 
         {/* Downloads Button */}

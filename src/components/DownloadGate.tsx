@@ -1,8 +1,8 @@
 "use client";
 
 import clsx from "clsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTrackBySlug } from "@/lib/tracks";
+import { useCallback, useEffect, useRef, useState } from "react";
+import DownloadSuccess from "@/components/DownloadSuccess";
 
 type GateState = {
   soundcloudVerified: boolean;
@@ -38,6 +38,8 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
 
   const [gateState, setGateState] = useState<GateState>(initialState);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const outboundRef = useRef<OutboundState | null>(null);
   const artistName =
@@ -64,7 +66,9 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         return resolved;
       });
     },
-    []
+    // STATE_KEY is per-track; without it this would write to the previous
+    // track's storage key after a client-side navigation.
+    [STATE_KEY]
   );
 
   useEffect(() => {
@@ -143,43 +147,64 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   };
 
   const handleDownload = async () => {
+    if (!downloadReady || downloadBusy) return;
     setNotice(null);
+    setDownloaded(false);
     setDownloadBusy(true);
+
     try {
-      const track = getTrackBySlug(trackSlug);
-      if (!track?.downloadUrl) {
-        setNotice("Download link isn’t set for this track yet.");
+      // Resolve through the API so every track goes down one path.
+      const res = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track: trackSlug }),
+        cache: "no-store"
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { url?: string; title?: string; local?: boolean; error?: string }
+        | null;
+
+      if (!res.ok || !data?.url) {
+        setNotice(data?.error || "Download failed. Please try again.");
         return;
       }
 
-      // Local file download: preflight so you don't get dumped on a 404 page
-      if (track.downloadUrl.startsWith("/")) {
-        const res = await fetch(track.downloadUrl, { method: "HEAD", cache: "no-store" });
-        if (!res.ok) {
-          setNotice(
-            `That file isn’t on the site yet. Put it at: public${track.downloadUrl}`
-          );
+      if (data.local) {
+        // Same-origin file: preflight so nobody lands on a 404, then let the
+        // download attribute name the file.
+        const head = await fetch(data.url, { method: "HEAD", cache: "no-store" });
+        if (!head.ok) {
+          setNotice(`That file isn’t on the site yet (public${data.url}).`);
           return;
         }
-
         const link = document.createElement("a");
-        link.href = track.downloadUrl;
-        link.download = track.downloadUrl.split("/").pop() || "download";
+        link.href = data.url;
+        link.download = data.url.split("/").pop() || "download";
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        return;
+        link.remove();
+      } else {
+        // Cross-origin (Google Drive). These respond with
+        // Content-Disposition: attachment, so the browser starts a download and
+        // leaves this page where it is — which is why the confirmation below
+        // stays on screen. An iframe won't work here: Drive sends
+        // X-Frame-Options: SAMEORIGIN.
+        window.location.href = data.url;
       }
 
-      // External URL (Google Drive, etc.)
-      window.location.href = track.downloadUrl;
+      setDownloadTitle(data.title ?? null);
+      setDownloaded(true);
+    } catch {
+      setNotice("Couldn’t reach the server. Check your connection and retry.");
     } finally {
-      setTimeout(() => setDownloadBusy(false), 500);
+      setDownloadBusy(false);
     }
   };
 
   const handleReset = () => {
     setNotice(null);
+    setDownloaded(false);
+    setDownloadTitle(null);
     outboundRef.current = null;
     sessionStorage.removeItem(OUTBOUND_KEY);
     sessionStorage.removeItem(STATE_KEY);
@@ -206,7 +231,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
               gateState.soundcloudVerified
                 ? "bg-emerald-500/20 text-emerald-200"
-                : "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 text-white hover:brightness-110"
+                : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]"
             )}
           >
             <span className="flex items-center gap-3">
@@ -246,7 +271,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
                 gateState.instagramVisited
                   ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:brightness-110",
+                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
                 !instagramUrl && "cursor-not-allowed opacity-50"
               )}
             >
@@ -287,7 +312,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
                 gateState.tiktokVisited
                   ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 text-white hover:brightness-110",
+                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
                 !tiktokUrl && "cursor-not-allowed opacity-50"
               )}
             >
@@ -320,12 +345,18 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         className={clsx(
           "mt-2 w-full rounded-2xl px-6 py-3 text-sm font-semibold uppercase tracking-wide transition",
           downloadReady
-            ? "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25 hover:brightness-110"
+            ? "bg-[#8b5cf6] text-white shadow-lg shadow-purple-500/25 hover:bg-[#9d75f8]"
             : "bg-white/10 text-muted"
         )}
       >
-        {downloadBusy ? "Preparing download..." : "Download"}
+        {downloadBusy
+          ? "Preparing download..."
+          : downloaded
+            ? "Download again"
+            : "Download"}
       </button>
+
+      <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
 
       {notice ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">

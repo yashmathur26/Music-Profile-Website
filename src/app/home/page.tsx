@@ -2,13 +2,18 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { tracks, DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
-import { campaign } from "@/config/campaign";
-import { features } from "@/config/features";
+import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import Sidebar from "@/components/Sidebar";
 
 const artistName = "YVSH";
 const bio = "rest in peace my granny she got hit w a bazooka kabloom kablow";
+
+/**
+ * The "Now Playing" embed. Set independently of the downloads list so the
+ * featured track can change without touching the free-download tracks.
+ */
+const NOW_PLAYING_EMBED_URL =
+  "https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/yvshh/skrillex-nitepunk-soma-remix-2&color=%238b5cf6&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false";
 
 export default function HomePage() {
   const widgetRef = useRef<unknown>(null);
@@ -78,43 +83,6 @@ export default function HomePage() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-4 py-8 md:px-6 md:py-12">
-            {campaign.isActive && (
-              <div
-                className="mb-6 rounded-2xl border-2 px-5 py-4 text-center"
-                style={{
-                  borderColor: campaign.accentColor,
-                  backgroundColor: "rgba(13, 13, 26, 0.95)",
-                }}
-              >
-                <p className="text-sm font-semibold text-white">
-                  {campaign.trackTitle} – dropping {new Date(campaign.releaseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </p>
-                {(features.presave || features.stats) && (
-                  <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
-                    {features.presave && (
-                      <a
-                        href={campaign.spotify.hyperFollowUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium underline"
-                        style={{ color: "#1DB954" }}
-                      >
-                        Pre-save on Spotify →
-                      </a>
-                    )}
-                    {features.stats && (
-                      <Link
-                        href="/stats"
-                        className="text-sm font-medium text-purple-300 underline hover:text-purple-200"
-                      >
-                        View My YVSH Stats →
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             <header className="flex flex-col items-center text-center">
               <div className="relative mb-4 md:mb-6 animate-float">
                 <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-blue-500/40 blur-xl animate-glow-pulse" />
@@ -198,7 +166,7 @@ export default function HomePage() {
               <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-purple-900/10 shadow-lg">
                 <iframe
                   title="SoundCloud player"
-                  src={`${(getTrackBySlug(DEFAULT_TRACK_SLUG)?.soundcloudEmbedUrl ?? "").replace("auto_play=false", "auto_play=true").replace("visual=true", "visual=false")}&volume=15`}
+                  src={`${NOW_PLAYING_EMBED_URL}&volume=15`}
                   allow="autoplay; encrypted-media"
                   className="h-[166px] w-full border-0"
                 />

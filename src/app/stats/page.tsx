@@ -12,7 +12,7 @@ import { features } from "@/config/features";
 
 const PLACEHOLDER_STATS: YvshStats = {
   isYvshFan: true,
-  mostPlayedSong: "FIRESTARTER",
+  mostPlayedSong: "DOWN BUT YVSHCORE",
   firstDiscoveryDate: new Date().toISOString(),
   totalYvshTracks: 5,
   fanLevel: "superfan",
@@ -21,7 +21,7 @@ const PLACEHOLDER_STATS: YvshStats = {
   recentStreaks: 3,
   listeningPersonality: "Night Owl YVSH Listener",
   topYvshTracks: [
-    { id: "ph-1", name: "FIRESTARTER", album: { name: "YVSH Flips" } },
+    { id: "ph-1", name: "DOWN BUT YVSHCORE", album: { name: "YVSH Flips" } },
     { id: "ph-2", name: "DON'T STOP THE MUSIC (YVSH FLIP)", album: { name: "YVSH Flips" } },
     { id: "ph-3", name: "BEAUTY AND A BEAT (YVSH FLIP)", album: { name: "YVSH Flips" } },
     { id: "ph-4", name: "Lights Go Out", album: { name: "John Summit x YVSH" } },
