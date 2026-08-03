@@ -3,10 +3,17 @@ import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { campaign } from "@/config/campaign";
 
-function Check({ className }: { className?: string }) {
+function Check({
+  className,
+  style
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <span
       className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${className}`}
+      style={style}
       aria-hidden
     >
       <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

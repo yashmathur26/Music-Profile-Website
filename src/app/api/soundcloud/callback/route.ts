@@ -1,75 +1,79 @@
-import { NextRequest, NextResponse } from "next/server";
-import { clearOauthState, getOauthState, getOrCreateSessionId } from "@/lib/session";
-import { exchangeCodeForToken, fetchMe } from "@/lib/soundcloud";
-import { updateSession } from "@/lib/db";
+import { NextRequest } from "next/server";
+import { clearOauthHandoff, getOauthHandoff } from "@/lib/session";
+import {
+  exchangeCodeForToken,
+  fetchMe,
+  soundcloudConfigured
+} from "@/lib/soundcloud";
+import { writeGate } from "@/lib/gateStore";
+import { runEngagement } from "@/lib/soundcloudGate";
+import { popupResponse } from "@/lib/popupResponse";
+import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 
-const htmlResponse = (success: boolean) => `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>SoundCloud Auth</title>
-  </head>
-  <body style="background:#0b0b0f;color:#fff;font-family:system-ui;padding:32px;">
-    <p>${success ? "Auth complete. You can return to the tab." : "Auth failed."}</p>
-    <script>
-      (function () {
-        try {
-          if (window.opener) {
-            window.opener.postMessage({ type: "soundcloud-auth-success" }, "*");
-            window.close();
-            return;
-          }
-        } catch (e) {}
-        window.location.href = "/?oauth=${success ? "success" : "error"}";
-      })();
-    </script>
-  </body>
-</html>`;
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  if (
-    !process.env.SOUNDCLOUD_CLIENT_ID ||
-    !process.env.SOUNDCLOUD_CLIENT_SECRET ||
-    !process.env.SOUNDCLOUD_REDIRECT_URI
-  ) {
-    return new NextResponse(htmlResponse(false), {
-      status: 500,
-      headers: { "Content-Type": "text/html" }
-    });
-  }
   const { searchParams } = new URL(request.url);
+  const {
+    state: storedState,
+    codeVerifier,
+    trackSlug,
+    prefs
+  } = getOauthHandoff();
+  const slug = trackSlug || DEFAULT_TRACK_SLUG;
+
+  if (!soundcloudConfigured()) {
+    return popupResponse(
+      { ok: false, reason: "unconfigured" },
+      `/${slug}?sc=unconfigured`
+    );
+  }
+
   const code = searchParams.get("code");
   const state = searchParams.get("state");
-  const storedState = getOauthState();
 
-  if (!code || !state || !storedState || state !== storedState) {
-    clearOauthState();
-    return new NextResponse(htmlResponse(false), {
-      status: 400,
-      headers: { "Content-Type": "text/html" }
-    });
+  if (searchParams.get("error")) {
+    clearOauthHandoff();
+    return popupResponse({ ok: false, reason: "denied" }, `/${slug}?sc=denied`);
   }
 
-  clearOauthState();
+  if (!code || !state || !storedState || state !== storedState || !codeVerifier) {
+    clearOauthHandoff();
+    return popupResponse(
+      { ok: false, reason: "state_mismatch" },
+      `/${slug}?sc=error`,
+      400
+    );
+  }
+
+  clearOauthHandoff();
 
   try {
-    const sessionId = getOrCreateSessionId();
-    const token = await exchangeCodeForToken(code);
-    const me = await fetchMe(token.access_token);
-    await updateSession(sessionId, {
-      sc_access_token: token.access_token,
-      sc_user_id: `${me.id}`,
-      sc_verified: false
+    const tokens = await exchangeCodeForToken(code, codeVerifier);
+    const me = await fetchMe(tokens.accessToken);
+
+    writeGate({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken || undefined,
+      expiresAt: tokens.expiresAt || undefined,
+      userId: me.id,
+      username: me.username
     });
 
-    return new NextResponse(htmlResponse(true), {
-      status: 200,
-      headers: { "Content-Type": "text/html" }
-    });
-  } catch {
-    return new NextResponse(htmlResponse(false), {
-      status: 500,
-      headers: { "Content-Type": "text/html" }
-    });
+    // This is the moment the fan asked for: follow the artist, like the
+    // track, and repost/comment if they opted in — all in one go.
+    const status = await runEngagement(slug, prefs);
+
+    return popupResponse(
+      { ok: true, status },
+      `/${slug}?sc=${status.unlocked ? "success" : "partial"}`
+    );
+  } catch (error) {
+    console.error("[gate] SoundCloud callback failed", error);
+    return popupResponse(
+      { ok: false, reason: "auth_failed" },
+      `/${slug}?sc=error`,
+      500
+    );
   }
 }

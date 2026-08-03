@@ -6,7 +6,12 @@ import {
   type StatsSessionRow,
 } from "@/lib/statsSession";
 import { refreshStatsAccessToken } from "@/lib/spotifyStatsAuth";
-import { calculateYvshStats, type YvshStats } from "@/lib/statsCalculator";
+import {
+  calculateYvshStats,
+  type RecentPlayedItem,
+  type SpotifyTrackItem,
+  type YvshStats,
+} from "@/lib/statsCalculator";
 
 const SPOTIFY_API = "https://api.spotify.com/v1";
 
@@ -49,19 +54,19 @@ export async function GET(req: NextRequest) {
   try {
     const [recentlyPlayed, topTracks4Weeks, topTracks6Months, topTracksAllTime] =
       await Promise.all([
-        fetchWithAuth<{ items?: { played_at: string; track?: unknown }[] }>(
+        fetchWithAuth<{ items?: RecentPlayedItem[] }>(
           `${SPOTIFY_API}/me/player/recently-played?limit=50`,
           accessToken
         ),
-        fetchWithAuth<{ items?: unknown[] }>(
+        fetchWithAuth<{ items?: SpotifyTrackItem[] }>(
           `${SPOTIFY_API}/me/top/tracks?time_range=short_term&limit=50`,
           accessToken
         ),
-        fetchWithAuth<{ items?: unknown[] }>(
+        fetchWithAuth<{ items?: SpotifyTrackItem[] }>(
           `${SPOTIFY_API}/me/top/tracks?time_range=medium_term&limit=50`,
           accessToken
         ),
-        fetchWithAuth<{ items?: unknown[] }>(
+        fetchWithAuth<{ items?: SpotifyTrackItem[] }>(
           `${SPOTIFY_API}/me/top/tracks?time_range=long_term&limit=50`,
           accessToken
         ),

@@ -3,147 +3,343 @@
 import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import DownloadSuccess from "@/components/DownloadSuccess";
+import { randomComment } from "@/lib/comments";
 
-type GateState = {
-  soundcloudVerified: boolean;
-  instagramVisited: boolean;
-  tiktokVisited: boolean;
+/** Mirror of the server's GateStatus. */
+type GateStatus = {
+  configured: boolean;
+  connected: boolean;
+  username: string | null;
+  followed: boolean;
+  liked: boolean;
+  reposted: boolean;
+  commented: boolean;
+  unlocked: boolean;
+  apiBlocked: boolean;
+  error: string | null;
 };
 
-type OutboundState = {
-  platform: "soundcloud" | "instagram" | "tiktok";
-  startedAt: number;
+type GateMessage = {
+  type: "soundcloud-gate";
+  ok: boolean;
+  reason?: string;
+  status?: GateStatus;
 };
 
-const STATE_KEY_PREFIX = "download_gate_state";
-const OUTBOUND_KEY_PREFIX = "download_gate_outbound";
-const OUTBOUND_MIN_MS = 5000;
+const MANUAL_KEY_PREFIX = "download_gate_manual";
+const MANUAL_OUTBOUND_KEY_PREFIX = "download_gate_outbound";
+/** How long a fan has to spend on SoundCloud for the manual step to count. */
+const MANUAL_MIN_MS = 5000;
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 120000;
+const COMMENT_MAX = 300;
 
-const initialState: GateState = {
-  soundcloudVerified: false,
-  instagramVisited: false,
-  tiktokVisited: false
+const initialStatus: GateStatus = {
+  configured: false,
+  connected: false,
+  username: null,
+  followed: false,
+  liked: false,
+  reposted: false,
+  commented: false,
+  unlocked: false,
+  apiBlocked: false,
+  error: null
 };
 
-const statusLabel = (complete: boolean) =>
-  complete ? "✓ Done" : "Pending";
+const FAILURE_COPY: Record<string, string> = {
+  unconfigured: "SoundCloud connect isn’t set up yet — use the manual step instead.",
+  denied: "You cancelled the SoundCloud connection.",
+  state_mismatch: "That session expired. Connect again.",
+  auth_failed: "SoundCloud wouldn’t complete the connection.",
+  blocked: "SoundCloud blocked the automatic follow — use the manual step instead.",
+  rate_limited: "SoundCloud is rate-limiting us. Wait a moment, then retry.",
+  reconnect: "Your SoundCloud session expired. Connect again.",
+  artist_unresolved: "Couldn’t find the artist profile on SoundCloud.",
+  track_unresolved: "Couldn’t find this track on SoundCloud."
+};
+
+const SoundcloudIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M17.7 10.4a4.77 4.77 0 0 0-3.9-1.9 5.1 5.1 0 0 0-4.7-3.2A5.1 5.1 0 0 0 4 10.4a3.6 3.6 0 0 0-.1 7.2h13.8a3.2 3.2 0 0 0 0-6.4z" />
+  </svg>
+);
+
+/** Compact opt-in row: small purple checkbox + label. */
+const PrefRow = ({
+  checked,
+  onChange,
+  label
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) => (
+  <label className="flex cursor-pointer select-none items-center gap-2.5 px-1 py-0.5">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      className="peer sr-only"
+    />
+    <span
+      aria-hidden
+      className={clsx(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
+        checked
+          ? "border-transparent bg-[#8b5cf6]"
+          : "border-purple-400/40 bg-transparent"
+      )}
+    >
+      {checked && (
+        <svg
+          className="h-2.5 w-2.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          strokeWidth={3.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m5 13 4 4L19 7" />
+        </svg>
+      )}
+    </span>
+    <span className="text-xs text-purple-100/80">{label}</span>
+  </label>
+);
+
+/** One promised action: label on the left, live state on the right. */
+const ActionRow = ({ done, label }: { done: boolean; label: string }) => (
+  <li className="flex items-center justify-between text-sm">
+    <span className={done ? "text-emerald-200" : "text-purple-100/80"}>
+      {label}
+    </span>
+    <span
+      className={clsx(
+        "text-[11px] uppercase tracking-[0.2em]",
+        done ? "text-emerald-300" : "text-purple-200/40"
+      )}
+    >
+      {done ? "✓ Done" : "Pending"}
+    </span>
+  </li>
+);
 
 type DownloadGateProps = {
   trackSlug: string;
 };
 
 export default function DownloadGate({ trackSlug }: DownloadGateProps) {
-  const STATE_KEY = `${STATE_KEY_PREFIX}:${trackSlug}`;
-  const OUTBOUND_KEY = `${OUTBOUND_KEY_PREFIX}:${trackSlug}`;
+  const MANUAL_KEY = `${MANUAL_KEY_PREFIX}:${trackSlug}`;
+  const OUTBOUND_KEY = `${MANUAL_OUTBOUND_KEY_PREFIX}:${trackSlug}`;
 
-  const [gateState, setGateState] = useState<GateState>(initialState);
+  const [status, setStatus] = useState<GateStatus>(initialStatus);
+  const [loaded, setLoaded] = useState(false);
+  const [manualUnlocked, setManualUnlocked] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const outboundRef = useRef<OutboundState | null>(null);
-  const artistName =
-    process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
-  const soundcloudUrl =
+  // The fan's choices, made before the popup opens. Both default to on;
+  // the comment text itself is a random suggestion the fan can edit.
+  const [repost, setRepost] = useState(true);
+  const [leaveComment, setLeaveComment] = useState(true);
+  const [comment, setComment] = useState("");
+
+  // Seeded client-side so the server render stays deterministic.
+  useEffect(() => {
+    setComment(randomComment());
+  }, [trackSlug]);
+  const outboundStartedAt = useRef<number | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
+  const artistUrl =
     process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||
     "https://soundcloud.com/yvshh";
-  const instagramUrl =
-    process.env.NEXT_PUBLIC_INSTAGRAM_URL?.trim() ||
-    "https://www.instagram.com/itsyvshhh/";
-  const tiktokUrl =
-    process.env.NEXT_PUBLIC_TIKTOK_URL?.trim() ||
-    "https://www.tiktok.com/@yvsh.mp3?lang=en";
 
-  const downloadReady = gateState.soundcloudVerified;
+  const downloadReady = status.unlocked || manualUnlocked;
+  // Auto mode is the real gate; manual is the escape hatch when SoundCloud's
+  // API isn't available to us.
+  const manualMode = loaded && (!status.configured || status.apiBlocked);
 
-  const persistState = useCallback(
-    (next: GateState | ((prev: GateState) => GateState)) => {
-      setGateState((prev) => {
-        const resolved = typeof next === "function" ? next(prev) : next;
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(STATE_KEY, JSON.stringify(resolved));
-        }
-        return resolved;
-      });
-    },
-    // STATE_KEY is per-track; without it this would write to the previous
-    // track's storage key after a client-side navigation.
-    [STATE_KEY]
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Always reset progress when entering a track link
-    outboundRef.current = null;
-    sessionStorage.removeItem(OUTBOUND_KEY);
-    sessionStorage.removeItem(STATE_KEY);
-    setGateState(initialState);
-
-    const cached = sessionStorage.getItem(STATE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as GateState;
-        setGateState(parsed);
-      } catch {
-        sessionStorage.removeItem(STATE_KEY);
-      }
+  const stopPolling = useCallback(() => {
+    if (pollTimer.current) {
+      clearInterval(pollTimer.current);
+      pollTimer.current = null;
     }
-  }, [OUTBOUND_KEY, STATE_KEY, trackSlug]);
+  }, []);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/soundcloud/status?track=${encodeURIComponent(trackSlug)}`,
+        { cache: "no-store" }
+      );
+      if (!response.ok) return null;
+      const next = (await response.json()) as GateStatus;
+      setStatus((prev) => ({ ...prev, ...next }));
+      return next;
+    } catch {
+      return null;
+    } finally {
+      setLoaded(true);
+    }
+  }, [trackSlug]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setStatus(initialStatus);
+    setLoaded(false);
+    setManualUnlocked(sessionStorage.getItem(MANUAL_KEY) === "1");
+    setNotice(null);
+    setDownloaded(false);
+    outboundStartedAt.current = null;
+    sessionStorage.removeItem(OUTBOUND_KEY);
+    void fetchStatus();
+    return stopPolling;
+  }, [MANUAL_KEY, OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
 
+  const applyStatus = useCallback((next: GateStatus) => {
+    setStatus((prev) => ({ ...prev, ...next }));
+    if (next.unlocked) {
+      setNotice(null);
+      return;
+    }
+    if (next.error) {
+      setNotice(FAILURE_COPY[next.error] || "Couldn’t finish on SoundCloud.");
+    }
+  }, []);
+
+  // The OAuth popup posts its result back here when it's done.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent<GateMessage>) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "soundcloud-gate") return;
+
+      stopPolling();
+      setConnecting(false);
+
+      if (event.data.ok && event.data.status) {
+        applyStatus(event.data.status);
+        return;
+      }
+      const reason = event.data.reason || "auth_failed";
+      setNotice(FAILURE_COPY[reason] || "SoundCloud connection failed.");
+      if (reason === "unconfigured") {
+        setStatus((prev) => ({ ...prev, configured: false }));
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [applyStatus, stopPolling]);
+
+  // Manual fallback: count the visit once the fan comes back to this tab.
+  useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       const stored = sessionStorage.getItem(OUTBOUND_KEY);
-      const outbound =
-        outboundRef.current ?? (stored ? (JSON.parse(stored) as OutboundState) : null);
+      const startedAt =
+        outboundStartedAt.current ?? (stored ? Number(stored) : null);
+      if (!startedAt) return;
+      if (Date.now() - startedAt < MANUAL_MIN_MS) {
+        setNotice(
+          `Give it a few seconds on SoundCloud — follow ${artistName}, like the track, then come back.`
+        );
+        return;
+      }
 
-      if (!outbound) return;
-      const elapsed = Date.now() - outbound.startedAt;
-      if (elapsed < OUTBOUND_MIN_MS) return;
-
-      persistState((prev) => ({
-        ...prev,
-        soundcloudVerified:
-          prev.soundcloudVerified || outbound.platform === "soundcloud",
-        instagramVisited:
-          prev.instagramVisited || outbound.platform === "instagram",
-        tiktokVisited: prev.tiktokVisited || outbound.platform === "tiktok"
-      }));
-      outboundRef.current = null;
+      outboundStartedAt.current = null;
       sessionStorage.removeItem(OUTBOUND_KEY);
+      sessionStorage.setItem(MANUAL_KEY, "1");
+      setNotice(null);
+      setManualUnlocked(true);
     };
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [persistState]);
+  }, [MANUAL_KEY, OUTBOUND_KEY, artistName]);
 
-  const startOutbound = (
-    platform: "soundcloud" | "instagram" | "tiktok",
-    url: string
-  ) => {
-    const outbound: OutboundState = { platform, startedAt: Date.now() };
-    outboundRef.current = outbound;
-    sessionStorage.setItem(OUTBOUND_KEY, JSON.stringify(outbound));
-    const popup = window.open(url, "_blank", "noopener,noreferrer");
+  const handleConnect = () => {
+    setNotice(null);
+    setConnecting(true);
+
+    const params = new URLSearchParams({
+      track: trackSlug,
+      repost: repost ? "1" : "0"
+    });
+    const trimmed = comment.trim().slice(0, COMMENT_MAX);
+    if (leaveComment && trimmed) params.set("comment", trimmed);
+
+    const popup = window.open(
+      `/api/soundcloud/login?${params.toString()}`,
+      "soundcloud-gate",
+      "width=520,height=720"
+    );
+
     if (!popup) {
-      persistState((prev) => ({
-        ...prev,
-        soundcloudVerified:
-          prev.soundcloudVerified || platform === "soundcloud",
-        instagramVisited:
-          prev.instagramVisited || platform === "instagram",
-        tiktokVisited: prev.tiktokVisited || platform === "tiktok"
-      }));
-      outboundRef.current = null;
-      sessionStorage.removeItem(OUTBOUND_KEY);
+      setConnecting(false);
+      setNotice("Allow popups for this site, or use the manual step below.");
+      setStatus((prev) => ({ ...prev, apiBlocked: true }));
+      return;
+    }
+
+    // Backstop for popups that get closed or swallowed before postMessage
+    // lands (in-app browsers, aggressive blockers).
+    const startedAt = Date.now();
+    stopPolling();
+    pollTimer.current = setInterval(async () => {
+      const next = await fetchStatus();
+      if (next?.unlocked) {
+        stopPolling();
+        setConnecting(false);
+        return;
+      }
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS || popup.closed) {
+        stopPolling();
+        setConnecting(false);
+      }
+    }, POLL_INTERVAL_MS);
+  };
+
+  const handleRetry = async () => {
+    setNotice(null);
+    setConnecting(true);
+    try {
+      const response = await fetch("/api/soundcloud/engage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          track: trackSlug,
+          repost,
+          comment: leaveComment
+            ? comment.trim().slice(0, COMMENT_MAX) || undefined
+            : undefined
+        })
+      });
+      applyStatus((await response.json()) as GateStatus);
+    } catch {
+      setNotice("Couldn’t reach SoundCloud. Try again.");
+    } finally {
+      setConnecting(false);
     }
   };
 
-  const handleSoundcloud = () => {
-    startOutbound("soundcloud", soundcloudUrl);
+  const handleManual = () => {
+    setNotice(null);
+    const startedAt = Date.now();
+    outboundStartedAt.current = startedAt;
+    sessionStorage.setItem(OUTBOUND_KEY, `${startedAt}`);
+
+    const opened = window.open(artistUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      outboundStartedAt.current = null;
+      sessionStorage.removeItem(OUTBOUND_KEY);
+      sessionStorage.setItem(MANUAL_KEY, "1");
+      setManualUnlocked(true);
+    }
   };
 
   const handleDownload = async () => {
@@ -153,7 +349,6 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     setDownloadBusy(true);
 
     try {
-      // Resolve through the API so every track goes down one path.
       const res = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,8 +365,6 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       }
 
       if (data.local) {
-        // Same-origin file: preflight so nobody lands on a 404, then let the
-        // download attribute name the file.
         const head = await fetch(data.url, { method: "HEAD", cache: "no-store" });
         if (!head.ok) {
           setNotice(`That file isn’t on the site yet (public${data.url}).`);
@@ -184,11 +377,8 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         link.click();
         link.remove();
       } else {
-        // Cross-origin (Google Drive). These respond with
-        // Content-Disposition: attachment, so the browser starts a download and
-        // leaves this page where it is — which is why the confirmation below
-        // stays on screen. An iframe won't work here: Drive sends
-        // X-Frame-Options: SAMEORIGIN.
+        // Drive answers with Content-Disposition: attachment, so the browser
+        // downloads in place and this page stays put.
         window.location.href = data.url;
       }
 
@@ -205,138 +395,187 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     setNotice(null);
     setDownloaded(false);
     setDownloadTitle(null);
-    outboundRef.current = null;
+    outboundStartedAt.current = null;
+    stopPolling();
     sessionStorage.removeItem(OUTBOUND_KEY);
-    sessionStorage.removeItem(STATE_KEY);
-    setGateState(initialState);
+    sessionStorage.removeItem(MANUAL_KEY);
+    setManualUnlocked(false);
+    void fetchStatus();
   };
-
-  const showInstagram = gateState.soundcloudVerified;
-  const showTiktok = gateState.soundcloudVerified && gateState.instagramVisited;
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="space-y-3">
-        <div className="rounded-2xl border border-purple-500/15 bg-purple-900/10 px-4 py-4">
-          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-purple-200/60">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/10 text-[10px] text-purple-300">
-              1
-            </span>
-            Required
-          </div>
-            <button
-            onClick={handleSoundcloud}
-            disabled={gateState.soundcloudVerified}
-            className={clsx(
-              "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
-              gateState.soundcloudVerified
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]"
-            )}
-          >
-            <span className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  className="h-5 w-5"
-                  fill="currentColor"
-                >
-                  <path d="M17.7 10.4a4.77 4.77 0 0 0-3.9-1.9 5.1 5.1 0 0 0-4.7-3.2A5.1 5.1 0 0 0 4 10.4a3.6 3.6 0 0 0-.1 7.2h13.8a3.2 3.2 0 0 0 0-6.4z" />
-                </svg>
-              </span>
-              Follow on SoundCloud
-            </span>
-            <span className="text-[11px] uppercase tracking-[0.2em]">
-              {statusLabel(gateState.soundcloudVerified)}
-            </span>
-          </button>
-          <p className="mt-2 text-xs text-purple-200/50">
-            Follow {artistName} to unlock the download.
-          </p>
+      <div className="rounded-2xl border border-purple-500/15 bg-purple-900/10 px-4 py-4">
+        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-purple-200/60">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/10 text-[10px] text-purple-300">
+            1
+          </span>
+          Required
         </div>
 
-        {showInstagram ? (
-          <div className="rounded-2xl border border-purple-500/15 bg-purple-900/10 px-4 py-4">
-            <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-purple-200/60">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/10 text-[10px] text-purple-300">
-                2
-              </span>
-              Step 2
-            </div>
-            <button
-              onClick={() => startOutbound("instagram", instagramUrl)}
-              disabled={gateState.instagramVisited || !instagramUrl}
-              className={clsx(
-                "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                gateState.instagramVisited
-                  ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
-                !instagramUrl && "cursor-not-allowed opacity-50"
-              )}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="h-5 w-5"
-                    fill="currentColor"
-                  >
-                    <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 5.5A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5zm6.2-1.9a.9.9 0 1 0 .9.9.9.9 0 0 0-.9-.9z" />
-                  </svg>
-                </span>
-                Follow on Instagram
-              </span>
-              <span className="text-[11px] uppercase tracking-[0.2em]">
-                {instagramUrl
-                  ? statusLabel(gateState.instagramVisited)
-                  : "Link not set"}
-              </span>
-            </button>
+        {/* Loading skeleton */}
+        {!loaded && (
+          <div className="space-y-2" aria-live="polite">
+            <div className="h-11 w-full animate-pulse rounded-2xl bg-white/5" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-white/5" />
+            <span className="sr-only">Checking your SoundCloud status…</span>
           </div>
-        ) : null}
+        )}
 
-        {showTiktok ? (
-          <div className="rounded-2xl border border-purple-500/15 bg-purple-900/10 px-4 py-4">
-            <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-purple-200/60">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/10 text-[10px] text-purple-300">
-                3
-              </span>
-              Step 3
+        {/* Connect form — the one decision point. */}
+        {loaded && !status.connected && !manualMode && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                Connect your SoundCloud
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-purple-200/50">
+                One tap follows {artistName} and likes this track — that
+                unlocks the download. Undo anything later on SoundCloud.
+              </p>
             </div>
+
+            {/* Comment first — pre-filled with a random suggestion the fan
+                can edit, re-roll, or switch off below. */}
+            <div className="relative">
+              <input
+                type="text"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                maxLength={COMMENT_MAX}
+                placeholder="Drop a comment on the track"
+                className="w-full rounded-xl border border-purple-500/15 bg-black/20 py-2.5 pl-3 pr-10 text-sm text-white placeholder:text-purple-200/40 focus:border-purple-400/50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setComment(randomComment(comment))}
+                aria-label="Suggest a different comment"
+                title="Suggest a different comment"
+                className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-purple-300/60 transition hover:bg-purple-500/15 hover:text-purple-200"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.36 6.36L3 16M3 21v-5h5" />
+                </svg>
+              </button>
+            </div>
+
+            {/* The fan's choices — small, both on by default. */}
+            <div className="space-y-1.5">
+              <PrefRow
+                checked={leaveComment}
+                onChange={setLeaveComment}
+                label="Leave this comment on the track"
+              />
+              <PrefRow
+                checked={repost}
+                onChange={setRepost}
+                label="Repost to my followers"
+              />
+            </div>
+
             <button
-              onClick={() => startOutbound("tiktok", tiktokUrl)}
-              disabled={gateState.tiktokVisited || !tiktokUrl}
+              onClick={handleConnect}
+              disabled={connecting}
               className={clsx(
                 "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                gateState.tiktokVisited
-                  ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
-                !tiktokUrl && "cursor-not-allowed opacity-50"
+                "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
+                connecting && "opacity-70"
               )}
             >
               <span className="flex items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="h-5 w-5"
-                    fill="currentColor"
-                  >
-                    <path d="M14.5 4.8c.7.7 1.6 1.2 2.6 1.3v2.5a6 6 0 0 1-3.4-1.1v6.9a4.8 4.8 0 1 1-4.2-4.8v2.6a2.2 2.2 0 1 0 1.6 2.1V3h2.6c.1.7.4 1.3.8 1.8z" />
-                  </svg>
+                  <SoundcloudIcon />
                 </span>
-                Follow on TikTok
+                {connecting ? "Waiting for SoundCloud…" : "Proceed to SoundCloud"}
               </span>
-              <span className="text-[11px] uppercase tracking-[0.2em]">
-                {tiktokUrl
-                  ? statusLabel(gateState.tiktokVisited)
-                  : "Link not set"}
-              </span>
+              {!connecting && (
+                <svg
+                  className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M5 12h13m0 0-5-5m5 5-5 5" />
+                </svg>
+              )}
             </button>
           </div>
-        ) : null}
+        )}
+
+        {/* Connected — show exactly what happened on their account. */}
+        {loaded && status.connected && !manualMode && (
+          <div className="space-y-3">
+            <ul className="space-y-2 rounded-2xl bg-black/20 px-4 py-3">
+              <ActionRow done={status.followed} label={`Following ${artistName}`} />
+              <ActionRow done={status.liked} label="Liked this track" />
+              {(repost || status.reposted) && (
+                <ActionRow done={status.reposted} label="Reposted to your followers" />
+              )}
+              {((leaveComment && comment.trim()) || status.commented) && (
+                <ActionRow done={status.commented} label="Comment posted" />
+              )}
+            </ul>
+
+            {!status.unlocked && (
+              <button
+                onClick={handleRetry}
+                disabled={connecting}
+                className="w-full rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/15"
+              >
+                {connecting ? "Retrying…" : "Retry"}
+              </button>
+            )}
+
+            {status.username && (
+              <p className="text-[11px] text-purple-200/40">
+                Connected as {status.username}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Manual fallback when the API isn't available. */}
+        {manualMode && (
+          <div className="space-y-2">
+            <button
+              onClick={handleManual}
+              disabled={manualUnlocked}
+              className={clsx(
+                "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                manualUnlocked
+                  ? "bg-emerald-500/20 text-emerald-200"
+                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]"
+              )}
+            >
+              <span className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
+                  <SoundcloudIcon />
+                </span>
+                Follow + like on SoundCloud
+              </span>
+              <span className="text-[11px] uppercase tracking-[0.2em]">
+                {manualUnlocked ? "✓ Done" : "Pending"}
+              </span>
+            </button>
+            <p className="text-xs text-purple-200/50">
+              Opens SoundCloud in a new tab. Follow {artistName}, like the
+              track, then come back here.
+            </p>
+          </div>
+        )}
       </div>
 
       <button
@@ -358,11 +597,14 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
 
       <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
 
-      {notice ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
+      {notice && (
+        <div
+          role="status"
+          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70"
+        >
           {notice}
         </div>
-      ) : null}
+      )}
 
       <div className="flex items-center justify-between text-[11px] text-purple-200/40">
         <span>Downloads are limited to one per session.</span>

@@ -30,16 +30,22 @@ export interface YvshStats {
 }
 
 function isYvshTrack(item: { track?: SpotifyTrackItem } | SpotifyTrackItem): boolean {
-  const track = "track" in item ? item.track : item;
+  const track = getTrack(item);
   if (!track) return false;
   return (track.artists ?? []).some(
     (a) => a.name.toLowerCase() === YVSH_ARTIST_NAME.toLowerCase()
   );
 }
 
+/**
+ * Items arrive either bare (top-tracks) or wrapped in { track } (recently-
+ * played). TS can't narrow the union through an optional `in` check, so this
+ * discriminates structurally: a wrapper never has an `id` of its own.
+ */
 function getTrack(item: { track?: SpotifyTrackItem } | SpotifyTrackItem): SpotifyTrackItem | null {
-  const t = "track" in item ? item.track : item;
-  return t ?? null;
+  const wrapped = (item as { track?: SpotifyTrackItem }).track;
+  if (wrapped !== undefined) return wrapped;
+  return "id" in item ? (item as SpotifyTrackItem) : null;
 }
 
 export function calculateYvshStats(data: {
