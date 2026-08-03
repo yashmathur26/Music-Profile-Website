@@ -68,8 +68,14 @@ const FAILURE_COPY: Record<string, string> = {
 
 const failureCopy = (reason: string) => {
   if (FAILURE_COPY[reason]) return FAILURE_COPY[reason];
-  const m = reason.match(/^exchange_(\d+)$/);
-  if (m) return `SoundCloud returned an error (${m[1]}) while finishing the connection.`;
+  const m = reason.match(/^exchange_(\d+)(?:_([a-z_]+))?$/);
+  if (m) {
+    if (m[2] === "invalid_grant")
+      return "The sign-in code came back stale (invalid_grant). Close any leftover SoundCloud popups and try once more.";
+    if (m[2] === "invalid_client")
+      return "SoundCloud rejected the app credentials (invalid_client) — check the client secret on the server.";
+    return `SoundCloud returned ${m[2] || `an error (${m[1]})`} while finishing the connection.`;
+  }
   return null;
 };
 

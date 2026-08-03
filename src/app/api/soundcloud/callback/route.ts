@@ -75,11 +75,18 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[gate] SoundCloud callback failed", error);
     // Surface WHICH step failed — "auth_failed" alone is undebuggable from
-    // the fan's side of the screen.
-    const reason =
-      error instanceof SoundcloudApiError
-        ? `exchange_${error.status}`
-        : "auth_failed";
+    // the fan's side of the screen. Include SoundCloud's own error code
+    // (invalid_grant vs invalid_request etc.), which names the culprit.
+    let reason = "auth_failed";
+    if (error instanceof SoundcloudApiError) {
+      reason = `exchange_${error.status}`;
+      try {
+        const scError = (JSON.parse(error.body) as { error?: string }).error;
+        if (scError && /^[a-z_]+$/.test(scError)) reason += `_${scError}`;
+      } catch {
+        /* body wasn't JSON — keep the bare status */
+      }
+    }
     return popupResponse(
       { ok: false, reason },
       `/${slug}?sc=error`,
