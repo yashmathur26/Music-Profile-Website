@@ -23,6 +23,8 @@ type GateMessage = {
   type: "soundcloud-gate";
   ok: boolean;
   reason?: string;
+  /** SoundCloud's own error text, verbatim, when a call failed. */
+  detail?: string;
   status?: GateStatus;
 };
 
@@ -68,13 +70,15 @@ const FAILURE_COPY: Record<string, string> = {
 
 const failureCopy = (reason: string) => {
   if (FAILURE_COPY[reason]) return FAILURE_COPY[reason];
-  const m = reason.match(/^exchange_(\d+)(?:_([a-z_]+))?$/);
+  const m = reason.match(/^(exchange|me|finalize)_(\d+)(?:_([a-z_]+))?$/);
   if (m) {
-    if (m[2] === "invalid_grant")
+    if (m[3] === "invalid_grant")
       return "The sign-in code came back stale (invalid_grant). Close any leftover SoundCloud popups and try once more.";
-    if (m[2] === "invalid_client")
+    if (m[3] === "invalid_client")
       return "SoundCloud rejected the app credentials (invalid_client) — check the client secret on the server.";
-    return `SoundCloud returned ${m[2] || `an error (${m[1]})`} while finishing the connection.`;
+    const step =
+      m[1] === "me" ? "reading your profile" : m[1] === "finalize" ? "finishing up" : "the sign-in exchange";
+    return `SoundCloud returned ${m[3] || `error ${m[2]}`} during ${step}.`;
   }
   return null;
 };
@@ -255,7 +259,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         return;
       }
       const reason = event.data.reason || "auth_failed";
-      setNotice(failureCopy(reason) || "SoundCloud connection failed.");
+      const base = failureCopy(reason) || "SoundCloud connection failed.";
+      setNotice(
+        event.data.detail ? `${base} — “${event.data.detail}”` : base
+      );
       if (reason === "unconfigured") {
         setStatus((prev) => ({ ...prev, configured: false }));
       }

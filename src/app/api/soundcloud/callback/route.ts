@@ -52,10 +52,50 @@ export async function GET(request: NextRequest) {
 
   clearOauthHandoff();
 
-  try {
-    const tokens = await exchangeCodeForToken(code, codeVerifier);
-    const me = await fetchMe(tokens.accessToken);
+  /** Builds the failure popup with the step name and SoundCloud's own words. */
+  const failPopup = (step: string, error: unknown) => {
+    console.error(`[gate] SoundCloud ${step} failed`, error);
+    let reason = "auth_failed";
+    let detail: string | undefined;
+    if (error instanceof SoundcloudApiError) {
+      reason = `${step}_${error.status}`;
+      try {
+        const parsed = JSON.parse(error.body) as {
+          error?: string | null;
+          error_code?: string;
+          message?: string;
+          errors?: { error_message?: string }[];
+        };
+        const scError = parsed.error || parsed.error_code;
+        if (scError && /^[a-z_]+$/.test(scError)) reason += `_${scError}`;
+        detail = (parsed.errors?.[0]?.error_message || parsed.message || "")
+          .slice(0, 160);
+      } catch {
+        detail = error.body.slice(0, 160);
+      }
+    }
+    return popupResponse(
+      { ok: false, reason, detail: detail || undefined },
+      `/${slug}?sc=error`,
+      500
+    );
+  };
 
+  let tokens;
+  try {
+    tokens = await exchangeCodeForToken(code, codeVerifier);
+  } catch (error) {
+    return failPopup("exchange", error);
+  }
+
+  let me;
+  try {
+    me = await fetchMe(tokens.accessToken);
+  } catch (error) {
+    return failPopup("me", error);
+  }
+
+  try {
     writeGate({
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken || undefined,
@@ -73,29 +113,6 @@ export async function GET(request: NextRequest) {
       `/${slug}?sc=${status.unlocked ? "success" : "partial"}`
     );
   } catch (error) {
-    console.error("[gate] SoundCloud callback failed", error);
-    // Surface WHICH step failed — "auth_failed" alone is undebuggable from
-    // the fan's side of the screen. Include SoundCloud's own error code
-    // (invalid_grant vs invalid_request etc.), which names the culprit.
-    let reason = "auth_failed";
-    if (error instanceof SoundcloudApiError) {
-      reason = `exchange_${error.status}`;
-      try {
-        // The two SoundCloud token hosts use different error shapes.
-        const parsed = JSON.parse(error.body) as {
-          error?: string | null;
-          error_code?: string;
-        };
-        const scError = parsed.error || parsed.error_code;
-        if (scError && /^[a-z_]+$/.test(scError)) reason += `_${scError}`;
-      } catch {
-        /* body wasn't JSON — keep the bare status */
-      }
-    }
-    return popupResponse(
-      { ok: false, reason },
-      `/${slug}?sc=error`,
-      500
-    );
+    return failPopup("finalize", error);
   }
 }
