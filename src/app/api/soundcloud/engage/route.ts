@@ -3,6 +3,7 @@ import { emptyStatus, runEngagement } from "@/lib/soundcloudGate";
 import { DEFAULT_TRACK_SLUG, getTrackBySlug } from "@/lib/tracks";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 

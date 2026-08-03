@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { clearOauthHandoff, getOauthHandoff } from "@/lib/session";
 import {
+  SoundcloudApiError,
   exchangeCodeForToken,
   fetchMe,
   soundcloudConfigured
@@ -11,6 +12,9 @@ import { popupResponse } from "@/lib/popupResponse";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 
 export const dynamic = "force-dynamic";
+// The engagement chain (exchange + resolve + up to four writes) can outlive
+// the platform's default function timeout.
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -70,8 +74,14 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("[gate] SoundCloud callback failed", error);
+    // Surface WHICH step failed — "auth_failed" alone is undebuggable from
+    // the fan's side of the screen.
+    const reason =
+      error instanceof SoundcloudApiError
+        ? `exchange_${error.status}`
+        : "auth_failed";
     return popupResponse(
-      { ok: false, reason: "auth_failed" },
+      { ok: false, reason },
       `/${slug}?sc=error`,
       500
     );

@@ -31,7 +31,10 @@ const MANUAL_OUTBOUND_KEY_PREFIX = "download_gate_outbound";
 /** How long a fan has to spend on SoundCloud for the manual step to count. */
 const MANUAL_MIN_MS = 5000;
 const POLL_INTERVAL_MS = 1500;
-const POLL_TIMEOUT_MS = 120000;
+const POLL_TIMEOUT_MS = 180000;
+/** How long to keep polling after the popup looks closed — long enough for a
+ * COOP-severed flow (where `closed` lies) to finish sign-in and the callback. */
+const POPUP_CLOSED_GRACE_MS = 90000;
 const COMMENT_MAX = 300;
 
 const initialStatus: GateStatus = {
@@ -56,7 +59,18 @@ const FAILURE_COPY: Record<string, string> = {
   rate_limited: "SoundCloud is rate-limiting us. Wait a moment, then retry.",
   reconnect: "Your SoundCloud session expired. Connect again.",
   artist_unresolved: "Couldn’t find the artist profile on SoundCloud.",
-  track_unresolved: "Couldn’t find this track on SoundCloud."
+  track_unresolved: "Couldn’t find this track on SoundCloud.",
+  exchange_401:
+    "SoundCloud rejected the app credentials (401). The client secret on the server is likely mistyped.",
+  exchange_403: "SoundCloud refused the connection (403).",
+  exchange_429: "SoundCloud is rate-limiting us. Wait a minute, then retry."
+};
+
+const failureCopy = (reason: string) => {
+  if (FAILURE_COPY[reason]) return FAILURE_COPY[reason];
+  const m = reason.match(/^exchange_(\d+)$/);
+  if (m) return `SoundCloud returned an error (${m[1]}) while finishing the connection.`;
+  return null;
 };
 
 const SoundcloudIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
@@ -208,14 +222,23 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       return;
     }
     if (next.error) {
-      setNotice(FAILURE_COPY[next.error] || "Couldn’t finish on SoundCloud.");
+      setNotice(failureCopy(next.error) || "Couldn’t finish on SoundCloud.");
     }
   }, []);
 
-  // The OAuth popup posts its result back here when it's done.
+  // The OAuth popup posts its result back here when it's done. The popup may
+  // sit on the www host while this page is on the apex (or vice versa), so
+  // accept the sibling origin too.
   useEffect(() => {
+    const siblingOrigin = window.location.origin.includes("://www.")
+      ? window.location.origin.replace("://www.", "://")
+      : window.location.origin.replace("://", "://www.");
     const onMessage = (event: MessageEvent<GateMessage>) => {
-      if (event.origin !== window.location.origin) return;
+      if (
+        event.origin !== window.location.origin &&
+        event.origin !== siblingOrigin
+      )
+        return;
       if (event.data?.type !== "soundcloud-gate") return;
 
       stopPolling();
@@ -226,7 +249,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         return;
       }
       const reason = event.data.reason || "auth_failed";
-      setNotice(FAILURE_COPY[reason] || "SoundCloud connection failed.");
+      setNotice(failureCopy(reason) || "SoundCloud connection failed.");
       if (reason === "unconfigured") {
         setStatus((prev) => ({ ...prev, configured: false }));
       }
@@ -286,18 +309,35 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       return;
     }
 
-    // Backstop for popups that get closed or swallowed before postMessage
-    // lands (in-app browsers, aggressive blockers).
+    // Backstop that treats polling as the primary signal, not a fallback.
+    // postMessage from the popup is unreliable in the real world: Google's
+    // sign-in pages sever the popup↔opener link (COOP), which also makes
+    // `popup.closed` read true while the fan is still mid-login. So: poll the
+    // whole window, and only use `closed` to shorten the tail — never to stop
+    // immediately.
     const startedAt = Date.now();
+    let closedSeenAt: number | null = null;
     stopPolling();
     pollTimer.current = setInterval(async () => {
       const next = await fetchStatus();
-      if (next?.unlocked) {
+      if (next?.connected) {
         stopPolling();
         setConnecting(false);
         return;
       }
-      if (Date.now() - startedAt > POLL_TIMEOUT_MS || popup.closed) {
+      let popupClosed = true;
+      try {
+        popupClosed = popup.closed;
+      } catch {
+        // COOP-severed proxies can throw; treat as closed.
+      }
+      if (popupClosed && closedSeenAt === null) {
+        closedSeenAt = Date.now();
+      }
+      const timedOut = Date.now() - startedAt > POLL_TIMEOUT_MS;
+      const closedLongAgo =
+        closedSeenAt !== null && Date.now() - closedSeenAt > POPUP_CLOSED_GRACE_MS;
+      if (timedOut || closedLongAgo) {
         stopPolling();
         setConnecting(false);
       }
