@@ -3,13 +3,17 @@ import { env } from "@/utils/env";
 
 const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
 /**
- * NOT secure.soundcloud.com/oauth/token: that endpoint answers every
- * authorization_code request with a blanket `invalid_request` (it only
- * services client_credentials). Verified live: a bogus code here fails with
- * `invalid_grant` — i.e. full param validation passes — while the secure.
- * host rejects the identical request outright.
+ * secure.soundcloud.com/oauth/token IS the right endpoint for every grant —
+ * but only over HTTP Basic auth, and it answers *any* malformed or unknown
+ * authorization_code request (bogus code, missing verifier, body creds) with
+ * the same blanket `invalid_request`, which is what made it look broken.
+ * Verified live: garbage grant_type -> `unsupported_grant_type` (so the
+ * grant parser runs), client_credentials + Basic -> 200, client_credentials
+ * with creds in the body -> `invalid_client`. The legacy
+ * api.soundcloud.com/oauth2/token host can't redeem PKCE-bound codes issued
+ * by secure.soundcloud.com/authorize, which is why real codes died there.
  */
-const TOKEN_URL = "https://api.soundcloud.com/oauth2/token";
+const TOKEN_URL = "https://secure.soundcloud.com/oauth/token";
 const API_BASE = "https://api.soundcloud.com";
 
 export type SoundcloudTokens = {
@@ -118,11 +122,11 @@ export const exchangeCodeForToken = (code: string, codeVerifier: string) =>
   );
 
 /**
- * Diagnostic exchange: SoundCloud accepts our request shape for every
- * synthetic probe yet rejects real codes with a bare `invalid_request`, so
- * this tries each plausible request shape in sequence against the real code
- * and reports what happened. The first success wins (and completes the
- * connection); total failure returns a per-variant report for the popup.
+ * Exchange with fallbacks: the expected winner is the secure host over Basic
+ * auth (see TOKEN_URL note), but the older shapes stay as fallbacks and the
+ * total-failure path still reports the per-variant matrix to the popup.
+ * Basic auth and client_id in the body must never be combined — the secure
+ * host answers that mix with `invalid_client`.
  */
 export const exchangeCodeMatrix = async (
   code: string,
@@ -141,6 +145,17 @@ export const exchangeCodeMatrix = async (
     basic: boolean;
     body: Record<string, string>;
   }[] = [
+    {
+      name: "v0-secure-basic",
+      url: "https://secure.soundcloud.com/oauth/token",
+      basic: true,
+      body: {
+        grant_type: "authorization_code",
+        redirect_uri: redirect,
+        code_verifier: codeVerifier,
+        code
+      }
+    },
     {
       name: "v1-api-basic",
       url: "https://api.soundcloud.com/oauth2/token",
@@ -166,19 +181,7 @@ export const exchangeCodeMatrix = async (
       }
     },
     {
-      name: "v3-api-basic+id",
-      url: "https://api.soundcloud.com/oauth2/token",
-      basic: true,
-      body: {
-        grant_type: "authorization_code",
-        client_id: id,
-        redirect_uri: redirect,
-        code_verifier: codeVerifier,
-        code
-      }
-    },
-    {
-      name: "v4-secure-bodycreds",
+      name: "v3-secure-bodycreds",
       url: "https://secure.soundcloud.com/oauth/token",
       basic: false,
       body: {
