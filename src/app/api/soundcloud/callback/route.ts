@@ -33,8 +33,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const code = searchParams.get("code");
-  const state = searchParams.get("state");
+  // NOT searchParams.get(): that decodes "+" as a space (form-encoding
+  // rules), silently corrupting any authorization code that contains "+".
+  // SoundCloud then rejects the mangled code as `invalid_request` — while
+  // synthetic test codes without "+" behave perfectly. Parse the raw query
+  // and percent-decode only.
+  const rawQuery = new URL(request.url).search;
+  const rawParam = (name: string) => {
+    const match = rawQuery.match(new RegExp(`[?&]${name}=([^&]*)`));
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]); // leaves "+" untouched
+    } catch {
+      return match[1];
+    }
+  };
+  const code = rawParam("code");
+  const state = rawParam("state");
 
   if (searchParams.get("error")) {
     clearOauthHandoff();
