@@ -21,6 +21,24 @@ create table if not exists public.gate_tracks (
 -- Server-only access: the service role key bypasses RLS; enabling it with no
 -- policies means the anon/public key can't read or write anything.
 alter table public.gate_tracks enable row level security;
+
+-- One row per download click — feeds the admin overview's history.
+create table if not exists public.downloads (
+  id uuid primary key default gen_random_uuid(),
+  track_slug text not null,
+  sc_username text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_downloads_created_at on downloads(created_at);
+alter table public.downloads enable row level security;
+
+-- Home page content edited from the admin mockup (one jsonb row).
+create table if not exists public.site_config (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.site_config enable row level security;
 ```
 
 That's it. Until the table exists the site serves the hard-coded tracks from

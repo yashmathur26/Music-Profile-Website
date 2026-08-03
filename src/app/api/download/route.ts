@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
+import { recordDownload } from "@/lib/downloadLog";
+import { readGate } from "@/lib/gateStore";
 
 /**
  * Resolves a track slug to its download URL.
@@ -31,6 +33,9 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+
+    // History feed for the admin page; must never delay or fail the download.
+    void recordDownload(track.slug, readGate().username);
 
     return NextResponse.json(
       {
