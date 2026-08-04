@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabase } from "@/lib/supabaseServer";
 import {
   TrackConfig,
   buildEmbedUrl,
@@ -25,14 +25,7 @@ export type GateTrackRow = {
 
 const TABLE = "gate_tracks";
 
-const supabase =
-  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        { auth: { persistSession: false } }
-      )
-    : null;
+const supabase = createServerSupabase();
 
 let warnedMissingTable = false;
 

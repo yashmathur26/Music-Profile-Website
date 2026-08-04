@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabase } from "@/lib/supabaseServer";
 
 /** Per-track record of what we actually did on the fan's SoundCloud account. */
 export type TrackEngagement = {
@@ -47,16 +47,7 @@ const EXTENDED_COLUMNS = [
   "sc_engagement"
 ] as const;
 
-const supabaseConfigured =
-  !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const supabase = supabaseConfigured
-  ? createClient(
-      process.env.SUPABASE_URL || "",
-      process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-      { auth: { persistSession: false } }
-    )
-  : null;
+const supabase = createServerSupabase();
 
 let warnedAboutMigration = false;
 let warnedAboutOutage = false;

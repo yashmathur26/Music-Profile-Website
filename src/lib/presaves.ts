@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabase } from "@/lib/supabaseServer";
 
 export type PresaveRow = {
   id: string;
@@ -10,16 +10,7 @@ export type PresaveRow = {
   created_at: string;
 };
 
-const configured =
-  !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const supabase = configured
-  ? createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } }
-    )
-  : null;
+const supabase = createServerSupabase();
 
 export async function insertPresave(params: {
   campaign_id: string;

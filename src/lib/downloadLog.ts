@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServerSupabase } from "@/lib/supabaseServer";
 
 /** One row per download click — the admin overview's history feed. */
 export type DownloadRow = {
@@ -11,14 +11,7 @@ export type DownloadRow = {
 
 const TABLE = "downloads";
 
-const supabase =
-  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        { auth: { persistSession: false } }
-      )
-    : null;
+const supabase = createServerSupabase();
 
 let warned = false;
 const tolerate = (error: unknown) => {
