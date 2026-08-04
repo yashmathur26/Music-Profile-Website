@@ -28,6 +28,8 @@ export type GateStatus = {
   reposted: boolean;
   commented: boolean;
   unlocked: boolean;
+  /** The connected account IS the artist — nothing to follow or like. */
+  isArtist: boolean;
   /** Set when SoundCloud rejected the write calls and the UI should fall back
    * to the manual "open SoundCloud yourself" flow. */
   apiBlocked: boolean;
@@ -49,6 +51,7 @@ export const emptyStatus = (): GateStatus => ({
   reposted: false,
   commented: false,
   unlocked: false,
+  isArtist: false,
   apiBlocked: false,
   error: null
 });
@@ -153,6 +156,19 @@ export const runEngagement = async (
   const gate = readGate();
   status.connected = true;
   status.username = gate.username || null;
+
+  // The artist opening their own gate: you can't follow yourself, so skip
+  // the tasks entirely and hand over the download.
+  try {
+    const artistId = await getArtistId(accessToken);
+    if (artistId && gate.userId && numericId(gate.userId) === artistId) {
+      status.isArtist = true;
+      status.unlocked = true;
+      return status;
+    }
+  } catch {
+    /* resolution failed — treat as a normal fan */
+  }
 
   const previous = gate.engagement?.[trackSlug] || {};
   status.followed = Boolean(previous.followed);

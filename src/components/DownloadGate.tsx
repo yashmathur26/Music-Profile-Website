@@ -14,6 +14,7 @@ type GateStatus = {
   reposted: boolean;
   commented: boolean;
   unlocked: boolean;
+  isArtist: boolean;
   apiBlocked: boolean;
   error: string | null;
 };
@@ -47,6 +48,7 @@ const initialStatus: GateStatus = {
   reposted: false,
   commented: false,
   unlocked: false,
+  isArtist: false,
   apiBlocked: false,
   error: null
 };
@@ -585,6 +587,16 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         {/* Connected — show exactly what happened on their account. */}
         {loaded && attempted && status.connected && !manualMode && (
           <div className="space-y-3">
+            {status.isArtist ? (
+              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-4">
+                <p className="text-sm font-semibold text-emerald-200">
+                  This is the artist account 🎤
+                </p>
+                <p className="mt-1 text-xs text-emerald-200/70">
+                  No tasks needed — proceed to download.
+                </p>
+              </div>
+            ) : (
             <ul className="space-y-2 rounded-2xl bg-black/20 px-4 py-3">
               <ActionRow done={status.followed} label={`Following ${artistName}`} />
               <ActionRow done={status.liked} label="Liked this track" />
@@ -595,6 +607,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 <ActionRow done={status.commented} label="Comment posted" />
               )}
             </ul>
+            )}
 
             {!status.unlocked && (
               <button
