@@ -5,6 +5,7 @@ export type DownloadRow = {
   id?: string;
   track_slug: string;
   sc_username: string | null;
+  sc_profile_url?: string | null;
   created_at?: string;
 };
 
@@ -31,17 +32,33 @@ const tolerate = (error: unknown) => {
   }
 };
 
-/** Fire-and-forget: a logging failure must never block the download itself. */
+/**
+ * Callers must AWAIT this (a dangling promise dies when the serverless
+ * function freezes after responding) — but it never throws, so a logging
+ * failure can't block the download itself.
+ */
 export const recordDownload = async (
   trackSlug: string,
-  scUsername?: string | null
+  scUsername?: string | null,
+  scProfileUrl?: string | null
 ) => {
   if (!supabase) return;
   try {
-    const { error } = await supabase
-      .from(TABLE)
-      .insert({ track_slug: trackSlug, sc_username: scUsername || null });
-    if (error) tolerate(error);
+    const { error } = await supabase.from(TABLE).insert({
+      track_slug: trackSlug,
+      sc_username: scUsername || null,
+      sc_profile_url: scProfileUrl || null
+    });
+    if (!error) return;
+    // Deploys can outrun the ALTER TABLE for sc_profile_url — keep the row.
+    if (error.code === "PGRST204" || /sc_profile_url/.test(error.message || "")) {
+      const { error: retryError } = await supabase
+        .from(TABLE)
+        .insert({ track_slug: trackSlug, sc_username: scUsername || null });
+      if (retryError) tolerate(retryError);
+      return;
+    }
+    tolerate(error);
   } catch (error) {
     tolerate(error);
   }

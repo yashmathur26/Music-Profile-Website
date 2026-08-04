@@ -27,8 +27,11 @@ create table if not exists public.downloads (
   id uuid primary key default gen_random_uuid(),
   track_slug text not null,
   sc_username text,
+  sc_profile_url text,
   created_at timestamptz not null default now()
 );
+-- Existing installs created before sc_profile_url:
+alter table public.downloads add column if not exists sc_profile_url text;
 create index if not exists idx_downloads_created_at on downloads(created_at);
 alter table public.downloads enable row level security;
 

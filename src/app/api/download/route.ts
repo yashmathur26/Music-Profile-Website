@@ -34,8 +34,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // History feed for the admin page; must never delay or fail the download.
-    void recordDownload(track.slug, readGate().username);
+    // Awaited on purpose: Vercel freezes the function once the response is
+    // sent, so a fire-and-forget insert never lands. recordDownload never
+    // throws, so the download can't fail because of it.
+    const gate = readGate();
+    await recordDownload(track.slug, gate.username, gate.profileUrl);
 
     return NextResponse.json(
       {

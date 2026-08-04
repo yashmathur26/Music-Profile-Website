@@ -16,6 +16,8 @@ export type GateEngagement = Record<
 export type GateCookie = {
   userId?: string;
   username?: string;
+  /** soundcloud.com/<permalink> — links the dashboard's history to the fan. */
+  profileUrl?: string;
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: string;

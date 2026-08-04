@@ -120,7 +120,8 @@ export async function GET(request: NextRequest) {
       refreshToken: tokens.refreshToken || undefined,
       expiresAt: tokens.expiresAt || undefined,
       userId: me.id,
-      username: me.username
+      username: me.username,
+      profileUrl: me.permalinkUrl || undefined
     });
 
     // This is the moment the fan asked for: follow the artist, like the

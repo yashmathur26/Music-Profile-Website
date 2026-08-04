@@ -33,6 +33,7 @@ type DownloadEntry = {
   trackSlug: string;
   title: string;
   username: string | null;
+  profileUrl: string | null;
   at: string | null;
 };
 
@@ -230,9 +231,8 @@ function Overview({
         animate={{ opacity: 1, y: 0 }}
         type="button"
         onClick={onUpload}
-        className="group relative w-full overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 px-8 py-10 text-left shadow-xl shadow-purple-500/30 transition hover:shadow-purple-500/50"
+        className="group relative w-full overflow-hidden rounded-3xl bg-[#8b5cf6] px-8 py-10 text-left shadow-xl shadow-purple-500/30 transition hover:bg-[#9d75f8] hover:shadow-purple-500/50"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
         <div className="relative flex items-center justify-between">
           <div>
             <p className="text-xl font-bold text-white md:text-2xl">
@@ -290,9 +290,20 @@ function Overview({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-white/85">{entry.title}</p>
-                  <p className="truncate text-xs text-white/40">
-                    {entry.username ? `@${entry.username}` : "anonymous"}
-                  </p>
+                  {entry.username && entry.profileUrl ? (
+                    <a
+                      href={entry.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block truncate text-xs text-purple-300/80 transition hover:text-purple-200 hover:underline"
+                    >
+                      @{entry.username}
+                    </a>
+                  ) : (
+                    <p className="truncate text-xs text-white/40">
+                      {entry.username ? `@${entry.username}` : "anonymous"}
+                    </p>
+                  )}
                 </div>
                 <span className="shrink-0 text-xs tabular-nums text-white/35">
                   {timeAgo(entry.at)}

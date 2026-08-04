@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       trackSlug: row.track_slug,
       title: titles.get(row.track_slug) || row.track_slug,
       username: row.sc_username,
+      profileUrl: row.sc_profile_url || null,
       at: row.created_at
     }))
   });
