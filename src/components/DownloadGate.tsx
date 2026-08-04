@@ -99,7 +99,7 @@ const PrefRow = ({
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
-  label: string;
+  label: React.ReactNode;
 }) => (
   <label className="flex cursor-pointer select-none items-center gap-2.5 px-1 py-0.5">
     <input
@@ -172,10 +172,11 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const [downloaded, setDownloaded] = useState(false);
   const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // The fan's choices, made before the popup opens. The comment is theirs to
-  // write — the gate won't open the popup until it has one.
+  // The fan's choices, made before the popup opens.
   const [repost, setRepost] = useState(true);
   const [comment, setComment] = useState("");
+  // Downloading requires an explicit opt-in to the terms + cookie use.
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const outboundStartedAt = useRef<number | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -436,7 +437,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   };
 
   const handleDownload = async () => {
-    if (!downloadReady || downloadBusy) return;
+    if (!downloadReady || downloadBusy || !termsAccepted) return;
     setNotice(null);
     setDownloaded(false);
     setDownloadBusy(true);
@@ -658,12 +659,42 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         )}
       </div>
 
+      <div className="mt-2">
+        <PrefRow
+          checked={termsAccepted}
+          onChange={setTermsAccepted}
+          label={
+            <>
+              I accept the{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
+              >
+                terms
+              </a>{" "}
+              and the use of cookies (
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
+              >
+                privacy policy
+              </a>
+              )
+            </>
+          }
+        />
+      </div>
+
       <button
         onClick={handleDownload}
-        disabled={!downloadReady || downloadBusy}
+        disabled={!downloadReady || downloadBusy || !termsAccepted}
         className={clsx(
-          "mt-2 w-full rounded-2xl px-6 py-3 text-sm font-semibold uppercase tracking-wide transition",
-          downloadReady
+          "w-full rounded-2xl px-6 py-3 text-sm font-semibold uppercase tracking-wide transition",
+          downloadReady && termsAccepted
             ? "bg-[#8b5cf6] text-white shadow-lg shadow-purple-500/25 hover:bg-[#9d75f8]"
             : "bg-white/10 text-muted"
         )}
