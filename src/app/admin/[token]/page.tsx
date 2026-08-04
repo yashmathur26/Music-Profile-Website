@@ -218,10 +218,12 @@ function InlineText({
 
 function Overview({
   token,
-  onUpload
+  onUpload,
+  onViewDownloads
 }: {
   token: string;
   onUpload: () => void;
+  onViewDownloads: () => void;
 }) {
   const [total, setTotal] = useState<number | null>(null);
   const [recent, setRecent] = useState<DownloadEntry[]>([]);
@@ -300,9 +302,13 @@ function Overview({
       <div className={clsx(card, "p-6")}>
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-white/70">Download history</p>
-          <span className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
-            <LiveDot /> Live
-          </span>
+          <button
+            type="button"
+            onClick={onViewDownloads}
+            className="rounded-lg bg-purple-500/15 px-3 py-1.5 text-xs font-semibold text-purple-200 transition hover:bg-purple-500/25"
+          >
+            View all →
+          </button>
         </div>
         {recent.length === 0 ? (
           <p className="mt-3 text-sm text-white/40">
@@ -1249,7 +1255,11 @@ export default function AdminPage() {
         </div>
 
         {tab === "overview" && (
-          <Overview token={token} onUpload={() => setTab("gates")} />
+          <Overview
+            token={token}
+            onUpload={() => setTab("gates")}
+            onViewDownloads={() => setTab("downloads")}
+          />
         )}
         {tab === "gates" && <TracksManager token={token} />}
         {tab === "downloads" && <DownloadsList token={token} />}
