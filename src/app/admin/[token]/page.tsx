@@ -587,12 +587,15 @@ function TracksManager({ token }: { token: string }) {
 function DownloadsList({ token }: { token: string }) {
   const [total, setTotal] = useState<number | null>(null);
   const [rows, setRows] = useState<DownloadEntry[]>([]);
+  // "" = all songs — the default view when the tab opens.
+  const [trackFilter, setTrackFilter] = useState("");
+  const [songs, setSongs] = useState<{ slug: string; title: string }[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/admin/downloads?key=${encodeURIComponent(token)}&limit=200`
-      );
+      const params = new URLSearchParams({ key: token, limit: "200" });
+      if (trackFilter) params.set("track", trackFilter);
+      const res = await fetch(`/api/admin/downloads?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
       setTotal(data.total ?? 0);
@@ -600,9 +603,29 @@ function DownloadsList({ token }: { token: string }) {
     } catch {
       /* next poll retries */
     }
-  }, [token]);
+  }, [token, trackFilter]);
 
   usePolling(load, 4000);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/tracks?key=${encodeURIComponent(token)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setSongs(
+          (data.tracks || []).map((t: AdminTrack) => ({
+            slug: t.slug,
+            title: t.title
+          }))
+        );
+      } catch {
+        /* dropdown just shows All songs */
+      }
+    })();
+  }, [token]);
 
   const RowInner = ({ entry }: { entry: DownloadEntry }) => (
     <>
@@ -638,9 +661,30 @@ function DownloadsList({ token }: { token: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Song filter — defaults to every song's downloads */}
+      <select
+        value={trackFilter}
+        onChange={(e) => {
+          setTrackFilter(e.target.value);
+          setTotal(null);
+        }}
+        className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:border-purple-400/60 focus:outline-none"
+      >
+        <option value="" className="bg-[#150820]">
+          All songs
+        </option>
+        {songs.map((song) => (
+          <option key={song.slug} value={song.slug} className="bg-[#150820]">
+            {song.title}
+          </option>
+        ))}
+      </select>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-white/60">
-          {total === null ? "Loading…" : `${total} download${total === 1 ? "" : "s"} all-time`}
+          {total === null
+            ? "Loading…"
+            : `${total} download${total === 1 ? "" : "s"}${trackFilter ? " for this song" : " all-time"}`}
         </p>
         <span className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
           <LiveDot /> Live
@@ -650,7 +694,9 @@ function DownloadsList({ token }: { token: string }) {
       {rows.length === 0 && total === 0 ? (
         <div className={clsx(card, "p-8 text-center")}>
           <p className="text-sm text-white/40">
-            No downloads yet — every fan who grabs a track will show up here.
+            {trackFilter
+              ? "No downloads for this song yet."
+              : "No downloads yet — every fan who grabs a track will show up here."}
           </p>
         </div>
       ) : (

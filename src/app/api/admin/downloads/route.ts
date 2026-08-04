@@ -17,8 +17,9 @@ export async function GET(request: NextRequest) {
     Math.max(Number(request.nextUrl.searchParams.get("limit")) || 12, 1),
     500
   );
+  const track = request.nextUrl.searchParams.get("track") || undefined;
   const [{ total, rows }, tracks] = await Promise.all([
-    listDownloads(limit),
+    listDownloads(limit, track),
     getAllTracks()
   ]);
   const titles = new Map(tracks.map((track) => [track.slug, track.title]));

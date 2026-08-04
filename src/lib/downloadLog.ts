@@ -58,15 +58,20 @@ export const recordDownload = async (
 };
 
 export const listDownloads = async (
-  limit = 20
+  limit = 20,
+  trackSlug?: string
 ): Promise<{ total: number; rows: DownloadRow[] }> => {
   if (!supabase) return { total: 0, rows: [] };
   try {
-    const { data, error, count } = await supabase
+    let query = supabase
       .from(TABLE)
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (trackSlug) {
+      query = query.eq("track_slug", trackSlug);
+    }
+    const { data, error, count } = await query;
     if (error) {
       tolerate(error);
       return { total: 0, rows: [] };
