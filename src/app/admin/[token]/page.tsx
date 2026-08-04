@@ -44,7 +44,7 @@ type Stats = {
   isActive: boolean;
 };
 
-type TabKey = "overview" | "gates" | "home" | "presaves";
+type TabKey = "overview" | "gates" | "downloads" | "home" | "presaves";
 
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                         */
@@ -581,6 +581,106 @@ function TracksManager({ token }: { token: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Downloads tab — everyone who downloaded, linked to their profile    */
+/* ------------------------------------------------------------------ */
+
+function DownloadsList({ token }: { token: string }) {
+  const [total, setTotal] = useState<number | null>(null);
+  const [rows, setRows] = useState<DownloadEntry[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/admin/downloads?key=${encodeURIComponent(token)}&limit=200`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setTotal(data.total ?? 0);
+      setRows(data.recent || []);
+    } catch {
+      /* next poll retries */
+    }
+  }, [token]);
+
+  usePolling(load, 4000);
+
+  const RowInner = ({ entry }: { entry: DownloadEntry }) => (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300">
+        {entry.username ? (
+          <span className="text-sm font-bold uppercase">
+            {entry.username.slice(0, 1)}
+          </span>
+        ) : (
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+          </svg>
+        )}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-white/90">
+          {entry.username || "Anonymous fan"}
+        </p>
+        <p className="truncate text-xs text-white/40">{entry.title}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        <span className="text-xs tabular-nums text-white/35">
+          {timeAgo(entry.at)}
+        </span>
+        {entry.profileUrl && (
+          <span className="text-[10px] uppercase tracking-widest text-purple-300/70">
+            View profile →
+          </span>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-white/60">
+          {total === null ? "Loading…" : `${total} download${total === 1 ? "" : "s"} all-time`}
+        </p>
+        <span className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
+          <LiveDot /> Live
+        </span>
+      </div>
+
+      {rows.length === 0 && total === 0 ? (
+        <div className={clsx(card, "p-8 text-center")}>
+          <p className="text-sm text-white/40">
+            No downloads yet — every fan who grabs a track will show up here.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((entry, i) => (
+            <li key={i}>
+              {entry.profileUrl ? (
+                <a
+                  href={entry.profileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${entry.username}'s SoundCloud profile`}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition hover:border-purple-400/50 hover:bg-purple-500/10"
+                >
+                  <RowInner entry={entry} />
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                  <RowInner entry={entry} />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Home editor tab                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -999,6 +1099,7 @@ function Presaves({ token }: { token: string }) {
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "gates", label: "Songs" },
+  { key: "downloads", label: "Downloads" },
   { key: "home", label: "Home Editor" },
   { key: "presaves", label: "Presaves" }
 ];
@@ -1105,6 +1206,7 @@ export default function AdminPage() {
           <Overview token={token} onUpload={() => setTab("gates")} />
         )}
         {tab === "gates" && <TracksManager token={token} />}
+        {tab === "downloads" && <DownloadsList token={token} />}
         {tab === "home" && <HomeEditor token={token} />}
         {tab === "presaves" && <Presaves token={token} />}
       </div>

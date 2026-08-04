@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const limit = Math.min(
+    Math.max(Number(request.nextUrl.searchParams.get("limit")) || 12, 1),
+    500
+  );
   const [{ total, rows }, tracks] = await Promise.all([
-    listDownloads(12),
+    listDownloads(limit),
     getAllTracks()
   ]);
   const titles = new Map(tracks.map((track) => [track.slug, track.title]));
