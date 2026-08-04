@@ -65,6 +65,36 @@ const timeAgo = (iso: string | null) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
+/**
+ * Keeps a data feed live against Supabase: refetch on an interval while the
+ * tab is visible, and immediately when the artist comes back to the tab.
+ */
+const usePolling = (fn: () => void, ms: number) => {
+  useEffect(() => {
+    fn();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") fn();
+    }, ms);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fn();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [fn, ms]);
+};
+
+const LiveDot = () => (
+  <span className="relative flex h-2 w-2" title="Auto-updating">
+    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+  </span>
+);
+
 const SoundcloudIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
     <path d="M17.7 10.4a4.77 4.77 0 0 0-3.9-1.9 5.1 5.1 0 0 0-4.7-3.2A5.1 5.1 0 0 0 4 10.4a3.6 3.6 0 0 0-.1 7.2h13.8a3.2 3.2 0 0 0 0-6.4z" />
@@ -217,11 +247,7 @@ function Overview({
     }
   }, [token]);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 10000);
-    return () => clearInterval(t);
-  }, [load]);
+  usePolling(load, 4000);
 
   return (
     <div className="space-y-6">
@@ -272,7 +298,12 @@ function Overview({
 
       {/* Download history preview */}
       <div className={clsx(card, "p-6")}>
-        <p className="text-sm font-medium text-white/70">Download history</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-white/70">Download history</p>
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
+            <LiveDot /> Live
+          </span>
+        </div>
         {recent.length === 0 ? (
           <p className="mt-3 text-sm text-white/40">
             {total === 0
@@ -349,9 +380,7 @@ function TracksManager({ token }: { token: string }) {
     }
   }, [token]);
 
-  useEffect(() => {
-    loadTracks();
-  }, [loadTracks]);
+  usePolling(loadTracks, 8000);
 
   const submit = async (confirm: boolean) => {
     setBusy(true);
@@ -894,11 +923,7 @@ function Presaves({ token }: { token: string }) {
     }
   }, [token]);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 4000);
-    return () => clearInterval(t);
-  }, [load]);
+  usePolling(load, 4000);
 
   const trigger = async () => {
     setTriggering(true);
