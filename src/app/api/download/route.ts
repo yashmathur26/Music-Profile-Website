@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
 import { recordDownload } from "@/lib/downloadLog";
-import { readGate } from "@/lib/gateStore";
+import { readGate, writeGate } from "@/lib/gateStore";
+import { fetchMe } from "@/lib/soundcloud";
 
 /**
  * Resolves a track slug to its download URL.
@@ -38,7 +39,18 @@ export async function POST(request: Request) {
     // sent, so a fire-and-forget insert never lands. recordDownload never
     // throws, so the download can't fail because of it.
     const gate = readGate();
-    await recordDownload(track.slug, gate.username, gate.profileUrl);
+    let profileUrl = gate.profileUrl;
+    // Fans who connected before profile links existed have a cookie without
+    // one — backfill it from their token so their history rows link too.
+    if (!profileUrl && gate.accessToken) {
+      try {
+        profileUrl = (await fetchMe(gate.accessToken)).permalinkUrl || undefined;
+        if (profileUrl) writeGate({ profileUrl });
+      } catch {
+        /* an expired token just means an unlinked row */
+      }
+    }
+    await recordDownload(track.slug, gate.username, profileUrl);
 
     return NextResponse.json(
       {
