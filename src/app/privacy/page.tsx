@@ -41,7 +41,7 @@ export default function PrivacyPage() {
     },
     {
       title: "Cookies",
-      body: "We use cookies (including an httpOnly session cookie) to keep you logged in during the presave flow. This cookie expires shortly after you complete the flow. We do not use tracking or advertising cookies.",
+      body: "We only use functional cookies, and none are set until you start a connect or presave flow. They are: a session cookie (gate_session) that identifies your visit; short-lived OAuth security cookies (sc_oauth_state, sc_oauth_verifier, sc_oauth_track, sc_oauth_prefs — and Spotify equivalents) that protect the sign-in handshake and expire within minutes; and an encrypted gate cookie (sc_gate) that remembers your SoundCloud connection and which tasks you completed, for up to 7 days. All are httpOnly and are strictly necessary to provide the download and presave features you request. We do not use tracking, analytics, or advertising cookies.",
     },
     {
       title: "Spotify",
