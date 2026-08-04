@@ -289,6 +289,9 @@ export const readStatus = async (trackSlug: string): Promise<GateStatus> => {
   status.liked = Boolean(engagement.liked);
   status.reposted = Boolean(engagement.reposted);
   status.commented = Boolean(engagement.commented);
-  status.unlocked = status.followed;
+  // The gate resets on every visit: the fan re-presses the button, the
+  // engagement run re-verifies each task (already-done ones just come back
+  // checkmarked), and only that press unlocks the download.
+  status.unlocked = false;
   return status;
 };

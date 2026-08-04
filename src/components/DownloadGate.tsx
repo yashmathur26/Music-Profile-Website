@@ -160,6 +160,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
 
   const [status, setStatus] = useState<GateStatus>(initialStatus);
   const [loaded, setLoaded] = useState(false);
+  // The gate resets each visit: the results view only shows after the fan
+  // pressed the button this visit (attempted), never straight from the cookie.
+  const [attempted, setAttempted] = useState(false);
+  const postEngageRan = useRef(false);
   const [manualUnlocked, setManualUnlocked] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
@@ -198,7 +202,17 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       );
       if (!response.ok) return null;
       const next = (await response.json()) as GateStatus;
-      setStatus((prev) => ({ ...prev, ...next }));
+      // Status polls report unlocked:false by design (per-visit reset) — never
+      // let one clobber an unlock the engagement already granted this visit.
+      setStatus((prev) => ({
+        ...prev,
+        ...next,
+        followed: prev.followed || next.followed,
+        liked: prev.liked || next.liked,
+        reposted: prev.reposted || next.reposted,
+        commented: prev.commented || next.commented,
+        unlocked: prev.unlocked || next.unlocked
+      }));
       return next;
     } catch {
       return null;
@@ -210,6 +224,8 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   useEffect(() => {
     setStatus(initialStatus);
     setLoaded(false);
+    setAttempted(false);
+    postEngageRan.current = false;
     setManualUnlocked(sessionStorage.getItem(MANUAL_KEY) === "1");
     setNotice(null);
     setDownloaded(false);
@@ -220,6 +236,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   }, [MANUAL_KEY, OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
 
   const applyStatus = useCallback((next: GateStatus) => {
+    setAttempted(true);
     setStatus((prev) => ({ ...prev, ...next }));
     if (next.unlocked) {
       setNotice(null);
@@ -249,6 +266,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       setConnecting(false);
 
       if (event.data.ok && event.data.status) {
+        postEngageRan.current = true;
         applyStatus(event.data.status);
         return;
       }
@@ -292,20 +310,27 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [MANUAL_KEY, OUTBOUND_KEY, artistName]);
 
-  const handleConnect = () => {
-    const trimmed = comment.trim().slice(0, COMMENT_MAX);
-    if (!trimmed) {
-      setNotice("Write a comment for the track first — it posts under your name.");
-      return;
-    }
+  const handleConnect = async () => {
     setNotice(null);
+
+    // Already connected from a previous visit: no popup needed — verify the
+    // four tasks against SoundCloud and checkmark what's already done.
+    if (status.connected) {
+      const verified = await handleRetry();
+      if (verified?.connected) return;
+      // Token died since last visit — fall through to a fresh popup connect.
+      setStatus((prev) => ({ ...prev, connected: false }));
+    }
+
     setConnecting(true);
+    postEngageRan.current = false;
 
     const params = new URLSearchParams({
       track: trackSlug,
-      repost: repost ? "1" : "0",
-      comment: trimmed
+      repost: repost ? "1" : "0"
     });
+    const trimmed = comment.trim().slice(0, COMMENT_MAX);
+    if (trimmed) params.set("comment", trimmed);
 
     const popup = window.open(
       `/api/soundcloud/login?${params.toString()}`,
@@ -333,7 +358,14 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       const next = await fetchStatus();
       if (next?.connected) {
         stopPolling();
-        setConnecting(false);
+        // COOP-severed popups can't postMessage their result — verify the
+        // tasks over the fresh session so the checkmarks still appear.
+        if (!postEngageRan.current) {
+          postEngageRan.current = true;
+          void handleRetry();
+        } else {
+          setConnecting(false);
+        }
         return;
       }
       let popupClosed = true;
@@ -355,7 +387,12 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     }, POLL_INTERVAL_MS);
   };
 
-  const handleRetry = async () => {
+  /**
+   * Runs the engagement against the fan's existing session: each of the four
+   * tasks is verified on SoundCloud (already-done ones come back as
+   * checkmarks) and anything missing is performed. Returns the fresh status.
+   */
+  const handleRetry = async (): Promise<GateStatus | null> => {
     setNotice(null);
     setConnecting(true);
     try {
@@ -368,9 +405,14 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
           comment: comment.trim().slice(0, COMMENT_MAX) || undefined
         })
       });
-      applyStatus((await response.json()) as GateStatus);
+      const next = (await response.json()) as GateStatus;
+      if (next.connected) {
+        applyStatus(next);
+      }
+      return next;
     } catch {
       setNotice("Couldn’t reach SoundCloud. Try again.");
+      return null;
     } finally {
       setConnecting(false);
     }
@@ -444,6 +486,8 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     setNotice(null);
     setDownloaded(false);
     setDownloadTitle(null);
+    setAttempted(false);
+    postEngageRan.current = false;
     outboundStartedAt.current = null;
     stopPolling();
     sessionStorage.removeItem(OUTBOUND_KEY);
@@ -471,8 +515,9 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
           </div>
         )}
 
-        {/* Connect form — the one decision point. */}
-        {loaded && !status.connected && !manualMode && (
+        {/* Connect form — shown fresh on every visit until the fan presses
+            the button; already-connected fans skip the popup entirely. */}
+        {loaded && !(attempted && status.connected) && !manualMode && (
           <div className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold text-white">
@@ -484,15 +529,13 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               </p>
             </div>
 
-            {/* The fan writes their own comment — required before the popup
-                opens, and it posts under their name. */}
+            {/* Optional comment — leave it empty and nothing gets posted. */}
             <input
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               maxLength={COMMENT_MAX}
-              required
-              placeholder="Write a comment for the track (required)"
+              placeholder="Drop a comment on the track (optional)"
               className="w-full rounded-xl border border-purple-500/15 bg-black/20 px-3 py-2.5 text-sm text-white placeholder:text-purple-200/40 focus:border-purple-400/50 focus:outline-none"
             />
 
@@ -504,18 +547,22 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
 
             <button
               onClick={handleConnect}
-              disabled={connecting || !comment.trim()}
+              disabled={connecting}
               className={clsx(
                 "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
                 "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
-                (connecting || !comment.trim()) && "opacity-70"
+                connecting && "opacity-70"
               )}
             >
               <span className="flex items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
                   <SoundcloudIcon />
                 </span>
-                {connecting ? "Waiting for SoundCloud…" : "Proceed to SoundCloud"}
+                {connecting
+                  ? "Waiting for SoundCloud…"
+                  : status.connected
+                    ? "Unlock the download"
+                    : "Proceed to SoundCloud"}
               </span>
               {!connecting && (
                 <svg
@@ -536,7 +583,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         )}
 
         {/* Connected — show exactly what happened on their account. */}
-        {loaded && status.connected && !manualMode && (
+        {loaded && attempted && status.connected && !manualMode && (
           <div className="space-y-3">
             <ul className="space-y-2 rounded-2xl bg-black/20 px-4 py-3">
               <ActionRow done={status.followed} label={`Following ${artistName}`} />
