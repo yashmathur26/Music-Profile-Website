@@ -9,6 +9,10 @@ import {
   SiteConfig,
   nowPlayingEmbedUrl
 } from "@/lib/siteContent";
+import {
+  MAX_FOLLOW_TARGETS,
+  isSoundcloudProfileUrl
+} from "@/lib/followTargets";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -18,6 +22,10 @@ type AdminTrack = {
   slug: string;
   title: string;
   artworkUrl: string;
+  downloadUrl: string;
+  soundcloudUrl: string;
+  /** Accounts this gate follows; empty means "just the artist". */
+  followTargets: string[];
   deletable: boolean;
 };
 
@@ -358,14 +366,304 @@ function Overview({
 /* Gates tab (upload + manage)                                         */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Who a gate follows — up to three accounts, followed simultaneously  */
+/* ------------------------------------------------------------------ */
+
+/** Pre-fills row one of a new gate: the artist's own profile. */
+const ARTIST_PROFILE =
+  process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() || "https://soundcloud.com/yvshh";
+
+const filledRows = (rows: string[]) =>
+  rows.map((row) => row.trim()).filter(Boolean);
+
+/** The first row that isn't a soundcloud.com profile link, if any. */
+const badFollowRow = (rows: string[]) =>
+  filledRows(rows).find((url) => !isSoundcloudProfileUrl(url));
+
+/**
+ * The editable list of accounts one gate follows. Unlocking that gate follows
+ * every one of them at the same time, so this is per song: a collab follows
+ * both artists, a solo track just follows you.
+ */
+function FollowTargetFields({
+  rows,
+  onChange
+}: {
+  rows: string[];
+  onChange: (rows: string[]) => void;
+}) {
+  const bad = badFollowRow(rows);
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <span className="w-4 shrink-0 text-center text-xs text-white/30">
+            {index + 1}
+          </span>
+          <input
+            type="url"
+            value={row}
+            onChange={(e) =>
+              onChange(rows.map((r, i) => (i === index ? e.target.value : r)))
+            }
+            placeholder={
+              index === 0
+                ? "https://soundcloud.com/your-profile"
+                : "https://soundcloud.com/a-collaborator"
+            }
+            className={inputClass}
+          />
+          {rows.length > 1 && (
+            <button
+              type="button"
+              title="Remove"
+              onClick={() => onChange(rows.filter((_, i) => i !== index))}
+              className="shrink-0 rounded-lg bg-red-500/15 px-3 py-2.5 text-xs font-medium text-red-300 transition hover:bg-red-500/25"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      ))}
+
+      {rows.length < MAX_FOLLOW_TARGETS && (
+        <button
+          type="button"
+          onClick={() => onChange([...rows, ""])}
+          className="ml-6 rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white/70 transition hover:bg-white/15"
+        >
+          + Add account
+        </button>
+      )}
+
+      {bad && (
+        <p className="text-xs text-amber-300/80">
+          {bad} isn’t a SoundCloud profile link — it should look like
+          https://soundcloud.com/handle
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One live gate: the summary line, and an editor for everything about it —
+ * title, public link, the file, the SoundCloud track, artwork, and the
+ * accounts fans have to follow. Editing a hard-coded gate copies it into the
+ * database on save, which is what makes it editable (and deletable) from then
+ * on.
+ */
+function GateRow({
+  track,
+  token,
+  copied,
+  onCopy,
+  onDelete,
+  onSaved
+}: {
+  track: AdminTrack;
+  token: string;
+  copied: boolean;
+  onCopy: () => void;
+  onDelete: () => void;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(track);
+  const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // The save went through but the database couldn't take part of it.
+  const [warning, setWarning] = useState<string | null>(null);
+
+  const startEditing = () => {
+    setDraft(track);
+    setFollowRows(
+      track.followTargets.length ? track.followTargets : [ARTIST_PROFILE]
+    );
+    setError(null);
+    setWarning(null);
+    setOpen(true);
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/tracks/${encodeURIComponent(track.slug)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          slug: draft.slug,
+          title: draft.title,
+          artworkUrl: draft.artworkUrl,
+          downloadUrl: draft.downloadUrl,
+          soundcloudUrl: draft.soundcloudUrl,
+          followTargets: filledRows(followRows)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed.");
+      if (data.warning) {
+        setWarning(data.warning);
+      } else {
+        setOpen(false);
+      }
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const field = (
+    label: string,
+    key: "title" | "slug" | "downloadUrl" | "soundcloudUrl" | "artworkUrl",
+    hint?: string
+  ) => (
+    <label className="block">
+      <span className="text-xs font-medium uppercase tracking-widest text-white/50">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={draft[key]}
+        onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+        className={clsx(inputClass, "mt-1")}
+      />
+      {hint && <span className="mt-1 block text-[11px] text-white/35">{hint}</span>}
+    </label>
+  );
+
+  return (
+    <li className="rounded-xl border border-white/10 bg-black/20">
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-white/85">{track.title}</p>
+          <p className="truncate text-xs text-white/40">
+            /{track.slug}
+            {track.followTargets.length > 1 && (
+              <span className="ml-2 text-purple-300/70">
+                follows {track.followTargets.length} accounts
+              </span>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => (open ? setOpen(false) : startEditing())}
+          className={clsx(
+            "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+            open
+              ? "bg-purple-600 text-white hover:bg-purple-500"
+              : "bg-white/10 text-white/70 hover:bg-white/20"
+          )}
+        >
+          {open ? "Close" : "Edit"}
+        </button>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/20"
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+        {track.deletable && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="shrink-0 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/25"
+          >
+            Delete
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="space-y-3 border-t border-white/10 px-3 py-4">
+          {field("Title", "title")}
+          {field(
+            "Link",
+            "slug",
+            `Fans open /${draft.slug || track.slug} — renaming breaks the old link.`
+          )}
+          {field(
+            "Song file",
+            "downloadUrl",
+            "A Google Drive link (turned into a direct download) or any file URL."
+          )}
+          {field(
+            "SoundCloud track",
+            "soundcloudUrl",
+            "What the gate likes and reposts. Changing it re-reads the track from SoundCloud."
+          )}
+          {field("Artwork", "artworkUrl")}
+
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-widest text-white/50">
+                Fans must follow
+              </p>
+              <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[11px] text-white/40">
+                {filledRows(followRows).length}/{MAX_FOLLOW_TARGETS}
+              </span>
+            </div>
+            <FollowTargetFields rows={followRows} onChange={setFollowRows} />
+          </div>
+
+          {error && (
+            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </p>
+          )}
+          {warning && (
+            <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              {warning}
+            </p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy || Boolean(badFollowRow(followRows))}
+              className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-40"
+            >
+              {busy ? "Saving…" : "Save changes"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={busy}
+              className="rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/15"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
 function TracksManager({ token }: { token: string }) {
   const [tracks, setTracks] = useState<AdminTrack[]>([]);
   const [driveUrl, setDriveUrl] = useState("");
   const [soundcloudUrl, setSoundcloudUrl] = useState("");
   const [preview, setPreview] = useState<TrackPreview | null>(null);
+  // Who the new gate will follow. Row one starts on the artist's own profile;
+  // a collab adds the other accounts here.
+  const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPath, setCreatedPath] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const authHeaders = useCallback(
@@ -391,20 +689,28 @@ function TracksManager({ token }: { token: string }) {
   const submit = async (confirm: boolean) => {
     setBusy(true);
     setError(null);
+    setWarning(null);
     if (!confirm) setCreatedPath(null);
     try {
       const res = await fetch("/api/admin/tracks", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ driveUrl, soundcloudUrl, preview: !confirm })
+        body: JSON.stringify({
+          driveUrl,
+          soundcloudUrl,
+          followTargets: filledRows(followRows),
+          preview: !confirm
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       if (confirm) {
         setCreatedPath(data.path);
+        setWarning(data.warning || null);
         setPreview(null);
         setDriveUrl("");
         setSoundcloudUrl("");
+        setFollowRows([ARTIST_PROFILE]);
         loadTracks();
       } else {
         setPreview(data.track);
@@ -471,11 +777,32 @@ function TracksManager({ token }: { token: string }) {
             className={inputClass}
           />
 
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-widest text-white/50">
+                Fans must follow
+              </p>
+              <span className="rounded-lg bg-white/5 px-2 py-0.5 text-[11px] text-white/40">
+                {filledRows(followRows).length}/{MAX_FOLLOW_TARGETS}
+              </span>
+            </div>
+            <p className="mb-3 text-xs text-white/45">
+              One tap on the gate follows all of these at the same time — add a
+              collaborator or your alt account for this song.
+            </p>
+            <FollowTargetFields rows={followRows} onChange={setFollowRows} />
+          </div>
+
           {!preview && (
             <button
               type="button"
               onClick={() => submit(false)}
-              disabled={busy || !driveUrl.trim() || !soundcloudUrl.trim()}
+              disabled={
+                busy ||
+                !driveUrl.trim() ||
+                !soundcloudUrl.trim() ||
+                Boolean(badFollowRow(followRows))
+              }
               className="rounded-xl bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition hover:bg-purple-500 disabled:opacity-40"
             >
               {busy ? "Checking…" : "Preview gate"}
@@ -540,6 +867,12 @@ function TracksManager({ token }: { token: string }) {
             </div>
           )}
 
+          {warning && (
+            <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              {warning}
+            </p>
+          )}
+
           {error && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -553,31 +886,15 @@ function TracksManager({ token }: { token: string }) {
           <p className="mb-3 text-sm font-medium text-white/70">Live gates</p>
           <ul className="space-y-2">
             {tracks.map((track) => (
-              <li
+              <GateRow
                 key={track.slug}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-white/85">{track.title}</p>
-                  <p className="truncate text-xs text-white/40">/{track.slug}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => copyLink(track.slug)}
-                  className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/20"
-                >
-                  {copiedSlug === track.slug ? "Copied!" : "Copy"}
-                </button>
-                {track.deletable && (
-                  <button
-                    type="button"
-                    onClick={() => remove(track.slug)}
-                    className="shrink-0 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/25"
-                  >
-                    Delete
-                  </button>
-                )}
-              </li>
+                track={track}
+                token={token}
+                copied={copiedSlug === track.slug}
+                onCopy={() => copyLink(track.slug)}
+                onDelete={() => remove(track.slug)}
+                onSaved={loadTracks}
+              />
             ))}
           </ul>
         </div>
@@ -1148,6 +1465,96 @@ function Presaves({ token }: { token: string }) {
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Password screen                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The second gate in front of the dashboard: the admin link gets you here,
+ * the password gets you in. Unlocking sets a short-lived signed cookie, so a
+ * refresh doesn't re-prompt but a borrowed browser eventually does.
+ */
+function PasswordScreen({ onUnlocked }: { onUnlocked: () => void }) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!password || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Wrong password.");
+      setPassword("");
+      onUnlocked();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Wrong password.");
+      setPassword("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0612] p-4">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,80,200,0.25),transparent)]" />
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative w-full max-w-xs rounded-3xl border border-white/10 bg-white/5 px-7 py-8 text-center backdrop-blur-xl"
+      >
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-purple-400/30 bg-purple-500/15">
+          <svg
+            className="h-5 w-5 text-purple-200"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <rect x="4" y="10" width="16" height="11" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+        </div>
+        <p className="text-lg font-medium text-white/90">Artist Dashboard</p>
+        <p className="mt-1 text-sm text-white/45">Enter your password</p>
+
+        <input
+          type="password"
+          autoFocus
+          inputMode="numeric"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="••••••"
+          className="mt-5 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-center text-lg tracking-[0.4em] text-white placeholder:tracking-[0.3em] placeholder:text-white/25 focus:border-purple-400/60 focus:outline-none"
+        />
+
+        {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy || !password}
+          className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 transition hover:bg-purple-500 disabled:opacity-40"
+        >
+          {busy ? "Checking…" : "Unlock"}
+        </button>
+      </motion.div>
+    </main>
+  );
+}
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "gates", label: "Songs" },
@@ -1161,12 +1568,13 @@ export default function AdminPage() {
   const token = params.token as string;
 
   const [tab, setTab] = useState<TabKey>("overview");
-  const [authState, setAuthState] = useState<"checking" | "ok" | "invalid">(
-    "checking"
-  );
+  const [authState, setAuthState] = useState<
+    "checking" | "ok" | "locked" | "invalid"
+  >("checking");
 
-  // One cheap authenticated call decides between the dashboard and the
-  // invalid-link screen; backend outages must not lock the admin out.
+  // Two checks: is the link itself real, and has this browser been unlocked
+  // with the password? Backend outages must not lock the admin out of the
+  // link check, but a missing password session always shows the lock screen.
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -1174,12 +1582,31 @@ export default function AdminPage() {
         const res = await fetch(
           `/api/admin/tracks?key=${encodeURIComponent(token)}`
         );
-        setAuthState(res.status === 401 ? "invalid" : "ok");
+        if (res.status === 401) {
+          setAuthState("invalid");
+          return;
+        }
       } catch {
-        setAuthState("ok");
+        /* treat an unreachable backend as a valid link */
+      }
+      try {
+        const session = await fetch("/api/admin/login", { cache: "no-store" });
+        const data = await session.json().catch(() => ({ authed: false }));
+        setAuthState(data.authed ? "ok" : "locked");
+      } catch {
+        setAuthState("locked");
       }
     })();
   }, [token]);
+
+  const lock = async () => {
+    try {
+      await fetch("/api/admin/login", { method: "DELETE" });
+    } catch {
+      /* the cookie expires on its own anyway */
+    }
+    setAuthState("locked");
+  };
 
   if (authState === "checking") {
     return (
@@ -1190,6 +1617,10 @@ export default function AdminPage() {
         </motion.p>
       </main>
     );
+  }
+
+  if (authState === "locked") {
+    return <PasswordScreen onUnlocked={() => setAuthState("ok")} />;
   }
 
   if (authState === "invalid") {
@@ -1231,6 +1662,27 @@ export default function AdminPage() {
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white/90 md:text-3xl">
             Artist Dashboard
           </h1>
+          <button
+            type="button"
+            onClick={lock}
+            title="Lock the dashboard"
+            className="mx-auto mt-3 flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <rect x="4" y="10" width="16" height="11" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+            Lock
+          </button>
         </motion.header>
 
         {/* Tab bar */}

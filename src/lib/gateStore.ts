@@ -4,7 +4,12 @@ import { cookies } from "next/headers";
 export type GateEngagement = Record<
   string,
   {
+    /** Every configured follow target is done. */
     followed?: boolean;
+    /** Per-target follow state, keyed by the profile URL from the site config —
+     * the gate follows up to three accounts, and each is tracked separately so
+     * a newly added target isn't skipped for a returning fan. */
+    follows?: Record<string, boolean>;
     liked?: boolean;
     reposted?: boolean;
     /** Comments are not idempotent on SoundCloud — this flag is the only thing
@@ -111,11 +116,15 @@ export const recordGateEngagement = (
   engagement: GateEngagement[string]
 ) => {
   const current = readGate();
+  const previous = current.engagement?.[trackSlug] || {};
   return writeGate({
     engagement: {
       [trackSlug]: {
-        ...(current.engagement?.[trackSlug] || {}),
-        ...engagement
+        ...previous,
+        ...engagement,
+        // Nested one level deeper than the shallow merge above reaches, and a
+        // dropped target shouldn't erase the others' state.
+        follows: { ...(previous.follows || {}), ...(engagement.follows || {}) }
       }
     }
   });

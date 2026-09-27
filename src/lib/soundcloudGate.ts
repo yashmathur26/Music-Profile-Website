@@ -15,7 +15,17 @@ import { updateSession } from "@/lib/db";
 import { getOrCreateSessionId } from "@/lib/session";
 import { ARTIST_SOUNDCLOUD_URL, getTrackPermalink } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
+import { followTargetName, normalizeFollowTargets } from "@/lib/followTargets";
 import { env } from "@/utils/env";
+
+/** One account the gate follows, and whether that's done. */
+export type FollowTarget = {
+  /** soundcloud.com profile URL — the key this target is stored under. */
+  url: string;
+  /** SoundCloud's display name once resolved, else the @permalink. */
+  name: string;
+  followed: boolean;
+};
 
 export type GateStatus = {
   /** SoundCloud OAuth env vars are present. */
@@ -23,6 +33,9 @@ export type GateStatus = {
   /** Fan has authorised us against their SoundCloud account. */
   connected: boolean;
   username: string | null;
+  /** Every configured account the gate follows, with its own state. */
+  follows: FollowTarget[];
+  /** Shorthand for "every follow target is done" — what the gate unlocks on. */
   followed: boolean;
   liked: boolean;
   reposted: boolean;
@@ -46,6 +59,7 @@ export const emptyStatus = (): GateStatus => ({
   configured: soundcloudConfigured(),
   connected: false,
   username: null,
+  follows: [],
   followed: false,
   liked: false,
   reposted: false,
@@ -57,22 +71,69 @@ export const emptyStatus = (): GateStatus => ({
 });
 
 /** Resolved SoundCloud ids are stable, so keep them warm per server instance. */
-const resolvedIds = new Map<string, string>();
+const resolvedIds = new Map<string, { id: string; name: string }>();
 
 const resolveCached = async (accessToken: string, url: string) => {
   const cached = resolvedIds.get(url);
   if (cached) return cached;
-  const { id } = await resolvePermalink(accessToken, url);
+  const { id, name } = await resolvePermalink(accessToken, url);
+  const resolved = { id, name };
   if (id) {
-    resolvedIds.set(url, id);
+    resolvedIds.set(url, resolved);
   }
-  return id;
+  return resolved;
 };
 
-const getArtistId = async (accessToken: string) => {
-  const configured = numericId(env.soundcloudArtistId);
-  if (configured) return configured;
-  return resolveCached(accessToken, ARTIST_SOUNDCLOUD_URL);
+/**
+ * The profiles this song's gate follows, in the order the artist set them on
+ * the gate. A song with none set falls back to the artist's own profile, so
+ * every gate always has someone to follow.
+ */
+export const getFollowTargetUrls = async (
+  trackSlug: string
+): Promise<string[]> => {
+  let configured: string[] = [];
+  try {
+    configured = normalizeFollowTargets((await findTrack(trackSlug))?.followTargets);
+  } catch (error) {
+    console.warn("[gate] follow targets unavailable; using the artist profile", error);
+  }
+  return configured.length ? configured : [ARTIST_SOUNDCLOUD_URL];
+};
+
+/** URL + display name, with no SoundCloud call — for the pre-connect list. */
+const listFollowTargets = async (
+  trackSlug: string
+): Promise<{ url: string; name: string }[]> =>
+  (await getFollowTargetUrls(trackSlug)).map((url) => ({
+    url,
+    name: followTargetName(url)
+  }));
+
+/**
+ * Resolves every follow target to its numeric user id, all at once. A target
+ * that won't resolve comes back with an empty id; callers drop it rather than
+ * leaving the fan staring at a task they can't complete.
+ */
+const resolveFollowTargets = async (accessToken: string, trackSlug: string) => {
+  const targets = await listFollowTargets(trackSlug);
+  // The env var short-circuits the lookup for the artist's own profile.
+  const artistIdOverride = numericId(env.soundcloudArtistId);
+
+  return Promise.all(
+    targets.map(async (target) => {
+      if (artistIdOverride && target.url === ARTIST_SOUNDCLOUD_URL) {
+        return { ...target, id: artistIdOverride };
+      }
+      try {
+        const { id, name } = await resolveCached(accessToken, target.url);
+        return { ...target, id, name: name || target.name };
+      } catch (error) {
+        console.log(`[gate] resolve failed for ${target.url}`, error);
+        return { ...target, id: "" };
+      }
+    })
+  );
 };
 
 const getTrackId = async (accessToken: string, trackSlug: string) => {
@@ -80,7 +141,7 @@ const getTrackId = async (accessToken: string, trackSlug: string) => {
   if (!track) return "";
   if (track.soundcloudTrackId) return numericId(track.soundcloudTrackId);
   const permalink = getTrackPermalink(track);
-  return permalink ? resolveCached(accessToken, permalink) : "";
+  return permalink ? (await resolveCached(accessToken, permalink)).id : "";
 };
 
 /** Supabase is an optional mirror; the gate cookie is the source of truth. */
@@ -132,12 +193,17 @@ const describeError = (error: unknown) => {
   return "unknown";
 };
 
+const detailOf = (error: unknown) =>
+  error instanceof SoundcloudApiError
+    ? `${error.status} ${error.body}`
+    : String(error);
+
 /**
- * Runs the actions the gate promises — follow the artist, like the track, and
- * optionally repost and comment — on the fan's behalf, then records the
- * result. Follow/like/repost are idempotent, so retries are safe; the comment
- * is guarded by the `commented` flag because SoundCloud will happily post it
- * twice.
+ * Runs the actions the gate promises — follow every configured account, like
+ * the track, and optionally repost and comment — on the fan's behalf, then
+ * records the result. Follow/like/repost are idempotent, so retries are safe;
+ * the comment is guarded by the `commented` flag because SoundCloud will
+ * happily post it twice.
  */
 export const runEngagement = async (
   trackSlug: string,
@@ -157,54 +223,75 @@ export const runEngagement = async (
   status.connected = true;
   status.username = gate.username || null;
 
-  // The artist opening their own gate: you can't follow yourself, so skip
-  // the tasks entirely and hand over the download.
-  try {
-    const artistId = await getArtistId(accessToken);
-    if (artistId && gate.userId && numericId(gate.userId) === artistId) {
-      status.isArtist = true;
-      status.unlocked = true;
-      return status;
-    }
-  } catch {
-    /* resolution failed — treat as a normal fan */
+  const selfId = numericId(gate.userId);
+  const targets = await resolveFollowTargets(accessToken, trackSlug);
+
+  // The artist opening their own gate: you can't follow, like or repost your
+  // own upload, so skip the tasks entirely and hand over the download.
+  if (selfId && targets[0]?.id && targets[0].id === selfId) {
+    status.isArtist = true;
+    status.unlocked = true;
+    return status;
   }
 
   const previous = gate.engagement?.[trackSlug] || {};
-  status.followed = Boolean(previous.followed);
+  const previousFollows = previous.follows || {};
   status.liked = Boolean(previous.liked);
   status.reposted = Boolean(previous.reposted);
   status.commented = Boolean(previous.commented);
 
-  if (!status.followed) {
-    try {
-      const artistId = await getArtistId(accessToken);
-      if (artistId) {
-        status.followed = await followUser(accessToken, artistId);
-        console.log(`[gate] follow artist=${artistId} -> ok`);
-      } else {
-        status.error = "artist_unresolved";
+  // Every follow fires at the same time — one round trip's worth of waiting no
+  // matter how many accounts are configured.
+  const followed = await Promise.all(
+    targets.map(async (target) => {
+      if (!target.id) {
+        return { ...target, followed: false, error: "artist_unresolved" as string | null };
       }
-    } catch (error) {
-      const detail =
-        error instanceof SoundcloudApiError
-          ? `${error.status} ${error.body}`
-          : String(error);
-      console.log(`[gate] follow FAILED: ${detail}`);
-      const kind = describeError(error);
-      status.error = kind;
-      status.apiBlocked = kind === "blocked";
-      // The write may be blocked while the fan already follows manually —
-      // a read-only check still lets them through.
+      // A fan who happens to be one of the other configured accounts can't
+      // follow themselves; count it as nothing left to do.
+      if (selfId && target.id === selfId) {
+        return { ...target, followed: true, error: null as string | null };
+      }
+      if (previousFollows[target.url]) {
+        return { ...target, followed: true, error: null as string | null };
+      }
       try {
-        const artistId = await getArtistId(accessToken);
-        if (artistId) {
-          status.followed = await checkFollowing(accessToken, artistId);
+        const ok = await followUser(accessToken, target.id);
+        console.log(`[gate] follow artist=${target.id} -> ok`);
+        return { ...target, followed: ok, error: null as string | null };
+      } catch (error) {
+        console.log(`[gate] follow ${target.url} FAILED: ${detailOf(error)}`);
+        const kind = describeError(error);
+        // The write may be blocked while the fan already follows manually —
+        // a read-only check still lets them through.
+        try {
+          return {
+            ...target,
+            followed: await checkFollowing(accessToken, target.id),
+            error: kind as string | null
+          };
+        } catch {
+          return { ...target, followed: false, error: kind as string | null };
         }
-      } catch {
-        /* fall through with followed = false */
       }
-    }
+    })
+  );
+
+  // A target that won't resolve stays in the checklist as pending and keeps
+  // the gate shut — the admin page verifies every profile on save, so this is
+  // SoundCloud being unreachable, and a retry is the right answer.
+  status.follows = followed.map(({ url, name, followed: done }) => ({
+    url,
+    name,
+    followed: done
+  }));
+  status.followed =
+    followed.length > 0 && followed.every((target) => target.followed);
+
+  const followError = followed.find((target) => target.error)?.error || null;
+  if (!status.followed && followError) {
+    status.error = followError;
+    status.apiBlocked = followed.some((target) => target.error === "blocked");
   }
 
   if (!status.liked) {
@@ -217,11 +304,7 @@ export const runEngagement = async (
         status.error = status.error || "track_unresolved";
       }
     } catch (error) {
-      const detail =
-        error instanceof SoundcloudApiError
-          ? `${error.status} ${error.body}`
-          : String(error);
-      console.log(`[gate] like FAILED: ${detail}`);
+      console.log(`[gate] like FAILED: ${detailOf(error)}`);
       const kind = describeError(error);
       status.error = status.error || kind;
       status.apiBlocked = status.apiBlocked || kind === "blocked";
@@ -229,7 +312,7 @@ export const runEngagement = async (
   }
 
   // Repost is opt-out (the checkbox defaults to on). Failures here never
-  // block the download — the follow is the gate.
+  // block the download — the follows are the gate.
   if (prefs.repost !== false && !status.reposted) {
     try {
       const trackId = await getTrackId(accessToken, trackSlug);
@@ -238,11 +321,7 @@ export const runEngagement = async (
         console.log(`[gate] repost track=${trackId} -> ok`);
       }
     } catch (error) {
-      const detail =
-        error instanceof SoundcloudApiError
-          ? `${error.status} ${error.body}`
-          : String(error);
-      console.log(`[gate] repost FAILED: ${detail}`);
+      console.log(`[gate] repost FAILED: ${detailOf(error)}`);
       status.error = status.error || describeError(error);
     }
   }
@@ -260,17 +339,16 @@ export const runEngagement = async (
         console.log(`[gate] comment track=${trackId} -> ok`);
       }
     } catch (error) {
-      const detail =
-        error instanceof SoundcloudApiError
-          ? `${error.status} ${error.body}`
-          : String(error);
-      console.log(`[gate] comment FAILED: ${detail}`);
+      console.log(`[gate] comment FAILED: ${detailOf(error)}`);
       status.error = status.error || describeError(error);
     }
   }
 
   recordGateEngagement(trackSlug, {
     followed: status.followed,
+    follows: Object.fromEntries(
+      status.follows.map((target) => [target.url, target.followed])
+    ),
     liked: status.liked,
     reposted: status.reposted,
     commented: status.commented
@@ -281,8 +359,8 @@ export const runEngagement = async (
     sc_verified: status.followed
   });
 
-  // The follow is what the gate is really for; a like that SoundCloud refuses
-  // shouldn't hold the download hostage.
+  // The follows are what the gate is really for; a like that SoundCloud
+  // refuses shouldn't hold the download hostage.
   status.unlocked = status.followed;
   return status;
 };
@@ -293,15 +371,27 @@ export const readStatus = async (trackSlug: string): Promise<GateStatus> => {
     return status;
   }
 
+  // The accounts to follow are public config — the gate page lists them before
+  // anyone connects, so this half runs with or without a session.
+  const targets = await listFollowTargets(trackSlug);
+
   const gate = readGate();
   if (!gate.accessToken) {
+    status.follows = targets.map((target) => ({ ...target, followed: false }));
     return status;
   }
 
   const engagement = gate.engagement?.[trackSlug] || {};
+  const follows = engagement.follows || {};
   status.connected = true;
   status.username = gate.username || null;
-  status.followed = Boolean(engagement.followed);
+  status.follows = targets.map((target) => ({
+    ...target,
+    followed: Boolean(follows[target.url])
+  }));
+  status.followed =
+    status.follows.length > 0 &&
+    status.follows.every((target) => target.followed);
   status.liked = Boolean(engagement.liked);
   status.reposted = Boolean(engagement.reposted);
   status.commented = Boolean(engagement.commented);

@@ -4,11 +4,19 @@ import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import DownloadSuccess from "@/components/DownloadSuccess";
 
+/** One account the gate follows. Mirror of the server's FollowTarget. */
+type FollowTarget = {
+  url: string;
+  name: string;
+  followed: boolean;
+};
+
 /** Mirror of the server's GateStatus. */
 type GateStatus = {
   configured: boolean;
   connected: boolean;
   username: string | null;
+  follows: FollowTarget[];
   followed: boolean;
   liked: boolean;
   reposted: boolean;
@@ -43,6 +51,7 @@ const initialStatus: GateStatus = {
   configured: false,
   connected: false,
   username: null,
+  follows: [],
   followed: false,
   liked: false,
   reposted: false,
@@ -61,7 +70,8 @@ const FAILURE_COPY: Record<string, string> = {
   blocked: "SoundCloud blocked the automatic follow — use the manual step instead.",
   rate_limited: "SoundCloud is rate-limiting us. Wait a moment, then retry.",
   reconnect: "Your SoundCloud session expired. Connect again.",
-  artist_unresolved: "Couldn’t find the artist profile on SoundCloud.",
+  artist_unresolved:
+    "Couldn’t reach one of the profiles to follow on SoundCloud — hit retry.",
   track_unresolved: "Couldn’t find this track on SoundCloud.",
   exchange_401:
     "SoundCloud rejected the app credentials (401). The client secret on the server is likely mistyped.",
@@ -84,6 +94,26 @@ const failureCopy = (reason: string) => {
   }
   return null;
 };
+
+/**
+ * The server is the authority on *which* accounts to follow, but a status poll
+ * reports stored state — never let one un-tick a follow the engagement just
+ * confirmed this visit.
+ */
+const mergeFollows = (prev: FollowTarget[], next: FollowTarget[]) => {
+  if (!next.length) return prev;
+  const done = new Map(prev.map((target) => [target.url, target.followed]));
+  return next.map((target) => ({
+    ...target,
+    followed: target.followed || done.get(target.url) === true
+  }));
+};
+
+/** "A", "A and B", "A, B and C" — for the one-tap promise in the copy. */
+const nameList = (names: string[]) =>
+  names.length <= 1
+    ? names[0] || ""
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 const SoundcloudIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -185,6 +215,17 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||
     "https://soundcloud.com/yvshh";
 
+  // The gate can follow up to three accounts at once. With one, the copy and
+  // the checklist keep the artist's display name; with several, each row names
+  // its own account so the fan knows exactly who they're following.
+  const followTargets = status.follows;
+  const multiFollow = followTargets.length > 1;
+  const followLabel = (target: FollowTarget) =>
+    multiFollow ? target.name : artistName;
+  const followPromise = multiFollow
+    ? nameList(followTargets.map((target) => target.name))
+    : artistName;
+
   const downloadReady = status.unlocked || manualUnlocked;
   // Auto mode is the real gate; manual is the escape hatch when SoundCloud's
   // API isn't available to us.
@@ -210,6 +251,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       setStatus((prev) => ({
         ...prev,
         ...next,
+        follows: mergeFollows(prev.follows, next.follows || []),
         followed: prev.followed || next.followed,
         liked: prev.liked || next.liked,
         reposted: prev.reposted || next.reposted,
@@ -527,8 +569,9 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 Connect your SoundCloud
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-purple-200/50">
-                One tap follows {artistName} and likes this track — that
-                unlocks the download. Undo anything later on SoundCloud.
+                One tap follows {followPromise}
+                {multiFollow ? "," : ""} and likes this track — that unlocks
+                the download. Undo anything later on SoundCloud.
               </p>
             </div>
 
@@ -599,7 +642,20 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               </div>
             ) : (
             <ul className="space-y-2 rounded-2xl bg-black/20 px-4 py-3">
-              <ActionRow done={status.followed} label={`Following ${artistName}`} />
+              {followTargets.length > 0 ? (
+                followTargets.map((target) => (
+                  <ActionRow
+                    key={target.url}
+                    done={target.followed}
+                    label={`Following ${followLabel(target)}`}
+                  />
+                ))
+              ) : (
+                <ActionRow
+                  done={status.followed}
+                  label={`Following ${artistName}`}
+                />
+              )}
               <ActionRow done={status.liked} label="Liked this track" />
               {(repost || status.reposted) && (
                 <ActionRow done={status.reposted} label="Reposted to your followers" />
@@ -655,6 +711,25 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
               Opens SoundCloud in a new tab. Follow {artistName}, like the
               track, then come back here.
             </p>
+            {multiFollow && (
+              <p className="text-xs text-purple-200/50">
+                Also follow{" "}
+                {followTargets.slice(1).map((target, index) => (
+                  <span key={target.url}>
+                    {index > 0 && ", "}
+                    <a
+                      href={target.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
+                    >
+                      {target.name}
+                    </a>
+                  </span>
+                ))}
+                .
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -8,6 +8,12 @@ export type TrackConfig = {
   soundcloudUrl?: string;
   /** Set this to skip the /resolve lookup for the like call. */
   soundcloudTrackId?: string;
+  /**
+   * soundcloud.com profiles this gate follows, all at once, when a fan
+   * unlocks it — the artist plus any collaborators on this particular track.
+   * Empty falls back to ARTIST_SOUNDCLOUD_URL.
+   */
+  followTargets?: string[];
 };
 
 export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";
@@ -15,6 +21,39 @@ export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";
 export const ARTIST_SOUNDCLOUD_URL =
   process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||
   "https://soundcloud.com/yvshh";
+
+/**
+ * Accepts every Drive link shape an artist actually pastes:
+ * .../file/d/<id>/view, open?id=<id>, uc?id=<id>, or a bare id.
+ */
+export const driveFileId = (input: string) => {
+  const trimmed = input.trim();
+  const patterns = [
+    /\/file\/d\/([A-Za-z0-9_-]{10,})/,
+    /[?&]id=([A-Za-z0-9_-]{10,})/,
+    /^([A-Za-z0-9_-]{25,})$/
+  ];
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
+
+/** A Drive link becomes a direct download; anything else is used as pasted. */
+export const toDownloadUrl = (input: string) => {
+  const fileId = driveFileId(input);
+  return fileId
+    ? `https://drive.google.com/uc?export=download&id=${fileId}`
+    : input.trim();
+};
+
+export const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 
 /** Same player styling every hard-coded entry uses, for tracks added at runtime. */
 export const buildEmbedUrl = (permalink: string) =>

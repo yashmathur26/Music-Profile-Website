@@ -361,12 +361,18 @@ export const resolveTrackMeta = async (
   };
 };
 
-/** Resolves a soundcloud.com permalink to its API resource (user or track). */
+/**
+ * Resolves a soundcloud.com permalink to its API resource (user or track).
+ * `name` is the display name for users — the gate labels each follow row with
+ * it instead of the raw permalink.
+ */
 export const resolvePermalink = async (accessToken: string, url: string) => {
   const resolved = await asJson<{
     id?: number | string;
     urn?: string;
     kind?: string;
+    username?: string;
+    permalink?: string;
   }>(
     await apiRequest(
       `/resolve?url=${encodeURIComponent(url)}`,
@@ -375,9 +381,17 @@ export const resolvePermalink = async (accessToken: string, url: string) => {
   );
   return {
     id: numericId(resolved.id ?? resolved.urn),
-    kind: resolved.kind || ""
+    kind: resolved.kind || "",
+    name: resolved.username || resolved.permalink || ""
   };
 };
+
+/**
+ * Same lookup over the app-level token, for the admin page validating a
+ * follow target with no fan in the picture.
+ */
+export const resolveProfile = async (url: string) =>
+  resolvePermalink(await getClientToken(), url);
 
 /**
  * PUT /me/followings/:id — idempotent on SoundCloud's side, and a 409 just

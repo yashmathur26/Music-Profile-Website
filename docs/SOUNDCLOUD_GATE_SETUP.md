@@ -4,10 +4,34 @@ The download gate is SoundCloud-only. When a fan clicks **Follow + Like to
 unlock**, the site opens SoundCloud OAuth, and on return it calls the SoundCloud
 API on their behalf to:
 
-1. `PUT /me/followings/{artist_id}` — follow the artist
+1. `PUT /me/followings/{artist_id}` — follow the artist, plus up to two more
+   accounts, all fired at the same time
 2. `POST /likes/tracks/{track_id}` — like the track they're downloading
 
 Only then does the Download button unlock.
+
+## Who gets followed — set per song
+
+Every gate carries its own list of up to three soundcloud.com profiles. Unlock
+the gate and all of them are followed at the same time, so a collab can follow
+both artists while a solo track just follows you. The gate only opens once
+every account on its list is followed.
+
+Set the list in Admin → **Songs**:
+
+- **New download gate** — the "Fans must follow" box starts on your own profile
+  (`NEXT_PUBLIC_SOUNDCLOUD_URL`); "+ Add account" adds the collaborators.
+- **Live gates** — **Edit** on any gate opens the full editor: title, public
+  link, song file, SoundCloud track, artwork, and the follow list.
+
+Stored per row in `gate_tracks.follow_targets`, so a change is live on the next
+page load — no redeploy. Profiles are verified against SoundCloud when you
+save, so a typo'd handle is rejected instead of silently wedging the gate. A
+gate with an empty list falls back to `NEXT_PUBLIC_SOUNDCLOUD_URL`.
+
+Editing one of the hard-coded gates in `src/lib/tracks.ts` copies it into the
+database on save (database rows win for the same slug), which is what makes it
+editable — and deletable — from then on.
 
 ## Heads up: SoundCloud paused gate integrations in June 2026
 
@@ -24,9 +48,10 @@ Because of that, this gate ships with an automatic fallback:
   tab, follow + like, come back" on the honour system.
 - Downloads therefore never break, whatever SoundCloud does to the API.
 
-You'll know which mode you're in by looking at the gate: auto mode shows two
-live checkmarks ("Following YVSH", "Liked this track"); manual mode shows a
-single "Follow + like on SoundCloud" button.
+You'll know which mode you're in by looking at the gate: auto mode shows a live
+checkmark per task (one "Following @…" row per configured account, plus "Liked
+this track"); manual mode shows a single "Follow + like on SoundCloud" button
+and links out to the other accounts.
 
 ## 1. Register a SoundCloud API app
 

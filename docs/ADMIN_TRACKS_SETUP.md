@@ -15,8 +15,13 @@ create table if not exists public.gate_tracks (
   download_url text not null,
   soundcloud_url text not null,
   soundcloud_track_id text,
+  -- Up to three soundcloud.com profile URLs this gate follows, in order.
+  -- Null means "just the artist" (NEXT_PUBLIC_SOUNDCLOUD_URL).
+  follow_targets jsonb,
   created_at timestamptz not null default now()
 );
+-- Existing installs created before per-gate follow lists:
+alter table public.gate_tracks add column if not exists follow_targets jsonb;
 
 -- Server-only access: the service role key bypasses RLS; enabling it with no
 -- policies means the anon/public key can't read or write anything.
@@ -46,6 +51,26 @@ alter table public.site_config enable row level security;
 
 That's it. Until the table exists the site serves the hard-coded tracks from
 `src/lib/tracks.ts` and the admin "add" form reports the missing table.
+
+## Password
+
+The dashboard is behind two things: the link (`/admin/<TRIGGER_SAVES_SECRET>`)
+and a password on top of it.
+
+```bash
+ADMIN_PASSWORD=050302
+```
+
+Set it in `.env.local` for local dev and in the Vercel project's environment
+variables for production. Unset, the password falls back to
+`TRIGGER_SAVES_SECRET`, so the admin is never locked out by a missing variable.
+
+Unlocking mints a signed, http-only cookie that lasts 12 hours — the password
+itself is never stored in the browser. **Lock** under the dashboard title ends
+it early. A wrong password costs a second, which keeps network guessing slow.
+
+The admin APIs still accept `TRIGGER_SAVES_SECRET` as a bearer token or `?key=`
+so scripts and cron keep working; the password is what guards the dashboard UI.
 
 Notes:
 
