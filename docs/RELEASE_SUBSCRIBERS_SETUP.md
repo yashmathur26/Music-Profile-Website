@@ -107,39 +107,43 @@ route returns 401 and the connections go stale; without
 The feature also needs the SoundCloud OAuth vars and Supabase service role key
 the gate already uses. Miss any of them and the checkbox simply doesn't render.
 
-## 3. The crons
+## 3. The cron
 
-Both registered in `vercel.json`, both authorised with `CRON_SECRET`:
+One cron does all the background work, registered in `vercel.json` and
+authorised with `CRON_SECRET`:
 
 ```json
-{ "path": "/api/cron/refresh-subscribers",  "schedule": "0 4 * * *" }
-{ "path": "/api/cron/process-announcements", "schedule": "*/10 * * * *" }
+{ "path": "/api/cron/subscribers", "schedule": "*/10 * * * *" }
 ```
 
-### The daily keepalive
+Every tick it does exactly one of two jobs, never both.
 
-It walks every active subscriber oldest-refresh-first and exchanges their
-refresh token for a fresh pair. Two reasons it exists:
+**Draining the release queue** — the oldest unfinished release, up to 150 fans,
+then stop. A release with more subscribers finishes over the following ticks.
+It's a queue rather than something that runs when you press the button because
+the fan-out can outlive any single request (a slow send would otherwise read
+back to you as "the song didn't save"), and because trickling the writes beats
+firing every account at SoundCloud in the same second.
 
-- an unused refresh token can be aged out, and a fan revoking access on
-  SoundCloud's side notifies us of nothing — we'd only find out mid-release;
-- dead grants get revoked here, so the subscriber count stays honest.
+**Keepalive** — when the queue is empty, it refreshes the grants untouched for
+20 hours, 100 per tick. An unused refresh token can be aged out, and a fan
+revoking access on SoundCloud's side notifies us of nothing, so without this
+we'd only find out mid-release. Dead grants are retired here instead, marked
+`revoked_reason = 'token_invalid'`, which keeps the subscriber count honest.
 
-Fans whose grant is gone are marked `revoked_reason = 'token_invalid'` and
-skipped from then on.
+### Why one cron and not two
 
-### The announcement queue
+This started as two — a daily keepalive and a ten-minute queue drain — and
+that was a bug. `*/10 * * * *` fires at 04:00 as well, so once a day both
+would refresh the same fan at the same moment. SoundCloud's refresh tokens are
+single-use: the loser of that race ends up holding a token SoundCloud has
+already retired, which comes back as `invalid_grant` — indistinguishable from
+a fan who revoked access, so the code would unsubscribe them for good. Silent
+daily attrition, visible only as a subscriber count that drifts down.
 
-Every ten minutes it takes the oldest unfinished release and does up to 150
-fans, then stops. A release with more subscribers than that finishes over the
-following ticks. Two reasons it's a queue rather than something that runs when
-you press the button:
-
-- the fan-out can outlive any single request, so creating a gate must not wait
-  on it — a slow send would otherwise read back to you as "the song didn't
-  save";
-- it trickles the writes out instead of firing every account at SoundCloud in
-  the same second, which is what an automated-behaviour heuristic looks for.
+Serialising the work removes the race by construction rather than hoping two
+schedules never collide. `maxDuration` is held under the interval so a run
+can't overlap itself either.
 
 ## 4. Dropping a new song
 

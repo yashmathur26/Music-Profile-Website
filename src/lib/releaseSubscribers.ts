@@ -236,8 +236,12 @@ export type TokenResult =
  * SoundCloud's refresh tokens are single-use, so the replacement is written
  * back before the token is handed out — if that write fails we must treat the
  * whole thing as a failure rather than use a token whose successor is lost.
- * For the same reason only one job may refresh a given fan at a time, which is
- * why the daily cron and the release run are never scheduled together.
+ * For the same reason only one job may refresh a given fan at a time: two
+ * concurrent callers would leave the loser holding a retired token, which
+ * comes back as `invalid_grant` and is indistinguishable from a fan who
+ * revoked access — so it would unsubscribe them for good. Everything
+ * background therefore runs through the single cron in
+ * /api/cron/subscribers, which never does two jobs at once.
  */
 export const getAccessToken = async (
   subscriber: ReleaseSubscriber
@@ -330,7 +334,7 @@ export const recordAction = async (params: {
  *
  * Creating a gate can't wait on the fan-out — hundreds of fans times two API
  * calls each outlives any request — so ticking the box only records the intent
- * here, and the cron in /api/cron/process-announcements drains it in chunks.
+ * here, and the cron in /api/cron/subscribers drains it in chunks.
  * That also spreads the writes out instead of firing every account at
  * SoundCloud in the same second.
  */

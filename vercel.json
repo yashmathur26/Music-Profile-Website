@@ -3,11 +3,7 @@
   "buildCommand": "npm run build",
   "crons": [
     {
-      "path": "/api/cron/refresh-subscribers",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/process-announcements",
+      "path": "/api/cron/subscribers",
       "schedule": "*/10 * * * *"
     }
   ]
