@@ -44,6 +44,7 @@ export type ReleaseAction = {
 
 const SUBSCRIBERS = "release_subscribers";
 const ACTIONS = "release_actions";
+const ANNOUNCEMENTS = "release_announcements";
 
 const supabase = createServerSupabase();
 
@@ -142,6 +143,24 @@ export const findByRevokeToken = async (
 };
 
 /** Everyone still opted in, oldest first. */
+/** How many fans are opted in right now — the number the admin portal shows
+ * next to the "tell my subscribers" checkbox, so the artist knows what the
+ * box will actually do before ticking it. */
+export const countActive = async (): Promise<number> => {
+  if (!supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from(SUBSCRIBERS)
+      .select("*", { count: "exact", head: true })
+      .is("revoked_at", null);
+    if (error) throw error;
+    return count ?? 0;
+  } catch {
+    // A missing table shouldn't take down the admin page.
+    return 0;
+  }
+};
+
 export const listActive = async (): Promise<ReleaseSubscriber[]> => {
   const { data, error } = await client()
     .from(SUBSCRIBERS)
@@ -303,5 +322,116 @@ export const recordAction = async (params: {
       },
       { onConflict: "subscriber_id,track_slug" }
     );
+  if (error) throw error;
+};
+
+/**
+ * The queue behind the admin portal's "tell my subscribers" checkbox.
+ *
+ * Creating a gate can't wait on the fan-out — hundreds of fans times two API
+ * calls each outlives any request — so ticking the box only records the intent
+ * here, and the cron in /api/cron/process-announcements drains it in chunks.
+ * That also spreads the writes out instead of firing every account at
+ * SoundCloud in the same second.
+ */
+export type AnnouncementStatus = "pending" | "running" | "done" | "failed";
+
+export type ReleaseAnnouncement = {
+  id: string;
+  track_slug: string;
+  status: AnnouncementStatus;
+  requested_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  processed: number;
+  liked: number;
+  reposted: number;
+  failed: number;
+  last_error: string | null;
+};
+
+/** Queues a release, or re-opens one that already ran — re-running is safe,
+ * since each fan's result is recorded per release and skipped next time. */
+export const requestAnnouncement = async (
+  trackSlug: string
+): Promise<ReleaseAnnouncement> => {
+  const now = new Date().toISOString();
+  const { data, error } = await client()
+    .from(ANNOUNCEMENTS)
+    .upsert(
+      {
+        track_slug: trackSlug,
+        status: "pending",
+        requested_at: now,
+        started_at: null,
+        completed_at: null,
+        last_error: null
+      },
+      { onConflict: "track_slug" }
+    )
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as ReleaseAnnouncement;
+};
+
+/** Oldest unfinished release first, so a queue of several drains in order. */
+export const nextAnnouncement =
+  async (): Promise<ReleaseAnnouncement | null> => {
+    const { data, error } = await client()
+      .from(ANNOUNCEMENTS)
+      .select("*")
+      .in("status", ["pending", "running"])
+      .order("requested_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as ReleaseAnnouncement) ?? null;
+  };
+
+export const listAnnouncements = async (): Promise<ReleaseAnnouncement[]> => {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from(ANNOUNCEMENTS)
+      .select("*")
+      .order("requested_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as ReleaseAnnouncement[];
+  } catch {
+    // The admin list still renders without the queue column.
+    return [];
+  }
+};
+
+/** Counters accumulate across passes, because one release can take several. */
+export const updateAnnouncement = async (
+  id: string,
+  patch: {
+    status?: AnnouncementStatus;
+    startedAt?: string | null;
+    completedAt?: string | null;
+    addProcessed?: number;
+    addLiked?: number;
+    addReposted?: number;
+    addFailed?: number;
+    lastError?: string | null;
+    current?: ReleaseAnnouncement;
+  }
+): Promise<void> => {
+  const base = patch.current;
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.status) row.status = patch.status;
+  if (patch.startedAt !== undefined) row.started_at = patch.startedAt;
+  if (patch.completedAt !== undefined) row.completed_at = patch.completedAt;
+  if (patch.lastError !== undefined) row.last_error = patch.lastError;
+  if (base) {
+    if (patch.addProcessed) row.processed = base.processed + patch.addProcessed;
+    if (patch.addLiked) row.liked = base.liked + patch.addLiked;
+    if (patch.addReposted) row.reposted = base.reposted + patch.addReposted;
+    if (patch.addFailed) row.failed = base.failed + patch.addFailed;
+  }
+
+  const { error } = await client().from(ANNOUNCEMENTS).update(row).eq("id", id);
   if (error) throw error;
 };

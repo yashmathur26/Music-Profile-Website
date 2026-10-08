@@ -8,6 +8,11 @@ import {
 } from "@/lib/trackStore";
 import { normalizeFollowTargets } from "@/lib/followTargets";
 import {
+  countActive,
+  listAnnouncements,
+  requestAnnouncement
+} from "@/lib/releaseSubscribers";
+import {
   driveFileId,
   getTrackPermalink,
   slugify,
@@ -31,9 +36,18 @@ const unauthorized = () =>
 
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return unauthorized();
-  const [rows, all] = await Promise.all([listDbTracks(), getAllTracks()]);
+  const [rows, all, subscribers, announcements] = await Promise.all([
+    listDbTracks(),
+    getAllTracks(),
+    countActive(),
+    listAnnouncements()
+  ]);
   const dbSlugs = new Set(rows.map((row) => row.slug));
+  const queued = new Map(announcements.map((row) => [row.track_slug, row]));
   return NextResponse.json({
+    // Drives the "tell my N subscribers" label — the artist should know what
+    // the checkbox will do before ticking it.
+    subscribers,
     tracks: all.map((track) => ({
       slug: track.slug,
       title: track.title,
@@ -44,7 +58,9 @@ export async function GET(request: NextRequest) {
       // Empty means "nobody set a list" — the gate follows the artist.
       followTargets: track.followTargets || [],
       // Static tracks ship in the bundle; only DB rows can be deleted here.
-      deletable: dbSlugs.has(track.slug)
+      deletable: dbSlugs.has(track.slug),
+      // Null until someone asks for a fan-out on this gate.
+      announcement: queued.get(track.slug) ?? null
     }))
   });
 }
@@ -57,6 +73,8 @@ export async function POST(request: NextRequest) {
     soundcloudUrl?: string;
     followTargets?: unknown;
     preview?: boolean;
+    /** Tick on the create form: queue a like + repost from every subscriber. */
+    announceToSubscribers?: boolean;
   };
 
   const driveUrl = (body.driveUrl || "").trim();
@@ -154,12 +172,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Queued, never run inline: the fan-out outlives this request, and the
+  // gate is already created — a slow or failing announcement must not read
+  // back to the artist as "the song didn't save".
+  let announcementQueued = false;
+  let announcementError: string | undefined;
+  if (body.announceToSubscribers) {
+    try {
+      await requestAnnouncement(slug);
+      announcementQueued = true;
+    } catch (error) {
+      console.error("[admin] could not queue the announcement", error);
+      announcementError =
+        "The gate is live, but queueing the subscriber like + repost failed. " +
+        "Use the button on the gate to retry.";
+    }
+  }
+
   return NextResponse.json({
     created: true,
     track: row,
     path: `/${slug}`,
-    warning: followTargetsStored
-      ? undefined
-      : "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again."
+    announcementQueued,
+    warning:
+      announcementError ||
+      (followTargetsStored
+        ? undefined
+        : "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again.")
   });
 }

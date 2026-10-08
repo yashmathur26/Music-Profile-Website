@@ -18,6 +18,15 @@ import {
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
+type Announcement = {
+  status: "pending" | "running" | "done" | "failed";
+  processed: number;
+  liked: number;
+  reposted: number;
+  failed: number;
+  last_error: string | null;
+};
+
 type AdminTrack = {
   slug: string;
   title: string;
@@ -27,6 +36,8 @@ type AdminTrack = {
   /** Accounts this gate follows; empty means "just the artist". */
   followTargets: string[];
   deletable: boolean;
+  /** Null until a subscriber like + repost has been asked for on this gate. */
+  announcement: Announcement | null;
 };
 
 type TrackPreview = {
@@ -459,16 +470,21 @@ function GateRow({
   track,
   token,
   copied,
+  subscribers,
   onCopy,
   onDelete,
-  onSaved
+  onSaved,
+  onAnnounce
 }: {
   track: AdminTrack;
   token: string;
   copied: boolean;
+  /** How many fans are opted in right now, for the button's label. */
+  subscribers: number;
   onCopy: () => void;
   onDelete: () => void;
   onSaved: () => void;
+  onAnnounce: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(track);
@@ -477,6 +493,35 @@ function GateRow({
   const [error, setError] = useState<string | null>(null);
   // The save went through but the database couldn't take part of it.
   const [warning, setWarning] = useState<string | null>(null);
+  const [announcing, setAnnouncing] = useState(false);
+
+  const announcement = track.announcement;
+  const announceLabel = !announcement
+    ? `Like + repost from ${subscribers}`
+    : announcement.status === "done"
+      ? `Sent to ${announcement.processed}`
+      : announcement.status === "failed"
+        ? "Send failed — retry"
+        : `Sending… ${announcement.processed}/${subscribers}`;
+
+  const runAnnounce = async () => {
+    if (
+      !window.confirm(
+        announcement
+          ? `Send “${track.title}” to your subscribers again? Anyone already ` +
+              "liked and reposted is skipped."
+          : `Like and repost “${track.title}” from all ${subscribers} ` +
+              "subscribers? This runs on their accounts over the next few minutes."
+      )
+    )
+      return;
+    setAnnouncing(true);
+    try {
+      await onAnnounce();
+    } finally {
+      setAnnouncing(false);
+    }
+  };
 
   const startEditing = () => {
     setDraft(track);
@@ -574,6 +619,26 @@ function GateRow({
         >
           {copied ? "Copied!" : "Copy"}
         </button>
+        {subscribers > 0 && (
+          <button
+            type="button"
+            onClick={runAnnounce}
+            disabled={announcing}
+            title="Like and repost this track from every fan who opted in"
+            className={clsx(
+              "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-50",
+              announcement?.status === "done"
+                ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                : announcement?.status === "failed"
+                  ? "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                  : announcement
+                    ? "bg-purple-500/15 text-purple-200 hover:bg-purple-500/25"
+                    : "bg-white/10 text-white/70 hover:bg-white/20"
+            )}
+          >
+            {announcing ? "Queueing…" : announceLabel}
+          </button>
+        )}
         {track.deletable && (
           <button
             type="button"
@@ -584,6 +649,16 @@ function GateRow({
           </button>
         )}
       </div>
+
+      {announcement?.last_error && (
+        <p className="border-t border-white/10 px-3 py-2 text-[11px] text-amber-300/80">
+          {announcement.last_error === "api_blocked"
+            ? "SoundCloud is refusing the writes right now — it'll pick up again on its own."
+            : announcement.last_error === "rate_limited"
+              ? "SoundCloud rate-limited us — the rest goes out on the next pass."
+              : announcement.last_error}
+        </p>
+      )}
 
       {open && (
         <div className="space-y-3 border-t border-white/10 px-3 py-4">
@@ -660,9 +735,15 @@ function TracksManager({ token }: { token: string }) {
   // Who the new gate will follow. Row one starts on the artist's own profile;
   // a collab adds the other accounts here.
   const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
+  // Opted-in fans. Zero hides the whole feature — there is nothing to tell.
+  const [subscribers, setSubscribers] = useState(0);
+  // Off by default here too: sending a release to every subscriber's account
+  // is a deliberate act, not the default consequence of adding a song.
+  const [announceOnCreate, setAnnounceOnCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPath, setCreatedPath] = useState<string | null>(null);
+  const [announcedOnCreate, setAnnouncedOnCreate] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
@@ -679,6 +760,7 @@ function TracksManager({ token }: { token: string }) {
       if (!res.ok) return;
       const data = await res.json();
       setTracks(data.tracks || []);
+      setSubscribers(data.subscribers || 0);
     } catch {
       /* the list is cosmetic; adding still works */
     }
@@ -699,6 +781,7 @@ function TracksManager({ token }: { token: string }) {
           driveUrl,
           soundcloudUrl,
           followTargets: filledRows(followRows),
+          announceToSubscribers: confirm && announceOnCreate,
           preview: !confirm
         })
       });
@@ -707,10 +790,12 @@ function TracksManager({ token }: { token: string }) {
       if (confirm) {
         setCreatedPath(data.path);
         setWarning(data.warning || null);
+        setAnnouncedOnCreate(Boolean(data.announcementQueued));
         setPreview(null);
         setDriveUrl("");
         setSoundcloudUrl("");
         setFollowRows([ARTIST_PROFILE]);
+        setAnnounceOnCreate(false);
         loadTracks();
       } else {
         setPreview(data.track);
@@ -733,6 +818,22 @@ function TracksManager({ token }: { token: string }) {
       if (res.ok) loadTracks();
     } catch {
       /* leave the row; a refresh re-syncs */
+    }
+  };
+
+  const announce = async (slug: string) => {
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/announce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ track: slug })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't queue it.");
+      loadTracks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't queue it.");
     }
   };
 
@@ -792,6 +893,28 @@ function TracksManager({ token }: { token: string }) {
             </p>
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
           </div>
+
+          {subscribers > 0 && (
+            <label className="flex cursor-pointer select-none items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <input
+                type="checkbox"
+                checked={announceOnCreate}
+                onChange={(e) => setAnnounceOnCreate(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium uppercase tracking-widest text-white/50">
+                  Tell my subscribers
+                </span>
+                <span className="mt-1 block text-xs text-white/45">
+                  Like and repost this from all {subscribers} fans who opted in
+                  on an earlier download. Goes out over the next few minutes,
+                  not all at once. Only works once the track is public on
+                  SoundCloud.
+                </span>
+              </span>
+            </label>
+          )}
 
           {!preview && (
             <button
@@ -856,6 +979,12 @@ function TracksManager({ token }: { token: string }) {
             <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
               <p className="truncate text-sm text-emerald-200">
                 Live at <span className="font-semibold">{createdPath}</span>
+                {announcedOnCreate && (
+                  <span className="block text-xs text-emerald-300/70">
+                    Queued for your subscribers — watch the gate below for
+                    progress.
+                  </span>
+                )}
               </p>
               <button
                 type="button"
@@ -891,9 +1020,11 @@ function TracksManager({ token }: { token: string }) {
                 track={track}
                 token={token}
                 copied={copiedSlug === track.slug}
+                subscribers={subscribers}
                 onCopy={() => copyLink(track.slug)}
                 onDelete={() => remove(track.slug)}
                 onSaved={loadTracks}
+                onAnnounce={() => announce(track.slug)}
               />
             ))}
           </ul>

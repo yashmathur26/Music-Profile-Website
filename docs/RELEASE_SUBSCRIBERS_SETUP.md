@@ -69,10 +69,28 @@ create table if not exists release_actions (
   unique (subscriber_id, track_slug)
 );
 
+-- The queue behind the portal's "Tell my subscribers" checkbox. One row per
+-- release; the cron drains it in chunks.
+create table if not exists release_announcements (
+  id           uuid primary key default gen_random_uuid(),
+  track_slug   text not null unique,
+  status       text not null default 'pending',
+  requested_at timestamptz not null default now(),
+  started_at   timestamptz,
+  completed_at timestamptz,
+  processed    integer not null default 0,
+  liked        integer not null default 0,
+  reposted     integer not null default 0,
+  failed       integer not null default 0,
+  last_error   text,
+  updated_at   timestamptz not null default now()
+);
+
 -- Tokens: service role only. No anon/authenticated policies are created, so
 -- RLS being on with zero policies denies every client-side read.
-alter table release_subscribers enable row level security;
-alter table release_actions     enable row level security;
+alter table release_subscribers   enable row level security;
+alter table release_actions       enable row level security;
+alter table release_announcements enable row level security;
 ```
 
 ## 2. Environment variables
@@ -89,13 +107,16 @@ route returns 401 and the connections go stale; without
 The feature also needs the SoundCloud OAuth vars and Supabase service role key
 the gate already uses. Miss any of them and the checkbox simply doesn't render.
 
-## 3. The daily keepalive
+## 3. The crons
 
-Already registered in `vercel.json`:
+Both registered in `vercel.json`, both authorised with `CRON_SECRET`:
 
 ```json
-{ "path": "/api/cron/refresh-subscribers", "schedule": "0 4 * * *" }
+{ "path": "/api/cron/refresh-subscribers",  "schedule": "0 4 * * *" }
+{ "path": "/api/cron/process-announcements", "schedule": "*/10 * * * *" }
 ```
+
+### The daily keepalive
 
 It walks every active subscriber oldest-refresh-first and exchanges their
 refresh token for a fresh pair. Two reasons it exists:
@@ -107,9 +128,37 @@ refresh token for a fresh pair. Two reasons it exists:
 Fans whose grant is gone are marked `revoked_reason = 'token_invalid'` and
 skipped from then on.
 
+### The announcement queue
+
+Every ten minutes it takes the oldest unfinished release and does up to 150
+fans, then stops. A release with more subscribers than that finishes over the
+following ticks. Two reasons it's a queue rather than something that runs when
+you press the button:
+
+- the fan-out can outlive any single request, so creating a gate must not wait
+  on it — a slow send would otherwise read back to you as "the song didn't
+  save";
+- it trickles the writes out instead of firing every account at SoundCloud in
+  the same second, which is what an automated-behaviour heuristic looks for.
+
 ## 4. Dropping a new song
 
-Once the track is public on SoundCloud and its gate exists on the site:
+### From the portal (the normal way)
+
+Add the gate in Admin → **Songs** as usual. Once the track is public on
+SoundCloud, tick **Tell my subscribers** on the create form and the release is
+queued the moment the gate is created. The checkbox only appears when you
+actually have subscribers, and it says how many.
+
+Each live gate also carries a button with the same effect — **Like + repost
+from N** — for a song whose gate already existed, or to retry one that
+stopped. The button doubles as the progress readout: *Sending… 40/150*, then
+*Sent to 150*. Re-running is safe; anyone already liked and reposted is
+skipped.
+
+### By hand
+
+The manual endpoint runs the fan-out inline instead of queueing it:
 
 ```bash
 # Dry run first — counts only, touches nobody.
@@ -186,8 +235,6 @@ Or send them `https://yvshmusic.com/unsubscribe?t=<their revoke_token>`.
 
 ## What is not built
 
-- **No admin UI.** The subscriber count comes from the `dryRun` call above. A
-  tile on the admin overview would be the natural next step.
 - **No release email.** A fan who loses their personal link and clears their
   cookies needs the Contact page, or SoundCloud's own Connections settings.
 - **Tokens are stored unencrypted**, matching the existing `presaves` table.
