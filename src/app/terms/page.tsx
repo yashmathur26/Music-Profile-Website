@@ -43,11 +43,15 @@ export default function TermsPage() {
       title: "Automatic likes and reposts",
       body: (
         <>
-          Download gates offer an optional, off-by-default box asking us to like
-          and repost future releases from your SoundCloud account. Ticking it
-          authorises exactly those two actions on future releases, and nothing
-          else, until you switch it off &mdash; we keep your SoundCloud
-          connection alive for as long as it is on. Downloads never require it.{" "}
+          <strong className="font-semibold text-white/90">
+            Downloading a track opts you in to this.
+          </strong>{" "}
+          When you connect SoundCloud to unlock a download, we keep that
+          connection and use it to like and repost future releases from your
+          account. Reposts appear on your SoundCloud profile and in your
+          followers&rsquo; feeds. We do this until you switch it off; we never
+          follow accounts, post comments, or read your private data on this
+          basis.{" "}
           <Link
             href="/unsubscribe"
             className="font-medium underline underline-offset-2"
@@ -55,8 +59,10 @@ export default function TermsPage() {
           >
             Turn off automatic likes and reposts
           </Link>{" "}
-          at any time, or revoke access in your SoundCloud settings (Settings
-          &rarr; Connections).
+          &mdash; that link works at any time and needs no login, it deletes
+          the SoundCloud token we hold for you, and once you use it we will not
+          opt you back in on later downloads. You can also revoke access in
+          your SoundCloud settings (Settings &rarr; Connections).
         </>
       ),
     },

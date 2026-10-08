@@ -1,33 +1,46 @@
 # Automatic likes & reposts on new releases — Setup
 
-Fans who download a track can tick an optional box:
+Downloading a track enrols the fan: we keep the SoundCloud connection they
+used to unlock the gate, refresh it daily, and when you drop a new song one
+pass likes and reposts it from every enrolled account.
 
-> ☐ Automatically like and repost YVSH's future releases from my SoundCloud
+## The consent model
 
-Tick it and we keep their SoundCloud connection, refresh it once a day, and
-when you drop a new song one call likes and reposts it from every opted-in
-account.
+Enrolment is **automatic on download**, disclosed in the Terms, which the fan
+must tick to accept before the Download button unlocks. The gate also prints a
+plain-language line under that checkbox, and hands over the off switch on the
+download screen.
 
-## The consent model, and why it's built this way
+Three rules are enforced in code, and they are what keeps this defensible:
 
-The box is **unchecked by default** and the download works without it. That is
-deliberate, not caution for its own sake:
+- **Only like and repost ever run unattended.** Never a follow — a fan who
+  unfollowed shouldn't be re-followed behind their back — and never a comment,
+  which isn't idempotent, so a retry would post twice.
+- **An explicit opt-out is permanent.** `/unsubscribe` sets
+  `revoked_reason = 'fan'`, and enrolment skips those rows forever. Without
+  that, automatic enrolment would re-subscribe someone on their very next
+  download, which turns an aggressive default into overriding an explicit no.
+  A grant that merely died on SoundCloud's side is marked `'token_invalid'`
+  instead and is fair to re-enrol.
+- **The off switch never expires and needs no login.** `/unsubscribe?t=…` is
+  shown after the download and the same page is linked from the Terms, which
+  the bottom-right corner of every page links to.
 
-- A fan who unlocks a gate is agreeing to follow and like **that** track. Using
-  the same token weeks later for a different track is a separate thing, so it
-  gets a separate yes.
-- SoundCloud's API terms expect writes to be user-initiated. A burst of
-  background likes from one client ID, with no consent record behind it, is the
-  pattern that gets a client ID pulled — which would take the whole gate down,
-  not just this feature.
-- Every subscriber gets a permanent, login-free off switch
-  (`/unsubscribe?t=…`), shown on screen the moment they opt in — and the same
-  page is linked from the Terms, which the bottom-right corner of every page
-  links to.
+### Known exposure
 
-Only **like** and **repost** ever run automatically. Follows and comments do
-not: a fan who unfollowed shouldn't be re-followed behind their back, and
-comments aren't idempotent, so a retry would post twice.
+Worth being clear about, since the code can't fix it:
+
+- **Bundling this into T&C acceptance is not valid consent under UK/EU GDPR.**
+  Consent there has to be specific, unbundled and not a condition of the
+  service. The Terms already state 16+ for the EEA/UK, so those visitors are
+  contemplated. Making it a separate unticked box would fix it.
+- **Reposts are public** on the fan's profile and in their followers' feeds.
+  That is the part people notice and complain about, not the likes.
+- **SoundCloud's API terms expect writes to be user-initiated.** A burst of
+  unattended writes from one client ID is the pattern that gets the key pulled,
+  which would take the whole download gate down, not just this feature. The
+  trickling cron and the 403 circuit breaker reduce that risk; they don't
+  remove it.
 
 ## 1. Database migration
 

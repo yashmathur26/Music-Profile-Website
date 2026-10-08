@@ -53,11 +53,11 @@ export default function PrivacyPage() {
     },
     {
       title: "Data retention",
-      body: "We retain your presave data (Spotify user ID, token) until the track is released and added to your library, or until you remove your presave. If you opted in to automatic likes and reposts, we retain your SoundCloud tokens until you switch that off \u2014 there is no fixed end date, which is why the off switch link never expires. We also delete them automatically as soon as SoundCloud tells us the connection is no longer valid. You can remove your presave at any time from the presave success page.",
+      body: "We retain your presave data (Spotify user ID, token) until the track is released and added to your library, or until you remove your presave. We retain the SoundCloud tokens from a download until you switch automatic likes and reposts off \u2014 there is no fixed end date, which is why the off switch link never expires. We also delete them automatically as soon as SoundCloud tells us the connection is no longer valid. You can remove your presave at any time from the presave success page.",
     },
     {
       title: "Your rights",
-      body: "You can remove your presave at any time using the 'Remove my presave' option on the presave success page. You can switch off automatic likes and reposts at any time using the off switch link shown after your download, which deletes the SoundCloud tokens we hold for you; you can also revoke this site's access from your SoundCloud account settings. For a copy of your data or other deletion requests, contact us via the Contact page. We will respond to legitimate requests in a reasonable time.",
+      body: "You can remove your presave at any time using the 'Remove my presave' option on the presave success page. You can switch off automatic likes and reposts at any time using the off switch link shown after your download or the link in our Terms, which deletes the SoundCloud tokens we hold for you and stops a later download opting you back in; you can also revoke this site's access from your SoundCloud account settings. For a copy of your data or other deletion requests, contact us via the Contact page. We will respond to legitimate requests in a reasonable time.",
     },
     {
       title: "Contact",
