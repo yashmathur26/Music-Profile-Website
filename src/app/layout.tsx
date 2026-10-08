@@ -2,6 +2,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import type { Metadata } from "next";
 import StarfieldCanvas from "@/components/StarfieldCanvas";
+import LegalFooter from "@/components/LegalFooter";
 
 export const metadata: Metadata = {
   title: "yvsh music",
@@ -48,6 +49,7 @@ export default function RootLayout({
               <StarfieldCanvas density={1.0} seed={1337} className="opacity-100" />
             </div>
             {children}
+            <LegalFooter />
           </div>
         </ThemeProvider>
       </body>

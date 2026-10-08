@@ -207,6 +207,12 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const [comment, setComment] = useState("");
   // Downloading requires an explicit opt-in to the terms + cookie use.
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // "Like + repost my future releases" — off unless the fan turns it on, and
+  // the only thing in the gate that outlives the visit.
+  const [subscribeFuture, setSubscribeFuture] = useState(false);
+  const [subscribeAvailable, setSubscribeAvailable] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [revokeUrl, setRevokeUrl] = useState<string | null>(null);
   const outboundStartedAt = useRef<number | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -279,6 +285,68 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     void fetchStatus();
     return stopPolling;
   }, [MANUAL_KEY, OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
+
+  // A fan who opted in on an earlier track should find the box already
+  // ticked, so unticking it reads as the opt-out it is.
+  useEffect(() => {
+    if (!status.connected) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/soundcloud/subscribe", {
+          cache: "no-store"
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          available?: boolean;
+          subscribed?: boolean;
+        };
+        if (cancelled) return;
+        setSubscribeAvailable(Boolean(data.available));
+        setSubscribed(Boolean(data.subscribed));
+        if (data.subscribed) setSubscribeFuture(true);
+      } catch {
+        /* the opt-in is a bonus; never surface this */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status.connected]);
+
+  /**
+   * Applies the fan's choice to the durable subscription. Awaited before the
+   * download fires (a cross-origin download navigates the page away), but its
+   * failures are swallowed — the box is a favour the fan is doing us, not a
+   * condition of the download.
+   */
+  const syncSubscription = useCallback(async () => {
+    if (!subscribeAvailable) return;
+    try {
+      if (subscribeFuture && !subscribed) {
+        const response = await fetch("/api/soundcloud/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ track: trackSlug })
+        });
+        const data = (await response.json().catch(() => null)) as
+          | { ok?: boolean; revokeUrl?: string }
+          | null;
+        if (data?.ok) {
+          setSubscribed(true);
+          setRevokeUrl(data.revokeUrl ?? null);
+        }
+        return;
+      }
+      if (!subscribeFuture && subscribed) {
+        await fetch("/api/soundcloud/subscribe", { method: "DELETE" });
+        setSubscribed(false);
+        setRevokeUrl(null);
+      }
+    } catch {
+      /* never block the download on this */
+    }
+  }, [subscribeAvailable, subscribeFuture, subscribed, trackSlug]);
 
   const applyStatus = useCallback((next: GateStatus) => {
     setAttempted(true);
@@ -499,6 +567,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
         setNotice(data?.error || "Download failed. Please try again.");
         return;
       }
+
+      // Before the transfer starts: a cross-origin download replaces the
+      // page, and anything still pending here would be cancelled with it.
+      await syncSubscription();
 
       if (data.local) {
         const head = await fetch(data.url, { method: "HEAD", cache: "no-store" });
@@ -735,6 +807,28 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       </div>
 
       <div className="mt-2">
+        {/* The one opt-in that outlives the visit, so it says plainly what it
+            does, for how long, and how to stop it. Off by default. */}
+        {!manualMode && status.connected && subscribeAvailable && (
+          <div className="mb-2 rounded-xl border border-purple-500/15 bg-purple-900/10 px-2 py-2">
+            <PrefRow
+              checked={subscribeFuture}
+              onChange={setSubscribeFuture}
+              label={
+                <>
+                  Automatically like and repost {artistName}&rsquo;s future
+                  releases from my SoundCloud
+                </>
+              }
+            />
+            <p className="px-1 pt-1 text-[11px] leading-relaxed text-purple-200/40">
+              Optional — the download works either way. We&rsquo;ll keep your
+              SoundCloud connection for this, and you can switch it off any
+              time from the link we show you afterwards.
+            </p>
+          </div>
+        )}
+
         <PrefRow
           checked={termsAccepted}
           onChange={setTermsAccepted}
@@ -782,6 +876,22 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       </button>
 
       <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
+
+      {/* Shown the moment the subscription starts, not buried in an email the
+          fan may never get — the off switch has to be as easy as the on one. */}
+      {downloaded && subscribed && revokeUrl && (
+        <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/60">
+          You&rsquo;ll be set to automatically like and repost {artistName}
+          &rsquo;s next releases.{" "}
+          <a
+            href={revokeUrl}
+            className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
+          >
+            Save this link
+          </a>{" "}
+          to switch it off whenever you want.
+        </p>
+      )}
 
       {notice && (
         <div

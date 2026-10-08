@@ -14,7 +14,7 @@ export default async function DownloadsPage() {
         <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
 
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-3xl px-4 py-8 md:px-6 md:py-12">
+          <div className="mx-auto max-w-3xl px-4 py-8 pb-28 md:px-6 md:py-12 md:pb-28">
             <h1
               className="mb-6 text-center text-xl font-bold uppercase tracking-[0.2em] text-purple-300 md:text-2xl"
               style={{

@@ -44,7 +44,7 @@ export default async function TrackPage({ params }: PageProps) {
           </div>
         </section>
 
-        <aside className="flex min-h-screen w-full max-w-md flex-col border-l border-purple-500/20 bg-[#150820] p-7 md:w-[420px] md:p-9">
+        <aside className="flex min-h-screen w-full max-w-md flex-col border-l border-purple-500/20 bg-[#150820] p-7 pb-28 md:w-[420px] md:p-9 md:pb-28">
           <div className="space-y-3">
             <p className="text-[11px] uppercase tracking-[0.35em] text-muted">
               Free Download

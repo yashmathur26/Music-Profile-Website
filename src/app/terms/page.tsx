@@ -40,6 +40,27 @@ export default function TermsPage() {
       body: "When you pre-save, we store your Spotify user ID and a token so we can add the track to your Spotify library on release day. We may store an optional email if you give it. We don’t sell your data. See our Privacy Policy for details.",
     },
     {
+      title: "Automatic likes and reposts",
+      body: (
+        <>
+          Download gates offer an optional, off-by-default box asking us to like
+          and repost future releases from your SoundCloud account. Ticking it
+          authorises exactly those two actions on future releases, and nothing
+          else, until you switch it off &mdash; we keep your SoundCloud
+          connection alive for as long as it is on. Downloads never require it.{" "}
+          <Link
+            href="/unsubscribe"
+            className="font-medium underline underline-offset-2"
+            style={{ color: accent }}
+          >
+            Turn off automatic likes and reposts
+          </Link>{" "}
+          at any time, or revoke access in your SoundCloud settings (Settings
+          &rarr; Connections).
+        </>
+      ),
+    },
+    {
       title: "Spotify",
       body: "The presave feature uses Spotify's platform. Spotify is a third-party beneficiary of these Terms. You may not reverse-engineer, decompile, disassemble, or otherwise attempt to derive the source code of the Spotify platform or our integration. To disconnect our app from your Spotify account: Spotify app → Settings → Apps → find this app → Remove access.",
     },
@@ -71,7 +92,7 @@ export default function TermsPage() {
         <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
 
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-2xl px-4 py-10 md:px-6 md:py-14">
+          <div className="mx-auto max-w-2xl px-4 py-10 pb-28 md:px-6 md:py-14 md:pb-28">
             <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
               Terms & Conditions
             </h1>
@@ -111,6 +132,12 @@ export default function TermsPage() {
                 style={{ color: accent }}
               >
                 Privacy Policy
+              </Link>
+              <Link
+                href="/unsubscribe"
+                className="text-sm font-medium text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
+              >
+                Turn off automatic likes
               </Link>
             </div>
           </div>
