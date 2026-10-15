@@ -145,12 +145,20 @@ One cron does all the background work, registered in `vercel.json` and
 authorised with `CRON_SECRET`:
 
 ```json
-{ "path": "/api/cron/subscribers", "schedule": "*/5 * * * *" }
+{ "path": "/api/cron/subscribers", "schedule": "0 5 * * *" }
 ```
 
-Every tick it does exactly one of three jobs, never two. The five-minute
-interval is what the rollout window is divided into, so `TICK_MS` in the route
-has to be changed with it.
+**Vercel's Hobby plan only allows crons that run once a day** — any more
+often and the whole deployment fails (every deploy from 8bf45e9b to afdb470d
+failed for exactly this reason). Daily is enough for the keepalive and the
+teardowns. The 30-minute release rollout needs a tick every five minutes,
+which means either Vercel Pro (put `*/5 * * * *` back) or a five-minute
+trigger from outside Vercel. Use **one** trigger, never both: two runs at once
+would race on the same single-use refresh tokens. `TICK_MS` in the route
+assumes five minutes; without that trigger a release still goes out, over a
+day instead of half an hour.
+
+Every tick it does exactly one of three jobs, never two.
 
 **Draining the release queue** — the oldest unfinished release, at the pace the
 gate's rollout window asks for. A gate set to 30 minutes gets roughly a sixth

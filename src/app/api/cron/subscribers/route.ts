@@ -16,9 +16,17 @@ export const dynamic = "force-dynamic";
 // same single-use tokens and invalidate each other.
 export const maxDuration = 240;
 
-/** How often vercel.json fires this. The rollout maths needs to know how
- * much of a gate's window one tick is responsible for, so if you change the
- * schedule, change this with it. */
+/**
+ * How often this is meant to fire. The rollout maths needs to know how much
+ * of a gate's window one tick is responsible for.
+ *
+ * Vercel's Hobby plan only allows daily crons — a sub-daily schedule fails
+ * the whole deployment — so vercel.json runs this once a day, which is
+ * plenty for the keepalive and the teardowns. A 30-minute release rollout
+ * needs a tick every five minutes from somewhere else (Pro, or the Supabase
+ * pg_cron job in docs/RELEASE_SUBSCRIBERS_SETUP.md). Until then a release
+ * still goes out, just over a day instead of half an hour.
+ */
 const TICK_MS = 5 * 60_000;
 
 /** How much of a tick a pass may spend spacing its writes. Comfortably under
@@ -36,8 +44,8 @@ const KEEPALIVE_CHUNK = 100;
 const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
 
 /**
- * The single worker behind the subscription feature. Runs every five minutes
- * and does exactly one of three jobs, never two:
+ * The single worker behind the subscription feature. Each run does exactly
+ * one of three jobs, never two:
  *
  *  1. drain the release queue the portal's "Tell my subscribers" checkbox
  *     feeds, at the pace the gate's rollout window asks for;
