@@ -18,10 +18,25 @@ create table if not exists public.gate_tracks (
   -- Up to three soundcloud.com profile URLs this gate follows, in order.
   -- Null means "just the artist" (NEXT_PUBLIC_SOUNDCLOUD_URL).
   follow_targets jsonb,
+  -- What this gate's release fan-out may do on the accounts of fans who
+  -- downloaded an earlier song, and for how long. Null on any of these means
+  -- "use the default", so an un-migrated row behaves exactly as before.
+  --   subscriber_like / subscriber_repost      which actions are allowed
+  --   subscriber_retain_days                   1..14, or null to keep them
+  --   subscriber_rollout_minutes               window to spread the writes over
+  subscriber_like boolean default true,
+  subscriber_repost boolean default true,
+  subscriber_retain_days integer,
+  subscriber_rollout_minutes integer default 30,
   created_at timestamptz not null default now()
 );
 -- Existing installs created before per-gate follow lists:
 alter table public.gate_tracks add column if not exists follow_targets jsonb;
+-- Existing installs created before the per-gate subscriber settings:
+alter table public.gate_tracks add column if not exists subscriber_like boolean default true;
+alter table public.gate_tracks add column if not exists subscriber_repost boolean default true;
+alter table public.gate_tracks add column if not exists subscriber_retain_days integer;
+alter table public.gate_tracks add column if not exists subscriber_rollout_minutes integer default 30;
 
 -- Server-only access: the service role key bypasses RLS; enabling it with no
 -- policies means the anon/public key can't read or write anything.

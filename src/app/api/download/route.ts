@@ -4,6 +4,11 @@ import { findTrack } from "@/lib/trackStore";
 import { recordDownload } from "@/lib/downloadLog";
 import { readGate, writeGate } from "@/lib/gateStore";
 import { fetchMe } from "@/lib/soundcloud";
+import {
+  DownloadGateState,
+  countryFrom,
+  logGateEvent
+} from "@/lib/gateEvents";
 
 /**
  * Resolves a track slug to its download URL.
@@ -51,6 +56,23 @@ export async function POST(request: Request) {
       }
     }
     await recordDownload(track.slug, gate.username, profileUrl);
+
+    // What the server could see of how this visitor got here. This route
+    // doesn't refuse anyone yet, so this is how a bypass shows up: a download
+    // with no SoundCloud connection and no manual-route event before it.
+    const connected = Boolean(gate.accessToken || gate.userId);
+    const gateState: DownloadGateState = !connected
+      ? "no_connection"
+      : gate.engagement?.[track.slug]?.followed
+        ? "unlocked"
+        : "connected_not_unlocked";
+    await logGateEvent({
+      kind: "download",
+      trackSlug: track.slug,
+      scUsername: gate.username,
+      country: countryFrom(request.headers),
+      detail: { gate: gateState }
+    });
 
     return NextResponse.json(
       {

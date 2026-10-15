@@ -328,6 +328,36 @@ export const getClientToken = async () => {
   return clientToken.token;
 };
 
+/**
+ * A read against the public API on the app's own token — no fan involved.
+ * Accepts either a path or a full `next_href`, so paged endpoints can be
+ * walked by feeding the previous page's link straight back in.
+ */
+export const appGet = async <T>(pathOrUrl: string): Promise<T> => {
+  const token = await getClientToken();
+  const path = pathOrUrl.startsWith(API_BASE)
+    ? pathOrUrl.slice(API_BASE.length)
+    : pathOrUrl;
+  return asJson<T>(await apiRequest(path, token));
+};
+
+/** Every item of a paged collection, up to `maxPages` pages of 200. */
+export const appGetAll = async <T>(
+  path: string,
+  maxPages = 100
+): Promise<T[]> => {
+  const out: T[] = [];
+  const joiner = path.includes("?") ? "&" : "?";
+  let next: string | null = `${path}${joiner}limit=200&linked_partitioning=true`;
+  for (let page = 0; next && page < maxPages; page++) {
+    const data: { collection?: T[]; next_href?: string | null } =
+      await appGet(next);
+    out.push(...(data.collection || []));
+    next = data.next_href || null;
+  }
+  return out;
+};
+
 export type ResolvedTrackMeta = {
   kind: string;
   id: string;
@@ -436,6 +466,43 @@ export const repostTrack = async (accessToken: string, trackId: string) => {
     return true;
   } catch (error) {
     if (error instanceof SoundcloudApiError && error.status === 409) {
+      return true;
+    }
+    throw error;
+  }
+};
+
+/**
+ * DELETE /likes/tracks/:id — takes the like back off the fan's account.
+ *
+ * A 404 means it isn't there any more (the fan unliked it themselves, or we
+ * already removed it), which is the state the caller asked for, so it counts
+ * as success. Anything else throws, because a removal we silently swallow is
+ * a like we told the fan we'd taken off and didn't.
+ */
+export const unlikeTrack = async (accessToken: string, trackId: string) => {
+  try {
+    await apiRequest(`/likes/tracks/${trackId}`, accessToken, {
+      method: "DELETE"
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof SoundcloudApiError && error.status === 404) {
+      return true;
+    }
+    throw error;
+  }
+};
+
+/** DELETE /reposts/tracks/:id — same 404-is-success story as the unlike. */
+export const unrepostTrack = async (accessToken: string, trackId: string) => {
+  try {
+    await apiRequest(`/reposts/tracks/${trackId}`, accessToken, {
+      method: "DELETE"
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof SoundcloudApiError && error.status === 404) {
       return true;
     }
     throw error;

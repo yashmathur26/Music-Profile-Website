@@ -7,6 +7,8 @@ import {
   updateTrack
 } from "@/lib/trackStore";
 import { normalizeFollowTargets } from "@/lib/followTargets";
+import { normalizePlan } from "@/lib/subscriberPlan";
+import { planToRow } from "@/lib/trackStore";
 import { resolveTrackMeta } from "@/lib/soundcloud";
 import { slugify, toDownloadUrl } from "@/lib/tracks";
 
@@ -15,6 +17,10 @@ export const dynamic = "force-dynamic";
 /** Shown when the database predates the per-gate follow list. */
 const MIGRATION_WARNING =
   "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again.";
+
+/** Shown when it predates the per-gate subscriber settings. */
+const PLAN_MIGRATION_WARNING =
+  "Saved — but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again.";
 
 const authorized = (request: NextRequest) => {
   const secret = process.env.TRIGGER_SAVES_SECRET;
@@ -30,6 +36,7 @@ type EditBody = {
   downloadUrl?: string;
   soundcloudUrl?: string;
   followTargets?: unknown;
+  subscriberPlan?: unknown;
 };
 
 /**
@@ -133,6 +140,20 @@ export async function PATCH(
     patch.follow_targets = targets.length ? targets : null;
   }
 
+  if (body.subscriberPlan !== undefined) {
+    // Merged onto what the gate has, so a form that only sends the fields it
+    // shows can't silently reset the others.
+    Object.assign(
+      patch,
+      planToRow(
+        normalizePlan({
+          ...normalizePlan(current.subscriberPlan),
+          ...(body.subscriberPlan as Record<string, unknown>)
+        })
+      )
+    );
+  }
+
   if (typeof body.slug === "string" && slugify(body.slug) !== params.slug) {
     const slug = slugify(body.slug);
     if (!slug) {
@@ -145,11 +166,18 @@ export async function PATCH(
   }
 
   try {
-    const { track, followTargetsStored } = await updateTrack(params.slug, patch);
+    const { track, followTargetsStored, planStored } = await updateTrack(
+      params.slug,
+      patch
+    );
     return NextResponse.json({
       saved: true,
       track,
-      warning: followTargetsStored ? undefined : MIGRATION_WARNING
+      warning: !followTargetsStored
+        ? MIGRATION_WARNING
+        : !planStored
+          ? PLAN_MIGRATION_WARNING
+          : undefined
     });
   } catch (error) {
     return NextResponse.json(

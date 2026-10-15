@@ -1,3 +1,5 @@
+import type { SubscriberPlan } from "@/lib/subscriberPlan";
+
 export type TrackConfig = {
   slug: string;
   title: string;
@@ -14,6 +16,11 @@ export type TrackConfig = {
    * Empty falls back to ARTIST_SOUNDCLOUD_URL.
    */
   followTargets?: string[];
+  /**
+   * What this gate's release fan-out may do on saved accounts, and for how
+   * long. Omitted means DEFAULT_PLAN — like + repost, kept permanently.
+   */
+  subscriberPlan?: SubscriberPlan;
 };
 
 export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";

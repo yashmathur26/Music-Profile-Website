@@ -69,18 +69,37 @@ create index if not exists release_subscribers_active_idx
   on release_subscribers (created_at)
   where revoked_at is null;
 
--- One row per (fan, release): makes re-running a release safe.
+-- One row per (fan, release): makes re-running a release safe, and carries
+-- the retention deadline that the teardown job works from.
 create table if not exists release_actions (
-  id            uuid primary key default gen_random_uuid(),
-  subscriber_id uuid not null references release_subscribers(id) on delete cascade,
-  track_slug    text not null,
-  liked         boolean not null default false,
-  reposted      boolean not null default false,
-  error         text,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now(),
+  id              uuid primary key default gen_random_uuid(),
+  subscriber_id   uuid not null references release_subscribers(id) on delete cascade,
+  track_slug      text not null,
+  liked           boolean not null default false,
+  reposted        boolean not null default false,
+  error           text,
+  -- When the like/repost is due to come back off, from the gate's
+  -- "take it back off after N days". Null means the gate keeps them.
+  remove_after    timestamptz,
+  -- Set once the teardown has run, successfully or not. It is what stops the
+  -- job picking the same row up on every tick.
+  removed_at      timestamptz,
+  remove_error    text,
+  remove_attempts integer not null default 0,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
   unique (subscriber_id, track_slug)
 );
+-- Existing installs created before per-gate retention:
+alter table release_actions add column if not exists remove_after timestamptz;
+alter table release_actions add column if not exists removed_at timestamptz;
+alter table release_actions add column if not exists remove_error text;
+alter table release_actions add column if not exists remove_attempts integer not null default 0;
+
+-- The teardown job's only query: what is due and not yet torn down.
+create index if not exists release_actions_due_idx
+  on release_actions (remove_after)
+  where removed_at is null and remove_after is not null;
 
 -- The queue behind the portal's "Tell my subscribers" checkbox. One row per
 -- release; the cron drains it in chunks.
@@ -126,17 +145,31 @@ One cron does all the background work, registered in `vercel.json` and
 authorised with `CRON_SECRET`:
 
 ```json
-{ "path": "/api/cron/subscribers", "schedule": "*/10 * * * *" }
+{ "path": "/api/cron/subscribers", "schedule": "*/5 * * * *" }
 ```
 
-Every tick it does exactly one of two jobs, never both.
+Every tick it does exactly one of three jobs, never two. The five-minute
+interval is what the rollout window is divided into, so `TICK_MS` in the route
+has to be changed with it.
 
-**Draining the release queue** — the oldest unfinished release, up to 150 fans,
-then stop. A release with more subscribers finishes over the following ticks.
-It's a queue rather than something that runs when you press the button because
-the fan-out can outlive any single request (a slow send would otherwise read
-back to you as "the song didn't save"), and because trickling the writes beats
-firing every account at SoundCloud in the same second.
+**Draining the release queue** — the oldest unfinished release, at the pace the
+gate's rollout window asks for. A gate set to 30 minutes gets roughly a sixth
+of its subscribers per tick, spaced out within the tick rather than fired in a
+block, and a release that falls behind its window catches up on later ticks.
+150 fans a tick is the hard ceiling whatever the maths says. It's a queue
+rather than something that runs when you press the button because the fan-out
+can outlive any single request (a slow send would otherwise read back to you
+as "the song didn't save"), and because trickling the writes beats firing every
+account at SoundCloud in the same second.
+
+**Taking expired likes and reposts back off** — any gate with a retention set
+gives each like and repost a deadline, and this removes them once it passes.
+It only runs on ticks with no release going out; a teardown deadline is in
+days, so losing a few ticks to a rollout costs it nothing. A fan who revoked
+us in the meantime can't be undone — there are no credentials left — and the
+row records `no_grant` and says so rather than claiming a removal it didn't
+make. Follows are never removed: the fan followed to unlock a download, which
+was their own action.
 
 **Keepalive** — when the queue is empty, it refreshes the grants untouched for
 20 hours, 100 per tick. An unused refresh token can be aged out, and a fan
@@ -146,8 +179,8 @@ we'd only find out mid-release. Dead grants are retired here instead, marked
 
 ### Why one cron and not two
 
-This started as two — a daily keepalive and a ten-minute queue drain — and
-that was a bug. `*/10 * * * *` fires at 04:00 as well, so once a day both
+This started as two — a daily keepalive and a frequent queue drain — and
+that was a bug. `*/5 * * * *` fires at 04:00 as well, so once a day both
 would refresh the same fan at the same moment. SoundCloud's refresh tokens are
 single-use: the loser of that race ends up holding a token SoundCloud has
 already retired, which comes back as `invalid_grant` — indistinguishable from
@@ -158,7 +191,31 @@ Serialising the work removes the race by construction rather than hoping two
 schedules never collide. `maxDuration` is held under the interval so a run
 can't overlap itself either.
 
-## 4. Dropping a new song
+## 4. What a gate may do, and for how long
+
+Each gate carries its own settings for the unattended work, edited on the
+create form and in **Edit** on the gate itself:
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| **Like the song** | on | Likes it from each saved account. Private; only a count moves. |
+| **Repost it** | on | The public one — it shows on their profile and in their followers' feeds. |
+| **Take it back off after** | empty | 1–14 days, then the teardown removes the like and repost. Empty leaves them permanently. |
+| **Roll out over** | 30 min | The window the writes are spread across, instead of landing in one burst. |
+
+Both actions off means there is nothing to send, and the fan-out refuses the
+release rather than queueing an empty one.
+
+The retention cap is two weeks on purpose. Past that it isn't a temporary
+boost on someone's profile, it's just a repost they didn't ask for — and the
+longer it sits there, the more of a problem it is that the consent for it came
+bundled into a Terms checkbox (see **Known exposure** above).
+
+These settings govern the release fan-out only. The follow, like and repost a
+fan performs to unlock a download are their own deliberate actions, on the
+site, with the button in front of them; nothing here removes those.
+
+## 5. Dropping a new song
 
 ### From the portal (the normal way)
 
@@ -170,8 +227,10 @@ actually have subscribers, and it says how many.
 Each live gate also carries a button with the same effect — **Like + repost
 from N** — for a song whose gate already existed, or to retry one that
 stopped. The button doubles as the progress readout: *Sending… 40/150*, then
-*Sent to 150*. Re-running is safe; anyone already liked and reposted is
-skipped.
+*Sent to 150*. Re-running is safe; anyone the gate has already done is
+skipped — including, deliberately, anyone whose like and repost were since
+removed on retention, because putting them back is what pressing the button
+again means.
 
 ### By hand
 
@@ -216,9 +275,10 @@ and invalidates the old. Two places could hold the same token, so:
   cookie**. Otherwise the gate and the subscription would rotate each other's
   token out from under them — and the loser is usually the subscription, weeks
   later, silently. The visit keeps working on its access token.
-- Only one job may refresh a given fan at a time, which is why the cron (04:00)
-  and the release fan-out are never scheduled together. Run a release at 04:00
-  and the overlap shows up as `failed` rows, not corruption — re-run it.
+- Only one job may refresh a given fan at a time, which is why the single cron
+  does the fan-out, the teardown and the keepalive on separate ticks and never
+  two at once. Anything that does slip through shows up as `failed` rows, not
+  corruption — re-run it.
 - If writing the rotated token back to Supabase fails, the access token is
   thrown away rather than used, because its successor is lost.
 
@@ -252,6 +312,13 @@ Or send them `https://yvshmusic.com/unsubscribe?t=<their revoke_token>`.
 
 ## What is not built
 
+- **Unsubscribing doesn't take back what is already there.** `/unsubscribe`
+  wipes the tokens, which is the right thing to do the moment consent is
+  withdrawn — but it also means the one credential that could remove an
+  existing like or repost is gone, so those stay on the fan's profile. A
+  teardown scheduled for them afterwards records `no_grant` and stops. Doing
+  better means removing them *before* the wipe, inside the unsubscribe
+  request, and that request must never fail; worth building, not free.
 - **No release email.** A fan who loses their personal link and clears their
   cookies needs the Contact page, or SoundCloud's own Connections settings.
 - **Tokens are stored unencrypted**, matching the existing `presaves` table.

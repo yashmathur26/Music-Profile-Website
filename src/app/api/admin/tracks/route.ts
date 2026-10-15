@@ -7,6 +7,8 @@ import {
   listDbTracks
 } from "@/lib/trackStore";
 import { normalizeFollowTargets } from "@/lib/followTargets";
+import { DEFAULT_PLAN, normalizePlan } from "@/lib/subscriberPlan";
+import { planToRow } from "@/lib/trackStore";
 import {
   countActive,
   listAnnouncements,
@@ -57,6 +59,8 @@ export async function GET(request: NextRequest) {
       soundcloudUrl: getTrackPermalink(track),
       // Empty means "nobody set a list" — the gate follows the artist.
       followTargets: track.followTargets || [],
+      // What the release fan-out may do on saved accounts, and for how long.
+      subscriberPlan: normalizePlan(track.subscriberPlan),
       // Static tracks ship in the bundle; only DB rows can be deleted here.
       deletable: dbSlugs.has(track.slug),
       // Null until someone asks for a fan-out on this gate.
@@ -75,6 +79,8 @@ export async function POST(request: NextRequest) {
     preview?: boolean;
     /** Tick on the create form: queue a like + repost from every subscriber. */
     announceToSubscribers?: boolean;
+    /** What that fan-out may do, and for how long — see SubscriberPlan. */
+    subscriberPlan?: unknown;
   };
 
   const driveUrl = (body.driveUrl || "").trim();
@@ -148,6 +154,10 @@ export async function POST(request: NextRequest) {
     slug = `${base}-${n}`;
   }
 
+  // Nothing to reject here: normalizePlan clamps rather than refuses, and a
+  // form that sends no plan gets the default one.
+  const plan = normalizePlan(body.subscriberPlan ?? DEFAULT_PLAN);
+
   const row = {
     slug,
     title: meta.title,
@@ -155,7 +165,8 @@ export async function POST(request: NextRequest) {
     download_url: `https://drive.google.com/uc?export=download&id=${fileId}`,
     soundcloud_url: permalink,
     soundcloud_track_id: meta.id,
-    follow_targets: followTargets.length ? followTargets : null
+    follow_targets: followTargets.length ? followTargets : null,
+    ...planToRow(plan)
   };
 
   if (body.preview) {
@@ -163,8 +174,9 @@ export async function POST(request: NextRequest) {
   }
 
   let followTargetsStored = true;
+  let planStored = true;
   try {
-    ({ followTargetsStored } = await insertTrack(row));
+    ({ followTargetsStored, planStored } = await insertTrack(row));
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Insert failed." },
@@ -196,8 +208,10 @@ export async function POST(request: NextRequest) {
     announcementQueued,
     warning:
       announcementError ||
-      (followTargetsStored
-        ? undefined
-        : "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again.")
+      (!followTargetsStored
+        ? "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again."
+        : !planStored
+          ? "Saved — but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again."
+          : undefined)
   });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { emptyStatus, runEngagement } from "@/lib/soundcloudGate";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
+import { countryFrom, logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,7 +27,17 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    return NextResponse.json(await runEngagement(trackSlug, prefs), noStore);
+    const status = await runEngagement(trackSlug, prefs);
+    if (status.unlocked) {
+      await logGateEvent({
+        kind: "unlock",
+        trackSlug,
+        scUsername: status.username,
+        country: countryFrom(request.headers),
+        detail: { via: "returning", liked: status.liked, reposted: status.reposted }
+      });
+    }
+    return NextResponse.json(status, noStore);
   } catch (error) {
     console.error("[gate] engagement failed", error);
     return NextResponse.json(

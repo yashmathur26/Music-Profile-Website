@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { soundcloudConfigured } from "@/lib/soundcloud";
 import { announceRelease } from "@/lib/releaseRun";
+import { TEARDOWN_CHUNK, runTeardown } from "@/lib/releaseTeardown";
 import {
+  countDueRemovals,
   getAccessToken,
   listActive,
   nextAnnouncement,
@@ -12,10 +14,19 @@ import {
 export const dynamic = "force-dynamic";
 // Must stay below the cron interval: two overlapping runs would refresh the
 // same single-use tokens and invalidate each other.
-export const maxDuration = 300;
+export const maxDuration = 240;
 
-/** Fans per announcement pass. Keeps the writes trickling rather than
- * arriving as one burst from a single client id. */
+/** How often vercel.json fires this. The rollout maths needs to know how
+ * much of a gate's window one tick is responsible for, so if you change the
+ * schedule, change this with it. */
+const TICK_MS = 5 * 60_000;
+
+/** How much of a tick a pass may spend spacing its writes. Comfortably under
+ * maxDuration, so pacing never costs a pass its unflushed progress. */
+const SPREAD_MS = 200_000;
+
+/** Hard ceiling on fans per announcement pass, whatever the pacing works
+ * out — one tick should never become a burst from a single client id. */
 const ANNOUNCE_CHUNK = 150;
 /** Fans per keepalive pass. */
 const KEEPALIVE_CHUNK = 100;
@@ -25,12 +36,17 @@ const KEEPALIVE_CHUNK = 100;
 const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
 
 /**
- * The single worker behind the subscription feature. Runs every ten minutes
- * and does exactly one of two jobs, never both:
+ * The single worker behind the subscription feature. Runs every five minutes
+ * and does exactly one of three jobs, never two:
  *
  *  1. drain the release queue the portal's "Tell my subscribers" checkbox
- *     feeds, 150 fans at a time;
- *  2. otherwise, refresh the grants that haven't been touched in 20 hours.
+ *     feeds, at the pace the gate's rollout window asks for;
+ *  2. otherwise, take back the likes and reposts whose retention has run out;
+ *  3. otherwise, refresh the grants that haven't been touched in 20 hours.
+ *
+ * Announcements outrank teardowns, which outrank the keepalive. A release is
+ * time-sensitive to the minute; a teardown deadline is set in days, so losing
+ * a few ticks to a rollout costs it nothing.
  *
  * One cron rather than two on purpose. SoundCloud's refresh tokens are
  * single-use, so two jobs refreshing the same fan at the same moment would
@@ -69,7 +85,35 @@ const handle = async (request: NextRequest) => {
   }
 
   if (job) return announce(job);
+
+  // Cheap enough to ask every idle tick, and it keeps the teardown off the
+  // critical path of a release.
+  let dueRemovals = 0;
+  try {
+    dueRemovals = await countDueRemovals();
+  } catch (error) {
+    console.error("[subscribers-cron] could not count due removals", error);
+  }
+  if (dueRemovals > 0) return teardown();
+
   return keepalive();
+};
+
+/**
+ * Takes expired likes and reposts back off. See lib/releaseTeardown.ts — the
+ * route's only job here is to run a chunk and report it.
+ */
+const teardown = async () => {
+  try {
+    const summary = await runTeardown(TEARDOWN_CHUNK);
+    return NextResponse.json({ mode: "teardown", ...summary });
+  } catch (error) {
+    console.error("[subscribers-cron] teardown failed", error);
+    return NextResponse.json(
+      { mode: "teardown", error: "Teardown pass failed." },
+      { status: 503 }
+    );
+  }
 };
 
 const announce = async (
@@ -84,7 +128,13 @@ const announce = async (
 
   const result = await announceRelease({
     slug: job.track_slug,
-    limit: ANNOUNCE_CHUNK
+    limit: ANNOUNCE_CHUNK,
+    rollout: {
+      startedAt: job.started_at,
+      alreadyProcessed: job.processed,
+      tickMs: TICK_MS,
+      spreadMs: SPREAD_MS
+    }
   });
 
   if (!result.ok) {
@@ -129,6 +179,7 @@ const announce = async (
     liked: summary.liked,
     reposted: summary.reposted,
     failed: summary.failed,
+    removeAfter: summary.removeAfter,
     revokedDeadTokens: summary.revokedDeadTokens,
     remaining: summary.remaining,
     abortedReason: summary.abortedReason

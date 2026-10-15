@@ -10,6 +10,7 @@ import { writeGate } from "@/lib/gateStore";
 import { runEngagement } from "@/lib/soundcloudGate";
 import { popupResponse } from "@/lib/popupResponse";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { countryFrom, logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
 // The engagement chain (exchange + resolve + up to four writes) can outlive
@@ -127,6 +128,24 @@ export async function GET(request: NextRequest) {
     // This is the moment the fan asked for: follow the artist, like the
     // track, and repost/comment if they opted in — all in one go.
     const status = await runEngagement(slug, prefs);
+
+    const country = countryFrom(request.headers);
+    await logGateEvent({
+      kind: "connected",
+      trackSlug: slug,
+      scUsername: me.username,
+      country,
+      detail: { error: status.error, apiBlocked: status.apiBlocked }
+    });
+    if (status.unlocked) {
+      await logGateEvent({
+        kind: "unlock",
+        trackSlug: slug,
+        scUsername: me.username,
+        country,
+        detail: { via: "connect", liked: status.liked, reposted: status.reposted }
+      });
+    }
 
     return popupResponse(
       { ok: true, status },

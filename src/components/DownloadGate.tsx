@@ -186,6 +186,28 @@ type DownloadGateProps = {
   trackSlug: string;
 };
 
+/**
+ * Tells the Stats tab something only the browser saw. Fire-and-forget with
+ * keepalive, so a fan leaving the page (or a cross-origin download replacing
+ * it) doesn't cancel the request; a failure here must never touch the gate.
+ */
+const reportGateEvent = (
+  kind: "view" | "manual",
+  track: string,
+  extra: Record<string, string | null> = {}
+) => {
+  try {
+    void fetch("/api/gate/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, track, ...extra }),
+      keepalive: true
+    }).catch(() => undefined);
+  } catch {
+    /* stats are never worth an error on the gate */
+  }
+};
+
 export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const MANUAL_KEY = `${MANUAL_KEY_PREFIX}:${trackSlug}`;
   const OUTBOUND_KEY = `${MANUAL_OUTBOUND_KEY_PREFIX}:${trackSlug}`;
@@ -269,6 +291,19 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     } finally {
       setLoaded(true);
     }
+  }, [trackSlug]);
+
+  // One view per song per page load. The ref survives React's dev-mode
+  // double-invoke of effects, so local testing doesn't double the count.
+  const viewReported = useRef<string | null>(null);
+  useEffect(() => {
+    if (viewReported.current === trackSlug) return;
+    viewReported.current = trackSlug;
+    const params = new URLSearchParams(window.location.search);
+    reportGateEvent("view", trackSlug, {
+      referrer: document.referrer || null,
+      utm: params.get("utm_source")
+    });
   }, [trackSlug]);
 
   useEffect(() => {
@@ -381,11 +416,12 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       sessionStorage.setItem(MANUAL_KEY, "1");
       setNotice(null);
       setManualUnlocked(true);
+      reportGateEvent("manual", trackSlug);
     };
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [MANUAL_KEY, OUTBOUND_KEY, artistName]);
+  }, [MANUAL_KEY, OUTBOUND_KEY, artistName, trackSlug]);
 
   const handleConnect = async () => {
     setNotice(null);
@@ -507,6 +543,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       sessionStorage.removeItem(OUTBOUND_KEY);
       sessionStorage.setItem(MANUAL_KEY, "1");
       setManualUnlocked(true);
+      reportGateEvent("manual", trackSlug);
     }
   };
 

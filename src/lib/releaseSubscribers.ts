@@ -40,6 +40,27 @@ export type ReleaseAction = {
   liked: boolean;
   reposted: boolean;
   error: string | null;
+  /** When the like/repost should come back off, per the gate's retention
+   * setting. Null means the gate keeps them permanently. */
+  remove_after: string | null;
+  /** Set once the teardown has run, successfully or not — it is the flag that
+   * stops the job retrying the same row every tick. */
+  removed_at: string | null;
+  /** Why a removal couldn't happen (the fan revoked us, SoundCloud refused).
+   * Null on a clean removal. */
+  remove_error: string | null;
+  /** Failed teardown attempts so far. Bounded, so a row SoundCloud keeps
+   * refusing is eventually given up on instead of retried every tick until
+   * the end of time. */
+  remove_attempts: number;
+};
+
+/** Attempts before a row is written off — see `remove_attempts`. */
+export const MAX_REMOVAL_ATTEMPTS = 5;
+
+/** A due removal with the fan's credentials attached, in one query. */
+export type DueRemoval = ReleaseAction & {
+  subscriber: ReleaseSubscriber | null;
 };
 
 const SUBSCRIBERS = "release_subscribers";
@@ -312,6 +333,9 @@ export const recordAction = async (params: {
   liked: boolean;
   reposted: boolean;
   error?: string | null;
+  /** From the gate's retention setting, as an ISO timestamp. Null leaves the
+   * like and repost in place for good. */
+  removeAfter?: string | null;
 }): Promise<void> => {
   const { error } = await client()
     .from(ACTIONS)
@@ -322,11 +346,123 @@ export const recordAction = async (params: {
         liked: params.liked,
         reposted: params.reposted,
         error: params.error || null,
+        remove_after: params.removeAfter || null,
+        // Re-running a release puts the like/repost back, so any earlier
+        // teardown of this pair is no longer the current state.
+        removed_at: null,
+        remove_error: null,
+        remove_attempts: 0,
         updated_at: new Date().toISOString()
       },
       { onConflict: "subscriber_id,track_slug" }
     );
   if (error) throw error;
+};
+
+/**
+ * Likes and reposts whose time is up, oldest deadline first, with the fan's
+ * tokens embedded so the teardown doesn't make one query per row.
+ *
+ * Rows where nothing was ever placed are skipped — there is nothing to take
+ * back — and so are rows already torn down, which is what keeps this from
+ * re-running against the same fan on every tick.
+ */
+export const listDueRemovals = async (limit: number): Promise<DueRemoval[]> => {
+  const { data, error } = await client()
+    .from(ACTIONS)
+    .select("*, subscriber:release_subscribers(*)")
+    .not("remove_after", "is", null)
+    .lte("remove_after", new Date().toISOString())
+    .is("removed_at", null)
+    .or("liked.eq.true,reposted.eq.true")
+    .order("remove_after", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as DueRemoval[];
+};
+
+/** How many removals are waiting — for the admin portal's gate row. */
+export const countDueRemovals = async (): Promise<number> => {
+  if (!supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from(ACTIONS)
+      .select("*", { count: "exact", head: true })
+      .not("remove_after", "is", null)
+      .lte("remove_after", new Date().toISOString())
+      .is("removed_at", null)
+      .or("liked.eq.true,reposted.eq.true");
+    if (error) throw error;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Closes out a teardown. `liked`/`reposted` are what is still on the account
+ * afterwards, so a clean removal passes false for both; a partial one records
+ * what it couldn't take off alongside the reason.
+ *
+ * `removed_at` is set either way. A removal that failed for a reason that
+ * won't change — the fan revoked us, so we have no credentials — must not be
+ * retried forever, and the reason stays on the row to say why the like is
+ * still there.
+ */
+export const markRemoved = async (params: {
+  actionId: string;
+  liked: boolean;
+  reposted: boolean;
+  error?: string | null;
+}): Promise<void> => {
+  const now = new Date().toISOString();
+  const { error } = await client()
+    .from(ACTIONS)
+    .update({
+      liked: params.liked,
+      reposted: params.reposted,
+      removed_at: now,
+      remove_error: params.error || null,
+      updated_at: now
+    })
+    .eq("id", params.actionId);
+  if (error) throw error;
+};
+
+/**
+ * Records a teardown that didn't work but might next time, and gives up once
+ * the row has had `MAX_REMOVAL_ATTEMPTS` goes.
+ *
+ * Returns whether the row was written off. Without the counter a row that
+ * SoundCloud permanently refuses would be picked up by every single tick
+ * forever, crowding out the removals that can still succeed.
+ */
+export const noteRemovalFailure = async (params: {
+  action: ReleaseAction;
+  reason: string;
+  /** What is still on the account. A pass that got the like off but not the
+   * repost must persist that, or the next pass re-reads stale flags and
+   * reports a removal it never made. */
+  liked?: boolean;
+  reposted?: boolean;
+}): Promise<boolean> => {
+  const { action, reason } = params;
+  const attempts = (action.remove_attempts || 0) + 1;
+  const exhausted = attempts >= MAX_REMOVAL_ATTEMPTS;
+  const now = new Date().toISOString();
+  const { error } = await client()
+    .from(ACTIONS)
+    .update({
+      liked: params.liked ?? action.liked,
+      reposted: params.reposted ?? action.reposted,
+      remove_attempts: attempts,
+      remove_error: reason,
+      ...(exhausted ? { removed_at: now } : {}),
+      updated_at: now
+    })
+    .eq("id", action.id);
+  if (error) throw error;
+  return exhausted;
 };
 
 /**

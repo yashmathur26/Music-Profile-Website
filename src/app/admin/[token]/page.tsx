@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import clsx from "clsx";
+import StatsTab from "@/components/admin/StatsTab";
 import {
   DEFAULT_SITE_CONFIG,
   SiteConfig,
@@ -13,6 +14,15 @@ import {
   MAX_FOLLOW_TARGETS,
   isSoundcloudProfileUrl
 } from "@/lib/followTargets";
+import {
+  DEFAULT_PLAN,
+  DEFAULT_ROLLOUT_MINUTES,
+  MAX_RETAIN_DAYS,
+  MAX_ROLLOUT_MINUTES,
+  SubscriberPlan,
+  describePlan,
+  normalizePlan
+} from "@/lib/subscriberPlan";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -35,6 +45,8 @@ type AdminTrack = {
   soundcloudUrl: string;
   /** Accounts this gate follows; empty means "just the artist". */
   followTargets: string[];
+  /** What the release fan-out may do on saved accounts, and for how long. */
+  subscriberPlan: SubscriberPlan;
   deletable: boolean;
   /** Null until a subscriber like + repost has been asked for on this gate. */
   announcement: Announcement | null;
@@ -63,7 +75,7 @@ type Stats = {
   isActive: boolean;
 };
 
-type TabKey = "overview" | "gates" | "downloads" | "home" | "presaves";
+type TabKey = "overview" | "stats" | "gates" | "downloads" | "home" | "presaves";
 
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                         */
@@ -378,6 +390,174 @@ function Overview({
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
+/* What a gate does to the fans it has saved                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The form's version of a SubscriberPlan: the two numbers are held as strings
+ * so the fields can be empty while you're typing, and "" can mean "no limit"
+ * rather than zero.
+ */
+type PlanDraft = {
+  like: boolean;
+  repost: boolean;
+  retainDays: string;
+  rolloutMinutes: string;
+};
+
+const planToDraft = (plan: SubscriberPlan): PlanDraft => ({
+  like: plan.like,
+  repost: plan.repost,
+  retainDays: plan.retainDays === null ? "" : String(plan.retainDays),
+  rolloutMinutes: String(plan.rolloutMinutes)
+});
+
+/** Server-side normalizePlan clamps this again; here it's for the preview. */
+const draftToPlan = (draft: PlanDraft): SubscriberPlan =>
+  normalizePlan({
+    like: draft.like,
+    repost: draft.repost,
+    retainDays: draft.retainDays.trim() === "" ? null : draft.retainDays,
+    rolloutMinutes:
+      draft.rolloutMinutes.trim() === "" ? null : draft.rolloutMinutes
+  });
+
+const DEFAULT_PLAN_DRAFT = planToDraft(DEFAULT_PLAN);
+
+/** Out-of-range input, said before the save silently clamps it. */
+const planWarning = (draft: PlanDraft): string | null => {
+  const days = Number(draft.retainDays);
+  if (draft.retainDays.trim() !== "" && (!Number.isFinite(days) || days < 1)) {
+    return "Leave the days box empty to keep the like and repost permanently.";
+  }
+  if (days > MAX_RETAIN_DAYS) {
+    return `Two weeks is the longest a gate can hold someone's repost — this will save as ${MAX_RETAIN_DAYS} days.`;
+  }
+  const minutes = Number(draft.rolloutMinutes);
+  if (draft.rolloutMinutes.trim() !== "" && minutes > MAX_ROLLOUT_MINUTES) {
+    return `A rollout can't run longer than a day — this will save as ${MAX_ROLLOUT_MINUTES} minutes.`;
+  }
+  return null;
+};
+
+/**
+ * The per-gate controls over unattended activity: which actions the release
+ * fan-out may take on a saved account, how long they stay there, and how
+ * slowly they arrive.
+ *
+ * Separate from everything else on the form because it is the only part of a
+ * gate that acts on other people's accounts while they are nowhere near the
+ * site, which is worth making the artist look at rather than inherit.
+ */
+function SubscriberPlanFields({
+  draft,
+  onChange
+}: {
+  draft: PlanDraft;
+  onChange: (draft: PlanDraft) => void;
+}) {
+  const set = <K extends keyof PlanDraft>(key: K, value: PlanDraft[K]) =>
+    onChange({ ...draft, [key]: value });
+  const warning = planWarning(draft);
+  const nothing = !draft.like && !draft.repost;
+
+  const toggle = (key: "like" | "repost", label: string, hint: string) => (
+    <label className="flex cursor-pointer select-none items-start gap-2.5">
+      <input
+        type="checkbox"
+        checked={draft[key]}
+        onChange={(e) => set(key, e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
+      />
+      <span className="min-w-0">
+        <span className="block text-xs text-white/80">{label}</span>
+        <span className="block text-[11px] text-white/40">{hint}</span>
+      </span>
+    </label>
+  );
+
+  const number = (
+    label: string,
+    key: "retainDays" | "rolloutMinutes",
+    unit: string,
+    placeholder: string,
+    hint: string
+  ) => (
+    <label className="block">
+      <span className="text-[11px] font-medium uppercase tracking-widest text-white/45">
+        {label}
+      </span>
+      <span className="mt-1 flex items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          max={key === "retainDays" ? MAX_RETAIN_DAYS : MAX_ROLLOUT_MINUTES}
+          inputMode="numeric"
+          value={draft[key]}
+          placeholder={placeholder}
+          onChange={(e) => set(key, e.target.value)}
+          className={clsx(inputClass, "w-24")}
+        />
+        <span className="text-xs text-white/40">{unit}</span>
+      </span>
+      <span className="mt-1 block text-[11px] text-white/35">{hint}</span>
+    </label>
+  );
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+      <p className="text-xs font-medium uppercase tracking-widest text-white/50">
+        On saved fans&rsquo; accounts
+      </p>
+      <p className="mt-1 text-xs text-white/45">
+        What gets done from the accounts of fans who downloaded an earlier song,
+        when you send this one out. They aren&rsquo;t on the site when this
+        happens.
+      </p>
+
+      <div className="mt-3 space-y-2">
+        {toggle("like", "Like the song", "Private — only a count moves.")}
+        {toggle(
+          "repost",
+          "Repost it",
+          "Public \u2014 it shows on their profile and in their followers\u2019 feeds."
+        )}
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {number(
+          "Take it back off after",
+          "retainDays",
+          "days",
+          "keep",
+          `Up to ${MAX_RETAIN_DAYS}. Empty leaves it on their account for good.`
+        )}
+        {number(
+          "Roll out over",
+          "rolloutMinutes",
+          "minutes",
+          String(DEFAULT_ROLLOUT_MINUTES),
+          "Spread across this window instead of landing all at once."
+        )}
+      </div>
+
+      <p
+        className={clsx(
+          "mt-3 text-[11px]",
+          nothing ? "text-amber-300/80" : "text-white/40"
+        )}
+      >
+        {describePlan(draftToPlan(draft))}
+      </p>
+
+      {warning && (
+        <p className="mt-2 text-[11px] text-amber-300/80">{warning}</p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Who a gate follows — up to three accounts, followed simultaneously  */
 /* ------------------------------------------------------------------ */
 
@@ -489,6 +669,7 @@ function GateRow({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(track);
   const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
+  const [planDraft, setPlanDraft] = useState<PlanDraft>(DEFAULT_PLAN_DRAFT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The save went through but the database couldn't take part of it.
@@ -504,14 +685,17 @@ function GateRow({
         ? "Send failed — retry"
         : `Sending… ${announcement.processed}/${subscribers}`;
 
+  const plan = normalizePlan(track.subscriberPlan);
+
   const runAnnounce = async () => {
     if (
       !window.confirm(
-        announcement
-          ? `Send “${track.title}” to your subscribers again? Anyone already ` +
-              "liked and reposted is skipped."
-          : `Like and repost “${track.title}” from all ${subscribers} ` +
-              "subscribers? This runs on their accounts over the next few minutes."
+        `Send “${track.title}” to ${subscribers} subscriber` +
+          `${subscribers === 1 ? "" : "s"}?\n\n` +
+          `${describePlan(plan)}\n\n` +
+          (announcement
+            ? "Anyone it's already done is skipped."
+            : "This runs on their accounts while they're nowhere near the site.")
       )
     )
       return;
@@ -528,6 +712,7 @@ function GateRow({
     setFollowRows(
       track.followTargets.length ? track.followTargets : [ARTIST_PROFILE]
     );
+    setPlanDraft(planToDraft(plan));
     setError(null);
     setWarning(null);
     setOpen(true);
@@ -549,7 +734,8 @@ function GateRow({
           artworkUrl: draft.artworkUrl,
           downloadUrl: draft.downloadUrl,
           soundcloudUrl: draft.soundcloudUrl,
-          followTargets: filledRows(followRows)
+          followTargets: filledRows(followRows),
+          subscriberPlan: draftToPlan(planDraft)
         })
       });
       const data = await res.json();
@@ -692,6 +878,8 @@ function GateRow({
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
           </div>
 
+          <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} />
+
           {error && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -735,6 +923,8 @@ function TracksManager({ token }: { token: string }) {
   // Who the new gate will follow. Row one starts on the artist's own profile;
   // a collab adds the other accounts here.
   const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
+  // What this gate will be allowed to do on saved accounts, and for how long.
+  const [planDraft, setPlanDraft] = useState<PlanDraft>(DEFAULT_PLAN_DRAFT);
   // Opted-in fans. Zero hides the whole feature — there is nothing to tell.
   const [subscribers, setSubscribers] = useState(0);
   // Off by default here too: sending a release to every subscriber's account
@@ -781,6 +971,7 @@ function TracksManager({ token }: { token: string }) {
           driveUrl,
           soundcloudUrl,
           followTargets: filledRows(followRows),
+          subscriberPlan: draftToPlan(planDraft),
           announceToSubscribers: confirm && announceOnCreate,
           preview: !confirm
         })
@@ -795,6 +986,7 @@ function TracksManager({ token }: { token: string }) {
         setDriveUrl("");
         setSoundcloudUrl("");
         setFollowRows([ARTIST_PROFILE]);
+        setPlanDraft(DEFAULT_PLAN_DRAFT);
         setAnnounceOnCreate(false);
         loadTracks();
       } else {
@@ -894,6 +1086,8 @@ function TracksManager({ token }: { token: string }) {
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
           </div>
 
+          <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} />
+
           {subscribers > 0 && (
             <label className="flex cursor-pointer select-none items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
               <input
@@ -907,10 +1101,9 @@ function TracksManager({ token }: { token: string }) {
                   Tell my subscribers
                 </span>
                 <span className="mt-1 block text-xs text-white/45">
-                  Like and repost this from all {subscribers} fans who opted in
-                  on an earlier download. Goes out over the next few minutes,
-                  not all at once. Only works once the track is public on
-                  SoundCloud.
+                  Run the above on all {subscribers} fans who downloaded an
+                  earlier song. {describePlan(draftToPlan(planDraft))} Only
+                  works once the track is public on SoundCloud.
                 </span>
               </span>
             </label>
@@ -1688,6 +1881,7 @@ function PasswordScreen({ onUnlocked }: { onUnlocked: () => void }) {
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
+  { key: "stats", label: "Stats" },
   { key: "gates", label: "Songs" },
   { key: "downloads", label: "Downloads" },
   { key: "home", label: "Home Editor" },
@@ -1780,7 +1974,13 @@ export default function AdminPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_20%_80%,rgba(139,92,246,0.12),transparent)]" />
       </div>
 
-      <div className="relative mx-auto max-w-2xl px-6 py-12 md:py-16">
+      {/* Stats needs room for its tables; everything else reads best narrow. */}
+      <div
+        className={clsx(
+          "relative mx-auto px-4 py-12 sm:px-6 md:py-16",
+          tab === "stats" ? "max-w-6xl" : "max-w-2xl"
+        )}
+      >
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1817,8 +2017,10 @@ export default function AdminPage() {
         </motion.header>
 
         {/* Tab bar */}
-        <div className="mb-8 flex justify-center">
-          <div className="flex gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur">
+        {/* mx-auto + w-max rather than justify-center: a centred row wider
+            than a phone screen clips its first tab where scrolling can't reach. */}
+        <div className="mb-8 overflow-x-auto">
+          <div className="mx-auto flex w-max gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -1844,6 +2046,7 @@ export default function AdminPage() {
             onViewDownloads={() => setTab("downloads")}
           />
         )}
+        {tab === "stats" && <StatsTab token={token} />}
         {tab === "gates" && <TracksManager token={token} />}
         {tab === "downloads" && <DownloadsList token={token} />}
         {tab === "home" && <HomeEditor token={token} />}

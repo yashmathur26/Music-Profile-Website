@@ -9,6 +9,7 @@ import { getOrCreateSessionId, setOauthHandoff } from "@/lib/session";
 import { popupResponse } from "@/lib/popupResponse";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
+import { countryFrom, logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  getOrCreateSessionId();
+  const sessionId = getOrCreateSessionId();
+  await logGateEvent({
+    kind: "connect",
+    trackSlug,
+    sessionId,
+    country: countryFrom(request.headers)
+  });
 
   // The fan picks these before the popup opens; the callback reads them back.
   const repost = searchParams.get("repost") !== "0";
