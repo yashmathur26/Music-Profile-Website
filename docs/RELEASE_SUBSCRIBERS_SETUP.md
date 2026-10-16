@@ -144,6 +144,12 @@ the gate already uses. Miss any of them and the checkbox simply doesn't render.
 One cron does all the background work, registered in `vercel.json` and
 authorised with `CRON_SECRET`:
 
+**On Railway (current host):** `src/lib/scheduler.ts` calls this route every
+five minutes from inside the server — see docs/RAILWAY_SETUP.md. vercel.json
+has no crons any more, so the two can never run at the same time.
+
+**History, if you ever go back to Vercel:**
+
 ```json
 { "path": "/api/cron/subscribers", "schedule": "0 5 * * *" }
 ```

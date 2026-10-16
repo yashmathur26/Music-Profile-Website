@@ -16,6 +16,9 @@ import { SESSION_COOKIE } from "@/lib/session";
  *   connect    the fan pressed Connect and was sent to SoundCloud
  *   connected  SoundCloud sent them back with a working grant
  *   unlock     the follows (and like) went through and the gate opened
+ *   enrol      the attempt to save the fan for future releases, and its
+ *              outcome (`detail.ok`, `detail.reason`) — so a fan who should
+ *              have been saved and wasn't leaves a reason behind
  *   download   the file link was handed out — `detail.gate` records what the
  *              server could see of how they got there, which is what makes
  *              bypasses countable from here on
@@ -30,7 +33,8 @@ export const GATE_EVENT_KINDS = [
   "connect",
   "connected",
   "unlock",
-  "download"
+  "download",
+  "enrol"
 ] as const;
 
 export type GateEventKind = (typeof GATE_EVENT_KINDS)[number];
@@ -49,9 +53,62 @@ const supabase = createServerSupabase();
 
 let warned = false;
 
-/** The visitor's country, from the edge — free on Vercel, absent locally. */
+type GeoLookup = { lookup: (ip: string) => { country?: string } | null };
+let geo: GeoLookup | null | undefined;
+
+/**
+ * The offline IP → country table, loaded on first use. It lives in this
+ * process, so a visitor's IP is never sent anywhere to be looked up, and it
+ * costs about 10 MB of memory — paid only on hosts that don't hand us a
+ * country header.
+ */
+const loadGeo = (): GeoLookup | null => {
+  if (geo !== undefined) return geo;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    geo = require("geoip-country") as GeoLookup;
+  } catch {
+    geo = null;
+  }
+  return geo;
+};
+
+/** Dotted IPv4 with no leading zeros — the only shape we hand the parser. */
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+/** Plain IPv6: hex groups and colons only, bounded length. */
+const IPV6 = /^[0-9a-f:]{2,39}$/i;
+
+/**
+ * The client's IP, or null if it isn't a clean address.
+ *
+ * X-Real-IP is set by the host's own proxy (Railway) and can't be forged by
+ * the visitor; the first X-Forwarded-For entry can, so it's only a fallback.
+ * Anything that isn't a plain IPv4/IPv6 is dropped before it reaches the
+ * lookup table's parser, which has known bugs with odd input (leading-zero
+ * octets, very long strings) — a spoofed header gets a blank country, never
+ * a slow or wrong parse.
+ */
+const clientIp = (headers: Headers) => {
+  const raw =
+    headers.get("x-real-ip")?.trim() ||
+    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "";
+  if (raw.length > 39) return null;
+  return IPV4.test(raw) || (raw.includes(":") && IPV6.test(raw)) ? raw : null;
+};
+
+/**
+ * The visitor's country. Vercel and Cloudflare put it in a header for free;
+ * anywhere else (Railway) it comes from the offline table. Only the
+ * two-letter code is kept — the IP itself is never stored.
+ */
 export const countryFrom = (headers: Headers) => {
-  const code = headers.get("x-vercel-ip-country");
+  const header =
+    headers.get("x-vercel-ip-country") || headers.get("cf-ipcountry");
+  if (header && /^[A-Z]{2}$/.test(header)) return header;
+  const ip = clientIp(headers);
+  if (!ip) return null;
+  const code = loadGeo()?.lookup(ip)?.country;
   return code && /^[A-Z]{2}$/.test(code) ? code : null;
 };
 

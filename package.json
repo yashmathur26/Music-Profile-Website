@@ -2,6 +2,9 @@
   "name": "link-website",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,8 +15,9 @@
     "@supabase/supabase-js": "^2.49.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.0",
+    "geoip-country": "5.0.202609260156",
     "nanoid": "^5.0.7",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -23,10 +27,15 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.5",
+    "eslint-config-next": "14.2.35",
     "postcss": "^8.4.39",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.7",
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "postcss": {
+      "nanoid": "3.3.19"
+    }
   }
 }

@@ -1,14 +1,4 @@
 {
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "crons": [
-    {
-      "path": "/api/cron/subscribers",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/stats",
-      "schedule": "0 6 * * *"
-    }
-  ]
+  "buildCommand": "npm run build"
 }

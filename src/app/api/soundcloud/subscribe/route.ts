@@ -13,6 +13,7 @@ import {
 } from "@/lib/releaseSubscribers";
 import { env } from "@/utils/env";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +29,32 @@ export const dynamic = "force-dynamic";
 const artistSoundcloudId = () => numericId(env.soundcloudArtistId);
 
 export async function POST(request: NextRequest) {
-  if (!subscriptionsConfigured()) {
-    return NextResponse.json({ ok: false, reason: "unconfigured" });
-  }
-
   const body = await request.json().catch(() => ({}));
   const trackSlug =
     typeof body?.track === "string" && body.track.trim()
       ? body.track.trim()
       : DEFAULT_TRACK_SLUG;
+
+  const result = await enrol(trackSlug);
+  // Every outcome is written down: the gate swallows failures so they never
+  // block a download, which also means nobody would otherwise see them.
+  const outcome = (await result.clone().json().catch(() => ({}))) as {
+    ok?: boolean;
+    reason?: string;
+  };
+  await logGateEvent({
+    kind: "enrol",
+    trackSlug,
+    scUsername: readGate().username,
+    detail: { ok: Boolean(outcome.ok), reason: outcome.reason || null }
+  });
+  return result;
+}
+
+const enrol = async (trackSlug: string) => {
+  if (!subscriptionsConfigured()) {
+    return NextResponse.json({ ok: false, reason: "unconfigured" });
+  }
 
   const gate = readGate();
   const userId = numericId(gate.userId);
@@ -147,7 +165,7 @@ export async function POST(request: NextRequest) {
     console.error("[subscribers] opt-in failed", error);
     return NextResponse.json({ ok: false, reason: "store_failed" });
   }
-}
+};
 
 /** Unticking the box after a previous opt-in. */
 export async function DELETE() {
