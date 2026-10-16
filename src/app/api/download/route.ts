@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Awaited on purpose: Vercel freezes the function once the response is
+    // Awaited on purpose: a serverless host freezes the function once the response is
     // sent, so a fire-and-forget insert never lands. recordDownload never
     // throws, so the download can't fail because of it.
     const gate = readGate();

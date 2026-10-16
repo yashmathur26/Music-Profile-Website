@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStatsAuthorizeUrl } from "@/lib/spotifyStatsAuth";
 import { features } from "@/config/features";
 import { randomBytes } from "crypto";
+import { siteOrigin } from "@/lib/siteOrigin";
 
 export async function GET(req: NextRequest) {
   if (!features.stats) {
-    return NextResponse.redirect(new URL("/home", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/home", siteOrigin(req)));
   }
   if (!process.env.SPOTIFY_CLIENT_ID) {
-    return NextResponse.redirect(new URL("/stats?error=config", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/stats?error=config", siteOrigin(req)));
   }
   const state = randomBytes(16).toString("hex");
   const returnTo = req.nextUrl.searchParams.get("returnTo") || "/stats";

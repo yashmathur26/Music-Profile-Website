@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { announceRelease } from "@/lib/releaseRun";
 
 export const dynamic = "force-dynamic";
-// Hundreds of fans x two API calls each — the longest-running thing in the
-// app. `limit` exists so a big list can be worked through in chunks that each
-// finish inside the platform's ceiling.
-export const maxDuration = 300;
 
 /**
  * Likes and reposts a release on behalf of every fan who opted in, right now.

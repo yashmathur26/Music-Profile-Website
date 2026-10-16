@@ -12,25 +12,19 @@ import {
 } from "@/lib/releaseSubscribers";
 
 export const dynamic = "force-dynamic";
-// Must stay below the cron interval: two overlapping runs would refresh the
-// same single-use tokens and invalidate each other.
-export const maxDuration = 240;
+// Two overlapping runs would refresh the same single-use tokens and
+// invalidate each other. lib/scheduler.ts never starts a run while one is
+// still going, so nothing here needs a time limit to keep them apart.
 
 /**
- * How often this is meant to fire. The rollout maths needs to know how much
- * of a gate's window one tick is responsible for.
- *
- * Vercel's Hobby plan only allows daily crons — a sub-daily schedule fails
- * the whole deployment — so vercel.json runs this once a day, which is
- * plenty for the keepalive and the teardowns. A 30-minute release rollout
- * needs a tick every five minutes from somewhere else (Pro, or the Supabase
- * pg_cron job in docs/RELEASE_SUBSCRIBERS_SETUP.md). Until then a release
- * still goes out, just over a day instead of half an hour.
+ * How often lib/scheduler.ts fires this — every five minutes on Railway.
+ * The rollout maths needs to know how much of a gate's window one tick is
+ * responsible for, so change the two together.
  */
 const TICK_MS = 5 * 60_000;
 
-/** How much of a tick a pass may spend spacing its writes. Comfortably under
- * maxDuration, so pacing never costs a pass its unflushed progress. */
+/** How much of a tick a pass may spend spacing its writes — well inside the
+ * five minutes, so a pass is finished before the scheduler's next tick. */
 const SPREAD_MS = 200_000;
 
 /** Hard ceiling on fans per announcement pass, whatever the pacing works
@@ -62,7 +56,8 @@ const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
  * comes back as `invalid_grant`, indistinguishable from a fan who revoked
  * access, and would unsubscribe them for good. Serialising the work removes
  * that race by construction instead of hoping the schedules never collide.
- * maxDuration is held under the interval so a run can't overlap itself either.
+ * The scheduler waits for a run to finish before starting the next, so a run
+ * can't overlap itself either.
  *
  * Announcements take priority: a release going out is time-sensitive, a
  * keepalive is not, and the keepalive window is wide enough to absorb being

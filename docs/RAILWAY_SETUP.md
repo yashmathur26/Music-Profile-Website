@@ -23,8 +23,12 @@ Next.js app runs.
   once a day after 06:00 UTC it calls `/api/cron/stats` if today has no snapshot.
   Never overlaps itself, waits 5 minutes after boot so a deploy's old and new
   servers can't both run it, and stops on shutdown.
-- `vercel.json` has **no crons** — two schedulers at once would race on
-  SoundCloud's single-use refresh tokens.
+- `src/lib/siteOrigin.ts` — redirects (Spotify presave and stats logins,
+  admin reset) are built from `NEXT_PUBLIC_APP_URL`. Behind Railway's proxy
+  the server only knows itself as `localhost:8080`, so **`NEXT_PUBLIC_APP_URL`
+  must be `https://www.yvshmusic.com`** or those logins land on a dead page.
+- No `vercel.json` and no platform cron — the schedule lives in the server, so
+  there's exactly one of it.
 
 ## Moving it
 

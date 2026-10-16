@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteAllPresaves } from "@/lib/presaves";
+import { siteOrigin } from "@/lib/siteOrigin";
 
 /**
  * One-time reset: wipe all presaves and clear OAuth/presave cookies.
  * Call: GET /api/admin/reset-presaves?secret=YOUR_SECRET
- * Set PRESAVE_RESET_SECRET in .env.local (and Vercel) to a random string.
+ * Set PRESAVE_RESET_SECRET in .env.local (and Railway's variables) to a random string.
  */
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to delete presaves" }, { status: 500 });
   }
 
-  const home = new URL("/", req.nextUrl.origin);
+  const home = new URL("/", siteOrigin(req));
   const res = NextResponse.redirect(home);
   const cookieOpts = {
     path: "/",

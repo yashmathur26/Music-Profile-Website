@@ -4,6 +4,7 @@ import { exchangeStatsCodeForTokens } from "@/lib/spotifyStatsAuth";
 import { createStatsSession } from "@/lib/statsSession";
 import { getSpotifyUserId } from "@/lib/spotify";
 import { nanoid } from "nanoid";
+import { siteOrigin } from "@/lib/siteOrigin";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
   const savedState = cookieStore.get("spotify_stats_state")?.value;
   const returnTo = cookieStore.get("spotify_stats_return")?.value || "/stats";
-  const baseUrl = req.nextUrl.origin;
+  const baseUrl = siteOrigin(req);
 
   if (!code || !state || state !== savedState) {
     const res = NextResponse.redirect(new URL("/stats?error=access_denied", baseUrl));

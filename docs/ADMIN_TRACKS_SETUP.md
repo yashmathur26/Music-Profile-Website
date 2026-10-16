@@ -76,7 +76,7 @@ and a password on top of it.
 ADMIN_PASSWORD=050302
 ```
 
-Set it in `.env.local` for local dev and in the Vercel project's environment
+Set it in `.env.local` for local dev and in the Railway service's variables
 variables for production. Unset, the password falls back to
 `TRIGGER_SAVES_SECRET`, so the admin is never locked out by a missing variable.
 

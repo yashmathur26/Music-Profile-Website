@@ -11,7 +11,7 @@ Use this to stay secure and legally compliant for yvshmusic.com (presave, option
 **Include:**
 - **What you collect:** Spotify user ID, Spotify refresh token (to save the track on release day), optional email (if they enter it on the success page), and standard server logs (IP, timestamp, user agent).
 - **Why:** To add the track to their Spotify library on release day; to notify them if they gave email; to run and secure the site.
-- **Who you share with:** Spotify (to complete the presave), Supabase (database), Vercel (hosting). You don’t sell data.
+- **Who you share with:** Spotify (to complete the presave), Supabase (database), Railway (hosting). You don’t sell data.
 - **How long you keep it:** e.g. “Until the release is done and we’ve run the save, plus 90 days; or until you ask for deletion.”
 - **Rights:** Right to access (copy of their data), right to deletion, how to contact you (link to contact page).
 - **Age:** “You must be 13 or older (16 in the EEA/UK) to use the presave feature.”
@@ -62,7 +62,7 @@ Use this to stay secure and legally compliant for yvshmusic.com (presave, option
 | **Cookies** | You use minimal cookies (OAuth state, presave_id for email). If you add analytics (e.g. Google Analytics) or non-essential cookies, you’ll need a cookie notice and consent where required (e.g. GDPR). For now, a one-line in the privacy policy (“We use strictly necessary cookies to run the presave flow”) is enough. |
 | **Data retention** | Define and state: e.g. “We keep presave data until [X time] after the release, or until you ask for deletion.” Then stick to it (delete old rows if you said you would). |
 | **No sale of data** | You don’t sell data; say so in the privacy policy. CCPA “right to opt out of sale” is N/A but good to state. |
-| **Subprocessors** | You use Supabase, Vercel, Spotify. Mention them in the privacy policy as “service providers who process data on our behalf.” You don’t need a separate “subprocessor list” page unless you want one. |
+| **Subprocessors** | You use Supabase, Railway, Spotify, SoundCloud. Mention them in the privacy policy as “service providers who process data on our behalf.” You don’t need a separate “subprocessor list” page unless you want one. |
 | **Breach** | Have a plan: if tokens or emails were exposed, notify affected users and, where required (e.g. GDPR), notify the regulator. Hope you never need it. |
 | **Accessibility** | Policies and contact should be easy to find (footer links) and readable. |
 
@@ -85,6 +85,6 @@ Use this to stay secure and legally compliant for yvshmusic.com (presave, option
 | Spotify user ID | Supabase `presaves` | Identify the user; one presave per person per campaign. |
 | Refresh token | Supabase `presaves` | Add the track to their library on release day. |
 | Email (optional) | Supabase `presaves` | Notify when the track drops (if you use it). |
-| Server logs | Vercel / hosting | Security, debugging (IP, timestamp, etc.). |
+| Server logs | Railway (hosting) | Security, debugging (IP, timestamp, etc.). |
 
 You do **not** store: Spotify password, payment info, or anything beyond the above.

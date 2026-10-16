@@ -128,7 +128,7 @@ alter table release_announcements enable row level security;
 ## 2. Environment variables
 
 ```bash
-CRON_SECRET=...              # daily token keepalive; Vercel Cron sends this
+CRON_SECRET=...              # the built-in scheduler sends this to /api/cron/*
 RELEASE_TRIGGER_SECRET=...   # protects the release fan-out
 ```
 
@@ -141,28 +141,18 @@ the gate already uses. Miss any of them and the checkbox simply doesn't render.
 
 ## 3. The cron
 
-One cron does all the background work, registered in `vercel.json` and
-authorised with `CRON_SECRET`:
+One job, `/api/cron/subscribers`, does all the background work, authorised
+with `CRON_SECRET`. On Railway, `src/lib/scheduler.ts` calls it every five
+minutes from inside the server (only where `RUN_SCHEDULER=1` — see
+docs/RAILWAY_SETUP.md), and never starts a run while one is still going.
 
-**On Railway (current host):** `src/lib/scheduler.ts` calls this route every
-five minutes from inside the server — see docs/RAILWAY_SETUP.md. vercel.json
-has no crons any more, so the two can never run at the same time.
+Never add a second trigger for it (an external cron, a second service with
+`RUN_SCHEDULER=1`): two runs at once race on the same single-use refresh
+tokens. `TICK_MS` in the route assumes five minutes — change the two together.
 
-**History, if you ever go back to Vercel:**
-
-```json
-{ "path": "/api/cron/subscribers", "schedule": "0 5 * * *" }
-```
-
-**Vercel's Hobby plan only allows crons that run once a day** — any more
-often and the whole deployment fails (every deploy from 8bf45e9b to afdb470d
-failed for exactly this reason). Daily is enough for the keepalive and the
-teardowns. The 30-minute release rollout needs a tick every five minutes,
-which means either Vercel Pro (put `*/5 * * * *` back) or a five-minute
-trigger from outside Vercel. Use **one** trigger, never both: two runs at once
-would race on the same single-use refresh tokens. `TICK_MS` in the route
-assumes five minutes; without that trigger a release still goes out, over a
-day instead of half an hour.
+(While the site was on Vercel's Hobby plan, which only allows daily crons,
+every deploy from 8bf45e9b to afdb470d failed on a sub-daily schedule. That
+is why the schedule now lives in the server.)
 
 Every tick it does exactly one of three jobs, never two.
 
@@ -271,7 +261,7 @@ The response reports `subscribers`, `liked`, `reposted`, `failed`,
   already liked *and* reposted is skipped, so a second call only picks up who
   was missed.
 - **Long lists:** pass `{"limit": 200}` and call it again until `remaining` is
-  0. The route caps at 300s on Vercel.
+  0. Smaller chunks keep each call short and the progress saved between them.
 - **`abortedReason: "rate_limited"`** — SoundCloud pushed back. Wait and
   re-run; progress is kept.
 - **`abortedReason: "api_blocked"`** — five consecutive 403s, so the run stops

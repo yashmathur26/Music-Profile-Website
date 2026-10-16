@@ -7,8 +7,6 @@ import { latestSnapshot, takeSnapshot } from "@/lib/statsSnapshot";
 const AUTO_REFRESH_MIN_AGE_MS = 2 * 60_000;
 
 export const dynamic = "force-dynamic";
-// The refresh walks every downloader on SoundCloud.
-export const maxDuration = 300;
 
 /** Same credential as every other admin route. */
 const authorized = (request: NextRequest) => {

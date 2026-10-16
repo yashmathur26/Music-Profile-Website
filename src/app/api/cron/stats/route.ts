@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { takeSnapshot } from "@/lib/statsSnapshot";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
 
 /**
  * The daily SoundCloud snapshot behind the Stats tab — see

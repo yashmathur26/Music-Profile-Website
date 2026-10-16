@@ -45,7 +45,7 @@ PRESAVE_RESET_SECRET=another_random_string
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-For **production** (e.g. Vercel), set the same variables in the Vercel project, and use `NEXT_PUBLIC_APP_URL=https://yvshmusic.com` (or your real domain).
+For **production** (Railway), set the same variables on the Railway service, and use `NEXT_PUBLIC_APP_URL=https://www.yvshmusic.com` — redirects are built from it (see docs/RAILWAY_SETUP.md).
 
 ### Step 3 — Create the Supabase `presaves` table
 
@@ -69,13 +69,13 @@ For **production** (e.g. Vercel), set the same variables in the Vercel project, 
 If anything fails:
 
 - **Redirected to home or “Invalid or expired link”** → Check `SPOTIFY_CLIENT_ID`, redirect URIs in the Spotify dashboard, and that `presave` is `true` in `src/config/features.ts`.
-- **OAuth error / callback fails** → Check the terminal or Vercel logs for “Spotify callback error”. Usually means wrong `redirect_uri`, wrong `SPOTIFY_CLIENT_SECRET`, or Supabase not configured (missing env or table).
+- **OAuth error / callback fails** → Check the terminal or the Railway deploy logs for “Spotify callback error”. Usually means wrong `redirect_uri`, wrong `SPOTIFY_CLIENT_SECRET`, or Supabase not configured (missing env or table).
 - **Presaves count stays 0** → Check Supabase env vars and that the `presaves` table exists and RLS is set so only the service role can write (see SQL below).
 
 ### Step 5 — Production (when you deploy)
 
 - In the **Spotify app** redirect URIs, keep `https://yvshmusic.com/api/spotify/callback` (you added it in Step 1).
-- In **Vercel** (or your host), set all the same env vars and `NEXT_PUBLIC_APP_URL=https://yvshmusic.com`.
+- On **Railway**, set all the same env vars and `NEXT_PUBLIC_APP_URL=https://www.yvshmusic.com`.
 - Your admin URL in production: `https://yvshmusic.com/admin/YOUR_TRIGGER_SAVES_SECRET`.
 
 ### Ad blockers / cookie blockers
@@ -87,7 +87,7 @@ If anything fails:
 
 ---
 
-## Environment variables (Vercel / `.env.local`)
+## Environment variables (Railway / `.env.local`)
 
 ```bash
 # Spotify (create app at https://developer.spotify.com/dashboard)
@@ -123,7 +123,7 @@ Replace `YOUR_TRIGGER_SAVES_SECRET` with the same value as `TRIGGER_SAVES_SECRET
 
 To wipe all presaves in the database and clear OAuth/presave cookies for your browser:
 
-1. In `.env.local` and Vercel, set **`PRESAVE_RESET_SECRET`** to a random string (e.g. `openssl rand -hex 16`).
+1. In `.env.local` and on Railway, set **`PRESAVE_RESET_SECRET`** to a random string (e.g. `openssl rand -hex 16`).
 2. Visit: **`https://yvshmusic.com/api/admin/reset-presaves?secret=YOUR_PRESAVE_RESET_SECRET`** (use the same value as the env var).
 3. You’ll be redirected to the homepage; all presave rows are deleted and your app cookies for this site are cleared.
 
@@ -162,7 +162,7 @@ You do **not** store passwords, payment info, or anything except what’s above.
 ### Keeping it safe
 
 1. **Secrets only in env**
-   - `SPOTIFY_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SAVES_SECRET` live only in env (e.g. Vercel env vars or `.env.local`). They are never in the repo or sent to the browser.
+   - `SPOTIFY_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SAVES_SECRET` live only in env (Railway variables or `.env.local`). They are never in the repo or sent to the browser.
 
 2. **Database locked down (RLS)**
    - Supabase Row-Level Security is on for `presaves` with a policy that allows **no one** by default. Only your backend, using the **service role** key, can read/write. Browsers and anonymous users cannot query the table at all.
@@ -191,7 +191,7 @@ You do **not** store passwords, payment info, or anything except what’s above.
 
 3. **When you’d pay**
    - **Supabase:** Only if you outgrow free (e.g. many campaigns and 50K+ presaves total). Paid plans start around $25/mo.
-   - **Vercel:** Serverless and hosting are fine on the free tier for this. You’d pay if you need more builds or higher limits.
+   - **Railway:** the Hobby plan ($5/month, includes $5 of usage) covers a server this size; check Usage after the first week.
    - **Spotify:** API use for presave (authorize + save track) is free; no extra cost for storing or using tokens.
 
 So with one Supabase project and env vars set correctly, your user data stays safe and the setup stays free for a long time.
@@ -252,19 +252,11 @@ curl -X POST https://yvshmusic.com/api/trigger-saves \
   -d '{"trackUri": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh"}'
 ```
 
-The endpoint processes fans in batches (50 at a time, 150ms delay) to respect Spotify rate limits and Vercel’s function timeout.
+The endpoint processes fans in batches (50 at a time, 150ms delay) to respect Spotify rate limits.
 
-## Vercel Cron (optional)
+## Running it automatically (optional, not set up)
 
-To run trigger-saves automatically after the release date, add in `vercel.json`:
-
-```json
-{
-  "crons": [{
-    "path": "/api/trigger-saves",
-    "schedule": "0 0 * * *"
-  }]
-}
-```
-
-Then in the trigger-saves route, only run when `releaseDate` has passed and `trackUri` is set; call with the secret in a header (cron can send a secret header).
+Nothing calls trigger-saves on its own today — run the curl above on release
+day. To automate it, add a once-a-day call to `/api/trigger-saves` in
+`src/lib/scheduler.ts` (it already runs every five minutes on Railway), and
+have the route do nothing until `releaseDate` has passed and `trackUri` is set.

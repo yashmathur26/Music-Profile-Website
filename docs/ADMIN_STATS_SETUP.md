@@ -31,7 +31,7 @@ create table if not exists gate_events (
   kind        text not null,   -- view | manual | connect | connected | unlock | download
   session_id  text,            -- the gate_session cookie, joins a visitor's steps
   sc_username text,
-  country     text,            -- from Vercel's edge, two letters
+  country     text,            -- two letters, offline lookup (IP never stored)
   referrer    text,            -- host, or utm:<source> when the link was tagged
   detail      jsonb            -- download: { gate: unlocked | connected_not_unlocked | no_connection }
 );
@@ -44,10 +44,12 @@ RLS is on with no policies, so only the server (service role) can read either.
 
 ## 2. The daily refresh
 
-`vercel.json` registers `/api/cron/stats` at `0 6 * * *`, authorised with the
-same `CRON_SECRET` as the subscriber cron. It uses the app's own SoundCloud
-token only, never a fan's, so it can't collide with the subscriber cron's
-single-use refresh tokens.
+The built-in scheduler (`src/lib/scheduler.ts`, on Railway with
+`RUN_SCHEDULER=1`) calls `/api/cron/stats` once a day, on its first tick
+after 06:00 UTC with no snapshot for today yet. It uses the app's own
+SoundCloud token only, never a fan's, so it can't collide with the
+subscriber job's single-use refresh tokens. Opening the Stats tab also
+refreshes, unless a refresh finished in the last two minutes.
 
 Each run reads your follower list and each song's likers once (paged), then
 looks up every fan who has ever downloaded — about one request per fan. It

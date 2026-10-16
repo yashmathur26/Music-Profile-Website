@@ -98,8 +98,8 @@ const clientIp = (headers: Headers) => {
 };
 
 /**
- * The visitor's country. Vercel and Cloudflare put it in a header for free;
- * anywhere else (Railway) it comes from the offline table. Only the
+ * The visitor's country. On Railway it comes from the offline table; a
+ * Cloudflare or Vercel header wins if the site is ever put behind one. Only the
  * two-letter code is kept — the IP itself is never stored.
  */
 export const countryFrom = (headers: Headers) => {
@@ -123,8 +123,8 @@ export const currentSessionId = () => {
 };
 
 /**
- * Writes one event. Callers must await it — Vercel freezes the function once
- * the response is sent, and an unawaited insert never lands — but it never
+ * Writes one event. Callers await it — on a serverless host an unawaited
+ * insert dies with the function, and awaiting costs nothing here — but it never
  * throws, so stats can't break the gate.
  */
 export const logGateEvent = async (event: {

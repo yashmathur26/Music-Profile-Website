@@ -13,9 +13,6 @@ import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { countryFrom, logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
-// The engagement chain (exchange + resolve + up to four writes) can outlive
-// the platform's default function timeout.
-export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

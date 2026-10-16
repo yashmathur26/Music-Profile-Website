@@ -84,7 +84,8 @@ export type SnapshotData = {
 const TABLE = "stats_snapshots";
 const supabase = createServerSupabase();
 
-/** Stop starting new fan lookups after this, under the route's maxDuration. */
+/** Stop starting new fan lookups after this, so a refresh never keeps the
+ * admin waiting more than a few minutes. */
 const BUDGET_MS = 240_000;
 const CONCURRENCY = 6;
 

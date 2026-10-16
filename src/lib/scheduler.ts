@@ -1,13 +1,14 @@
 import { createServerSupabase } from "@/lib/supabaseServer";
 
 /**
- * The cron, for hosts that run one long-lived server (Railway) instead of
- * Vercel's scheduled functions.
+ * The site's cron. Railway runs one long-lived server, so the schedule lives
+ * inside it rather than in a platform config.
  *
- * Started from instrumentation.ts, only when RUN_SCHEDULER=1 — on Vercel it
- * never starts, and vercel.json's crons do the job. Every five minutes it
- * calls the same /api/cron/* routes Vercel would, with the same CRON_SECRET,
- * so there is exactly one code path for the work itself.
+ * Started from instrumentation.ts, only when RUN_SCHEDULER=1 — set on the
+ * one Railway service and nowhere else, so a second copy of the site (a
+ * preview, a laptop) can never run it alongside. Every five minutes it calls
+ * the /api/cron/* routes with CRON_SECRET, so the work itself has exactly one
+ * code path whether the scheduler or a person triggers it.
  *
  *  - /api/cron/subscribers every tick: the release rollout, teardowns and
  *    keepalive. Five minutes is what makes a 30-minute rollout possible.

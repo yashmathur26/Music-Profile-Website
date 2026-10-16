@@ -5,7 +5,6 @@ import { findTrack } from "@/lib/trackStore";
 import { countryFrom, logGateEvent } from "@/lib/gateEvents";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 

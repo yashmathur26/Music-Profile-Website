@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens, getSpotifyUserId, verifySignedState } from "@/lib/spotify";
 import { insertPresave, getPresaveByCampaignAndUser, updatePresaveRefreshToken } from "@/lib/presaves";
 import { campaign, getCampaignId } from "@/config/campaign";
+import { siteOrigin } from "@/lib/siteOrigin";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const baseUrl = req.nextUrl.origin;
+  const baseUrl = siteOrigin(req);
   // Redirect errors to /presave so user sees "Sign-in didn't complete. Please try again" and can retry
   const presaveUrl = new URL("/presave", baseUrl);
 
