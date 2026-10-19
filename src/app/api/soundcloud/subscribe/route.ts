@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readGate, writeGate } from "@/lib/gateStore";
 import {
   SoundcloudApiError,
+  describeSoundcloudError,
   numericId,
   refreshAccessToken
 } from "@/lib/soundcloud";
@@ -127,7 +128,7 @@ const enrol = async (trackSlug: string) => {
       ok: false,
       reason:
         error instanceof SoundcloudApiError
-          ? `soundcloud_${error.status}`
+          ? describeSoundcloudError(error)
           : "refresh_failed"
     });
   }

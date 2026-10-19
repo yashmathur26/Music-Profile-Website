@@ -241,14 +241,58 @@ export const exchangeCodeMatrix = async (
   return { ok: false, report: report.join(" | ") };
 };
 
-/** Refresh tokens are single-use — always persist the new one you get back. */
-export const refreshAccessToken = (refreshToken: string) =>
-  postToken(
-    new URLSearchParams({
+/**
+ * Refresh tokens are single-use — always persist the new one you get back.
+ *
+ * Unlike the code exchange and client_credentials, this grant only works with
+ * the client credentials in the form BODY. Over Basic auth the secure host
+ * answers `400 invalid_request` for every request — right secret or wrong,
+ * real token or none — so every refresh failed: no fan was ever saved, and a
+ * returning fan's session couldn't be renewed. Verified against the live
+ * endpoint (Oct 2026): Basic -> invalid_request whatever is sent; body
+ * credentials -> invalid_client on a wrong secret, invalid_grant on a fake
+ * token, i.e. the request is understood and checked.
+ *
+ * SoundCloud rejected those requests before reading the token, so the failed
+ * attempts never used up anyone's refresh token.
+ */
+export const refreshAccessToken = async (refreshToken: string) => {
+  const response = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json; charset=utf-8"
+    },
+    body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: refreshToken
-    })
-  );
+      refresh_token: refreshToken,
+      client_id: env.soundcloudClientId as string,
+      client_secret: env.soundcloudClientSecret as string
+    }),
+    cache: "no-store"
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new SoundcloudApiError(response.status, text, "Token refresh failed.");
+  }
+  return parseTokenResponse(JSON.parse(text));
+};
+
+/**
+ * `soundcloud_<status>` plus SoundCloud's own error code when it sent one —
+ * "soundcloud_400" alone hid the fact that every refresh was being rejected
+ * for its shape, not its token.
+ */
+export const describeSoundcloudError = (error: SoundcloudApiError) => {
+  let code = "";
+  try {
+    const parsed = JSON.parse(error.body) as { error?: string; error_code?: string };
+    code = parsed.error || parsed.error_code || "";
+  } catch {
+    /* not JSON */
+  }
+  return `soundcloud_${error.status}${/^[a-z_]+$/.test(code) ? `_${code}` : ""}`;
+};
 
 const apiRequest = async (
   path: string,
