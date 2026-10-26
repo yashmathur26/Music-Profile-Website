@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import clsx from "clsx";
 import StatsTab from "@/components/admin/StatsTab";
-import SavedFansTab from "@/components/admin/SavedFansTab";
+import FansTab from "@/components/admin/FansTab";
 import {
   DEFAULT_SITE_CONFIG,
   SiteConfig,
@@ -18,11 +18,9 @@ import {
 import {
   DEFAULT_PLAN,
   DEFAULT_ROLLOUT_MINUTES,
-  MAX_RETAIN_DAYS,
-  MAX_ROLLOUT_MINUTES,
   SubscriberPlan,
-  describePlan,
-  normalizePlan
+  normalizePlan,
+  planIsNoop
 } from "@/lib/subscriberPlan";
 
 /* ------------------------------------------------------------------ */
@@ -69,7 +67,7 @@ type DownloadEntry = {
   at: string | null;
 };
 
-type TabKey = "overview" | "stats" | "fans" | "gates" | "downloads" | "home";
+type TabKey = "overview" | "stats" | "fans" | "gates" | "home";
 
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                         */
@@ -418,26 +416,83 @@ const draftToPlan = (draft: PlanDraft): SubscriberPlan =>
 
 const DEFAULT_PLAN_DRAFT = planToDraft(DEFAULT_PLAN);
 
-/** Out-of-range input, said before the save silently clamps it. */
-const planWarning = (draft: PlanDraft): string | null => {
-  const days = Number(draft.retainDays);
-  if (draft.retainDays.trim() !== "" && (!Number.isFinite(days) || days < 1)) {
-    return "Leave the days box empty to keep the like and repost permanently.";
-  }
-  if (days > MAX_RETAIN_DAYS) {
-    return `Two weeks is the longest a gate can hold someone's repost — this will save as ${MAX_RETAIN_DAYS} days.`;
-  }
-  const minutes = Number(draft.rolloutMinutes);
-  if (draft.rolloutMinutes.trim() !== "" && minutes > MAX_ROLLOUT_MINUTES) {
-    return `A rollout can't run longer than a day — this will save as ${MAX_ROLLOUT_MINUTES} minutes.`;
-  }
-  return null;
+/** How long a boost stays on fans' profiles. null = for good. */
+const STAY_OPTIONS: { days: number | null; label: string }[] = [
+  { days: 1, label: "1 day" },
+  { days: 3, label: "3 days" },
+  { days: 7, label: "1 week" },
+  { days: 14, label: "2 weeks" },
+  { days: null, label: "Forever" }
+];
+
+/** How long a send takes to reach everyone. Five minutes is one scheduler
+ * tick — as fast as the queue drains anyway. */
+const PACE_OPTIONS: { minutes: number; label: string }[] = [
+  { minutes: 5, label: "Right away" },
+  { minutes: DEFAULT_ROLLOUT_MINUTES, label: "Over 30 minutes" },
+  { minutes: 120, label: "Over 2 hours" },
+  { minutes: 24 * 60, label: "Over a day" }
+];
+
+const stayLabel = (days: number | null) =>
+  STAY_OPTIONS.find((o) => o.days === days)?.label.toLowerCase() ||
+  `${days} day${days === 1 ? "" : "s"}`;
+const paceLabel = (minutes: number) =>
+  PACE_OPTIONS.find((o) => o.minutes === minutes)?.label.toLowerCase() ||
+  (minutes >= 120 ? `over ${Math.round(minutes / 60)} hours` : `over ${minutes} minutes`);
+
+/**
+ * The plan in one plain sentence, for the card and the send confirmation —
+ * "When you send it, up to 14 fans like and repost it over 30 minutes. It
+ * comes off on its own after 1 week."
+ */
+const planSentence = (plan: SubscriberPlan, fans: number) => {
+  const actions = [plan.like && "like", plan.repost && "repost"].filter(Boolean).join(" and ");
+  if (!actions) return "Pick Like, Repost or both — right now sending would do nothing.";
+  const who = fans > 0 ? `up to ${fans} fan${fans === 1 ? "" : "s"}` : "your saved fans";
+  const when = paceLabel(plan.rolloutMinutes);
+  const stays =
+    plan.retainDays === null
+      ? "It stays on their profiles."
+      : `It comes off on its own after ${stayLabel(plan.retainDays)}.`;
+  return `When you send it, ${who} ${actions} it ${when}. ${stays}`;
 };
+
+/** A row of pill buttons where exactly one is picked. */
+function Choice<T>({
+  options,
+  value,
+  onChange
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((option) => (
+        <button
+          key={option.label}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={clsx(
+            "rounded-full px-3 py-1.5 text-xs font-medium transition",
+            option.value === value
+              ? "bg-purple-600 text-white shadow shadow-purple-500/25"
+              : "bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * The per-gate controls over unattended activity: which actions the release
  * fan-out may take on a saved account, how long they stay there, and how
- * slowly they arrive.
+ * slowly they arrive — as a few taps rather than numbers to type.
  *
  * Separate from everything else on the form because it is the only part of a
  * gate that acts on other people's accounts while they are nowhere near the
@@ -445,108 +500,130 @@ const planWarning = (draft: PlanDraft): string | null => {
  */
 function SubscriberPlanFields({
   draft,
-  onChange
+  onChange,
+  fans,
+  send
 }: {
   draft: PlanDraft;
   onChange: (draft: PlanDraft) => void;
+  /** Saved fans right now, for the sentence. */
+  fans: number;
+  /** New gates only: send it to the fans as soon as it's published. */
+  send?: { on: boolean; onChange: (on: boolean) => void };
 }) {
-  const set = <K extends keyof PlanDraft>(key: K, value: PlanDraft[K]) =>
-    onChange({ ...draft, [key]: value });
-  const warning = planWarning(draft);
-  const nothing = !draft.like && !draft.repost;
+  const plan = draftToPlan(draft);
+  const set = (patch: Partial<PlanDraft>) => onChange({ ...draft, ...patch });
 
-  const toggle = (key: "like" | "repost", label: string, hint: string) => (
-    <label className="flex cursor-pointer select-none items-start gap-2.5">
-      <input
-        type="checkbox"
-        checked={draft[key]}
-        onChange={(e) => set(key, e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
-      />
-      <span className="min-w-0">
-        <span className="block text-xs text-white/80">{label}</span>
-        <span className="block text-[11px] text-white/40">{hint}</span>
-      </span>
-    </label>
-  );
+  // A value saved before these presets existed still shows, as its own pill.
+  const stayOptions = STAY_OPTIONS.map((o) => ({ value: o.days, label: o.label }));
+  if (!stayOptions.some((o) => o.value === plan.retainDays)) {
+    stayOptions.splice(-1, 0, { value: plan.retainDays, label: stayLabel(plan.retainDays) });
+  }
+  const paceOptions = PACE_OPTIONS.map((o) => ({ value: o.minutes, label: o.label }));
+  if (!paceOptions.some((o) => o.value === plan.rolloutMinutes)) {
+    paceOptions.push({ value: plan.rolloutMinutes, label: paceLabel(plan.rolloutMinutes) });
+  }
 
-  const number = (
-    label: string,
-    key: "retainDays" | "rolloutMinutes",
-    unit: string,
-    placeholder: string,
-    hint: string
-  ) => (
-    <label className="block">
-      <span className="text-[11px] font-medium uppercase tracking-widest text-white/45">
-        {label}
+  const action = (key: "like" | "repost", icon: string, label: string, hint: string) => (
+    <button
+      type="button"
+      onClick={() => set({ [key]: !draft[key] })}
+      aria-pressed={draft[key]}
+      className={clsx(
+        "flex-1 rounded-xl border px-3 py-2.5 text-left transition",
+        draft[key]
+          ? "border-purple-400/60 bg-purple-500/15"
+          : "border-white/10 bg-white/[0.03] opacity-60 hover:opacity-90"
+      )}
+    >
+      <span className="flex items-center justify-between text-sm font-medium text-white/90">
+        <span>
+          {icon} {label}
+        </span>
+        <span
+          className={clsx(
+            "flex h-4 w-4 items-center justify-center rounded-full text-[10px]",
+            draft[key] ? "bg-purple-500 text-white" : "border border-white/25"
+          )}
+        >
+          {draft[key] ? "✓" : ""}
+        </span>
       </span>
-      <span className="mt-1 flex items-center gap-2">
-        <input
-          type="number"
-          min={1}
-          max={key === "retainDays" ? MAX_RETAIN_DAYS : MAX_ROLLOUT_MINUTES}
-          inputMode="numeric"
-          value={draft[key]}
-          placeholder={placeholder}
-          onChange={(e) => set(key, e.target.value)}
-          className={clsx(inputClass, "w-24")}
-        />
-        <span className="text-xs text-white/40">{unit}</span>
-      </span>
-      <span className="mt-1 block text-[11px] text-white/35">{hint}</span>
-    </label>
+      <span className="mt-0.5 block text-[11px] text-white/45">{hint}</span>
+    </button>
   );
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="text-xs font-medium uppercase tracking-widest text-white/50">
-        On saved fans&rsquo; accounts
-      </p>
-      <p className="mt-1 text-xs text-white/45">
-        What gets done from the accounts of fans who downloaded an earlier song,
-        when you send this one out. They aren&rsquo;t on the site when this
-        happens.
-      </p>
-
-      <div className="mt-3 space-y-2">
-        {toggle("like", "Like the song", "Private — only a count moves.")}
-        {toggle(
-          "repost",
-          "Repost it",
-          "Public \u2014 it shows on their profile and in their followers\u2019 feeds."
+    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-white/85">Boost from your fans</p>
+          <p className="mt-0.5 text-xs text-white/45">
+            {fans > 0 ? `${fans} saved fan${fans === 1 ? "" : "s"}` : "Fans who download"} can like
+            and repost this song for you. Big accounts and people you follow are skipped.
+          </p>
+        </div>
+        {send && fans > 0 && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={send.on}
+            onClick={() => send.onChange(!send.on)}
+            className="flex shrink-0 items-center gap-2 text-xs text-white/60"
+          >
+            <span
+              className={clsx(
+                "relative h-5 w-9 rounded-full transition",
+                send.on ? "bg-purple-500" : "bg-white/15"
+              )}
+            >
+              <span
+                className={clsx(
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all",
+                  send.on ? "left-[18px]" : "left-0.5"
+                )}
+              />
+            </span>
+            Send when published
+          </button>
         )}
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {number(
-          "Take it back off after",
-          "retainDays",
-          "days",
-          "keep",
-          `Up to ${MAX_RETAIN_DAYS}. Empty leaves it on their account for good.`
-        )}
-        {number(
-          "Roll out over",
-          "rolloutMinutes",
-          "minutes",
-          String(DEFAULT_ROLLOUT_MINUTES),
-          "Spread across this window instead of landing all at once."
-        )}
+      <div className="mt-4 flex gap-2">
+        {action("like", "♥", "Like", "Private — only the like count goes up.")}
+        {action("repost", "↻", "Repost", "Public — shows on their profile and feed.")}
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <p className="mb-1.5 text-xs text-white/55">How long it stays on their profile</p>
+          <Choice
+            options={stayOptions}
+            value={plan.retainDays}
+            onChange={(days) => set({ retainDays: days === null ? "" : String(days) })}
+          />
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs text-white/55">How fast it goes out</p>
+          <Choice
+            options={paceOptions}
+            value={plan.rolloutMinutes}
+            onChange={(minutes) => set({ rolloutMinutes: String(minutes) })}
+          />
+        </div>
       </div>
 
       <p
         className={clsx(
-          "mt-3 text-[11px]",
-          nothing ? "text-amber-300/80" : "text-white/40"
+          "mt-4 rounded-lg px-3 py-2 text-xs",
+          planIsNoop(plan) ? "bg-amber-500/10 text-amber-200/90" : "bg-white/[0.04] text-white/65"
         )}
       >
-        {describePlan(draftToPlan(draft))}
+        {send && !send.on && fans > 0 && !planIsNoop(plan)
+          ? `Not sending yet — you can send it later from the song's row. ${planSentence(plan, fans)}`
+          : planSentence(plan, fans)}
+        {send?.on && " Only works once the track is public on SoundCloud."}
       </p>
-
-      {warning && (
-        <p className="mt-2 text-[11px] text-amber-300/80">{warning}</p>
-      )}
     </div>
   );
 }
@@ -672,11 +749,11 @@ function GateRow({
 
   const announcement = track.announcement;
   const announceLabel = !announcement
-    ? `Like + repost from ${subscribers}`
+    ? `Send to ${subscribers} fan${subscribers === 1 ? "" : "s"}`
     : announcement.status === "done"
-      ? `Sent to ${announcement.processed}`
+      ? `Sent to ${announcement.processed} ✓`
       : announcement.status === "failed"
-        ? "Send failed — retry"
+        ? "Retry sending"
         : `Sending… ${announcement.processed}/${subscribers}`;
 
   const plan = normalizePlan(track.subscriberPlan);
@@ -684,12 +761,11 @@ function GateRow({
   const runAnnounce = async () => {
     if (
       !window.confirm(
-        `Send “${track.title}” to ${subscribers} subscriber` +
-          `${subscribers === 1 ? "" : "s"}?\n\n` +
-          `${describePlan(plan)}\n\n` +
+        `Send “${track.title}” to your fans?\n\n` +
+          `${planSentence(plan, subscribers)}\n\n` +
           (announcement
-            ? "Anyone it's already done is skipped."
-            : "This runs on their accounts while they're nowhere near the site.")
+            ? "Fans it already reached are skipped."
+            : "Big accounts and people you follow are skipped automatically.")
       )
     )
       return;
@@ -804,7 +880,7 @@ function GateRow({
             type="button"
             onClick={runAnnounce}
             disabled={announcing}
-            title="Like and repost this track from every fan who opted in"
+            title="Like and repost this song from your saved fans"
             className={clsx(
               "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-50",
               announcement?.status === "done"
@@ -872,7 +948,7 @@ function GateRow({
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
           </div>
 
-          <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} />
+          <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} fans={subscribers} />
 
           {error && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -1080,28 +1156,12 @@ function TracksManager({ token }: { token: string }) {
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
           </div>
 
-          <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} />
-
-          {subscribers > 0 && (
-            <label className="flex cursor-pointer select-none items-start gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
-              <input
-                type="checkbox"
-                checked={announceOnCreate}
-                onChange={(e) => setAnnounceOnCreate(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500"
-              />
-              <span className="min-w-0">
-                <span className="block text-xs font-medium uppercase tracking-widest text-white/50">
-                  Tell my subscribers
-                </span>
-                <span className="mt-1 block text-xs text-white/45">
-                  Run the above on all {subscribers} fans who downloaded an
-                  earlier song. {describePlan(draftToPlan(planDraft))} Only
-                  works once the track is public on SoundCloud.
-                </span>
-              </span>
-            </label>
-          )}
+          <SubscriberPlanFields
+            draft={planDraft}
+            onChange={setPlanDraft}
+            fans={subscribers}
+            send={{ on: announceOnCreate, onChange: setAnnounceOnCreate }}
+          />
 
           {!preview && (
             <button
@@ -1222,153 +1282,7 @@ function TracksManager({ token }: { token: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Downloads tab — everyone who downloaded, linked to their profile    */
-/* ------------------------------------------------------------------ */
-
-function DownloadsList({ token }: { token: string }) {
-  const [total, setTotal] = useState<number | null>(null);
-  const [rows, setRows] = useState<DownloadEntry[]>([]);
-  // "" = all songs — the default view when the tab opens.
-  const [trackFilter, setTrackFilter] = useState("");
-  const [songs, setSongs] = useState<{ slug: string; title: string }[]>([]);
-
-  const load = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({ key: token, limit: "200" });
-      if (trackFilter) params.set("track", trackFilter);
-      const res = await fetch(`/api/admin/downloads?${params.toString()}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setTotal(data.total ?? 0);
-      setRows(data.recent || []);
-    } catch {
-      /* next poll retries */
-    }
-  }, [token, trackFilter]);
-
-  usePolling(load, 4000);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/admin/tracks?key=${encodeURIComponent(token)}`
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        setSongs(
-          (data.tracks || []).map((t: AdminTrack) => ({
-            slug: t.slug,
-            title: t.title
-          }))
-        );
-      } catch {
-        /* dropdown just shows All songs */
-      }
-    })();
-  }, [token]);
-
-  const RowInner = ({ entry }: { entry: DownloadEntry }) => (
-    <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-300">
-        {entry.username ? (
-          <span className="text-sm font-bold uppercase">
-            {entry.username.slice(0, 1)}
-          </span>
-        ) : (
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
-          </svg>
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-white/90">
-          {entry.username || "Anonymous fan"}
-        </p>
-        <p className="truncate text-xs text-white/40">{entry.title}</p>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <span className="text-xs tabular-nums text-white/35">
-          {timeAgo(entry.at)}
-        </span>
-        {entry.profileUrl && (
-          <span className="text-[10px] uppercase tracking-widest text-purple-300/70">
-            View profile →
-          </span>
-        )}
-      </div>
-    </>
-  );
-
-  return (
-    <div className="space-y-4">
-      {/* Song filter — defaults to every song's downloads */}
-      <select
-        value={trackFilter}
-        onChange={(e) => {
-          setTrackFilter(e.target.value);
-          setTotal(null);
-        }}
-        className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:border-purple-400/60 focus:outline-none"
-      >
-        <option value="" className="bg-[#150820]">
-          All songs
-        </option>
-        {songs.map((song) => (
-          <option key={song.slug} value={song.slug} className="bg-[#150820]">
-            {song.title}
-          </option>
-        ))}
-      </select>
-
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-white/60">
-          {total === null
-            ? "Loading…"
-            : `${total} download${total === 1 ? "" : "s"}${trackFilter ? " for this song" : " all-time"}`}
-        </p>
-        <span className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-white/35">
-          <LiveDot /> Live
-        </span>
-      </div>
-
-      {rows.length === 0 && total === 0 ? (
-        <div className={clsx(card, "p-8 text-center")}>
-          <p className="text-sm text-white/40">
-            {trackFilter
-              ? "No downloads for this song yet."
-              : "No downloads yet — every fan who grabs a track will show up here."}
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((entry, i) => (
-            <li key={i}>
-              {entry.profileUrl ? (
-                <a
-                  href={entry.profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open ${entry.username}'s SoundCloud profile`}
-                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition hover:border-purple-400/50 hover:bg-purple-500/10"
-                >
-                  <RowInner entry={entry} />
-                </a>
-              ) : (
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                  <RowInner entry={entry} />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Home editor tab                                                     */
+/* Home editor tab                                                  */
 /* ------------------------------------------------------------------ */
 
 const SOCIAL_META = {
@@ -1787,9 +1701,8 @@ function PasswordScreen({ onUnlocked }: { onUnlocked: () => void }) {
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "stats", label: "Stats" },
-  { key: "fans", label: "Saved fans" },
+  { key: "fans", label: "Fans" },
   { key: "gates", label: "Songs" },
-  { key: "downloads", label: "Downloads" },
   { key: "home", label: "Home Editor" }
 ];
 
@@ -1883,7 +1796,7 @@ export default function AdminPage() {
       <div
         className={clsx(
           "relative mx-auto px-4 py-12 sm:px-6 md:py-16",
-          tab === "stats" ? "max-w-6xl" : "max-w-2xl"
+          tab === "stats" ? "max-w-6xl" : tab === "fans" ? "max-w-3xl" : "max-w-2xl"
         )}
       >
         <motion.header
@@ -1948,13 +1861,12 @@ export default function AdminPage() {
           <Overview
             token={token}
             onUpload={() => setTab("gates")}
-            onViewDownloads={() => setTab("downloads")}
+            onViewDownloads={() => setTab("fans")}
           />
         )}
         {tab === "stats" && <StatsTab token={token} />}
-        {tab === "fans" && <SavedFansTab token={token} />}
+        {tab === "fans" && <FansTab token={token} />}
         {tab === "gates" && <TracksManager token={token} />}
-        {tab === "downloads" && <DownloadsList token={token} />}
         {tab === "home" && <HomeEditor token={token} />}
       </div>
     </main>

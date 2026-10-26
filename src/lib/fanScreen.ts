@@ -1,6 +1,9 @@
 import { SoundcloudApiError, appGet, appGetAll, numericId } from "@/lib/soundcloud";
 import { ARTIST_SOUNDCLOUD_URL } from "@/lib/tracks";
 import { env } from "@/utils/env";
+import type { LeaveAloneReason } from "@/lib/fansTypes";
+
+export type { LeaveAloneReason };
 
 /**
  * Who a release may act on.
@@ -29,10 +32,11 @@ export type ScProfile = {
   permalinkUrl: string;
   avatarUrl: string | null;
   followers: number;
+  following: number;
   uploads: number;
+  city: string | null;
+  country: string | null;
 };
-
-export type LeaveAloneReason = "you_follow" | "big_account" | "many_uploads" | "gone";
 
 export type Screen = { ok: true } | { ok: false; reason: LeaveAloneReason };
 
@@ -43,7 +47,10 @@ type ScUser = {
   permalink_url?: string;
   avatar_url?: string | null;
   followers_count?: number;
+  followings_count?: number;
   track_count?: number;
+  city?: string | null;
+  country?: string | null;
 };
 
 const toProfile = (user: ScUser): ScProfile => ({
@@ -52,7 +59,10 @@ const toProfile = (user: ScUser): ScProfile => ({
   permalinkUrl: user.permalink_url || "",
   avatarUrl: user.avatar_url || null,
   followers: user.followers_count ?? 0,
-  uploads: user.track_count ?? 0
+  following: user.followings_count ?? 0,
+  uploads: user.track_count ?? 0,
+  city: user.city || null,
+  country: user.country || null
 });
 
 export const artistId = async (): Promise<string> =>
@@ -73,6 +83,16 @@ export const loadArtistFollowings = async (): Promise<Set<string>> => {
 export const loadProfile = async (scUserId: string): Promise<ScProfile | null> => {
   try {
     return toProfile(await appGet<ScUser>(`/users/${scUserId}`));
+  } catch (error) {
+    if (error instanceof SoundcloudApiError && error.status === 404) return null;
+    throw error;
+  }
+};
+
+/** Same, from a soundcloud.com profile link. */
+export const loadProfileByUrl = async (url: string): Promise<ScProfile | null> => {
+  try {
+    return toProfile(await appGet<ScUser>(`/resolve?url=${encodeURIComponent(url)}`));
   } catch (error) {
     if (error instanceof SoundcloudApiError && error.status === 404) return null;
     throw error;
