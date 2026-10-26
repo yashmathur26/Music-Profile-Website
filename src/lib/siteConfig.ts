@@ -31,15 +31,17 @@ const warnOnce = (error: unknown) => {
 };
 
 /** Deep-merge the stored partial over the defaults so new fields added in
- * code never come back undefined for configs saved before they existed. */
-const withDefaults = (stored: Partial<SiteConfig> | null): SiteConfig => ({
-  ...DEFAULT_SITE_CONFIG,
-  ...(stored || {}),
-  socials: {
-    ...DEFAULT_SITE_CONFIG.socials,
-    ...(stored?.socials || {})
+ * code never come back undefined for configs saved before they existed.
+ * Socials are picked key by key, so a platform the site drops later but an
+ * old saved row still carries never reaches the page. */
+const withDefaults = (stored: Partial<SiteConfig> | null): SiteConfig => {
+  const socials = { ...DEFAULT_SITE_CONFIG.socials };
+  for (const key of Object.keys(socials) as (keyof SiteConfig["socials"])[]) {
+    const value = stored?.socials?.[key];
+    if (typeof value === "string" && value) socials[key] = value;
   }
-});
+  return { ...DEFAULT_SITE_CONFIG, ...(stored || {}), socials };
+};
 
 export const getSiteConfig = async (): Promise<SiteConfig> => {
   if (!supabase) return DEFAULT_SITE_CONFIG;

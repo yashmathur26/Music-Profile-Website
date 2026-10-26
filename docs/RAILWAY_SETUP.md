@@ -1,7 +1,7 @@
 # Hosting on Railway
 
 The site runs as one always-on Node server on Railway (`npm run start`).
-Supabase, SoundCloud, Spotify and Google Drive don't change — only where the
+Supabase, SoundCloud and Google Drive don't change — only where the
 Next.js app runs.
 
 ## Why Railway rather than Vercel Hobby
@@ -17,16 +17,25 @@ Next.js app runs.
 
 ## What's Railway-specific in the code
 
-- `railway.json` — start command, health check (`/api/presave-count`), restart on failure.
-- `src/instrumentation.ts` + `src/lib/scheduler.ts` — the built-in cron. **Only runs
-  when `RUN_SCHEDULER=1`.** Every 5 minutes it calls `/api/cron/subscribers`;
-  once a day after 06:00 UTC it calls `/api/cron/stats` if today has no snapshot.
-  Never overlaps itself, waits 5 minutes after boot so a deploy's old and new
-  servers can't both run it, and stops on shutdown.
-- `src/lib/siteOrigin.ts` — redirects (Spotify presave and stats logins,
-  admin reset) are built from `NEXT_PUBLIC_APP_URL`. Behind Railway's proxy
-  the server only knows itself as `localhost:8080`, so **`NEXT_PUBLIC_APP_URL`
-  must be `https://www.yvshmusic.com`** or those logins land on a dead page.
+- `railway.json` — start command, health check (`/api/health`), restart on failure.
+- `src/instrumentation.ts` + `src/lib/scheduler.ts` — the built-in cron. Runs in
+  Railway's **production** environment automatically (`RUN_SCHEDULER=1` forces it
+  on anywhere, `RUN_SCHEDULER=0` forces it off). Every 5 minutes it calls
+  `/api/cron/subscribers`; once a day after 06:00 UTC it calls `/api/cron/stats`
+  if today has no snapshot. Never overlaps itself, waits 5 minutes after boot so
+  a deploy's old and new servers can't both run it, and stops on shutdown.
+  Without `CRON_SECRET` it still runs, on a per-process secret.
+- **`/api/scheduler`** — public status check: is the cron on (and if not, why),
+  when it last ran and what it answered, and how many saved fans are overdue
+  for a refresh. Counts only, no names. `curl https://www.yvshmusic.com/api/scheduler`
+  after any deploy.
+- `src/lib/statsRefresh.ts` — each download re-takes the SoundCloud stats
+  snapshot about a minute later (bursts share one run, at most one every
+  5 minutes). Relies on the server staying up after the response, which
+  Railway does.
+- `SOUNDCLOUD_REDIRECT_URI` must be the real domain
+  (`https://www.yvshmusic.com/api/soundcloud/callback`), matching the
+  SoundCloud app exactly, or Connect lands on a dead page.
 - No `vercel.json` and no platform cron — the schedule lives in the server, so
   there's exactly one of it.
 
@@ -38,11 +47,10 @@ Next.js app runs.
    its URLs point at localhost. You need:
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SOUNDCLOUD_CLIENT_ID`,
    `SOUNDCLOUD_CLIENT_SECRET`, `SOUNDCLOUD_REDIRECT_URI`, `SOUNDCLOUD_ARTIST_ID`,
-   `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`,
-   `NEXT_PUBLIC_SOUNDCLOUD_URL`, `NEXT_PUBLIC_ARTIST_NAME`, `NEXT_PUBLIC_APP_URL`,
+   `NEXT_PUBLIC_SOUNDCLOUD_URL`, `NEXT_PUBLIC_ARTIST_NAME`,
    `TRIGGER_SAVES_SECRET`, `ADMIN_PASSWORD`, `RELEASE_TRIGGER_SECRET`, and —
-   only if Vercel has them — `GATE_SECRET`, `PRESAVE_RESET_SECRET`,
-   `YVSH_ARTIST_NAME`, `DOWNLOAD_FILENAME`, `S3_*`. Skip `VERCEL_OIDC_TOKEN`.
+   only if Vercel has them — `GATE_SECRET`,
+   `DOWNLOAD_FILENAME`, `S3_*`. Skip `VERCEL_OIDC_TOKEN`.
    (That's every variable the code reads.)
    Then add two:
    - `RUN_SCHEDULER` = `1`

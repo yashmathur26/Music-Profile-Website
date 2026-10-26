@@ -192,6 +192,23 @@ export const listActive = async (): Promise<ReleaseSubscriber[]> => {
   return (data ?? []) as ReleaseSubscriber[];
 };
 
+/** Everyone ever saved, revoked included, newest first — for the admin page. */
+export const listAllSubscribers = async (): Promise<ReleaseSubscriber[]> => {
+  const { data, error } = await client()
+    .from(SUBSCRIBERS)
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ReleaseSubscriber[];
+};
+
+/** Every release action across every song — for the admin page. */
+export const listAllActions = async (): Promise<ReleaseAction[]> => {
+  const { data, error } = await client().from(ACTIONS).select("*");
+  if (error) throw error;
+  return (data ?? []) as ReleaseAction[];
+};
+
 /**
  * Ends a subscription. The row stays so the same fan's revoke link keeps
  * working and a later re-tick lands on the same id, but the tokens are wiped —
@@ -237,11 +254,18 @@ const storeTokens = async (
   if (error) throw error;
 };
 
-/** A refresh token SoundCloud no longer recognises — the grant is gone. */
+/**
+ * A refresh token SoundCloud no longer recognises — the grant is gone.
+ *
+ * `invalid_grant` only. Retiring a fan wipes their token for good, so it must
+ * never follow from a problem on our side: a wrong or missing client secret
+ * comes back as `invalid_client` / `unauthorized_client`, and used to match a
+ * looser pattern here, which would have unsubscribed every fan in one pass.
+ */
 const isDeadGrant = (error: unknown) =>
   error instanceof SoundcloudApiError &&
   (error.status === 400 || error.status === 401) &&
-  /invalid_grant|invalid_token|unauthorized/i.test(error.body);
+  /invalid_grant/i.test(error.body);
 
 export type TokenResult =
   | { ok: true; accessToken: string; refreshed: boolean }

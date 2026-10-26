@@ -352,24 +352,29 @@ export const fetchMe = async (accessToken: string) => {
 /**
  * App-level token for admin-side lookups (no fan involved). Cached per server
  * instance because SoundCloud caps client_credentials issuance at 50 tokens
- * per 12 hours per app.
+ * per 12 hours per app. On globalThis, because each route bundle gets its own
+ * copy of this module and the cap is shared by all of them.
  */
-let clientToken: { token: string; expiresAt: number } | null = null;
+const CLIENT_TOKEN_KEY = Symbol.for("yvsh.soundcloudClientToken");
+const tokenCache = globalThis as typeof globalThis & {
+  [CLIENT_TOKEN_KEY]?: { token: string; expiresAt: number } | null;
+};
 
 export const getClientToken = async () => {
+  const clientToken = tokenCache[CLIENT_TOKEN_KEY];
   if (clientToken && clientToken.expiresAt - Date.now() > 60_000) {
     return clientToken.token;
   }
   const tokens = await postToken(
     new URLSearchParams({ grant_type: "client_credentials" })
   );
-  clientToken = {
+  tokenCache[CLIENT_TOKEN_KEY] = {
     token: tokens.accessToken,
     expiresAt: tokens.expiresAt
       ? Date.parse(tokens.expiresAt)
       : Date.now() + 50 * 60 * 1000
   };
-  return clientToken.token;
+  return tokens.accessToken;
 };
 
 /**

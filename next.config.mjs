@@ -25,7 +25,16 @@ const nextConfig = {
   // A real Location header for "/", so browsers and link previews go straight
   // to /home instead of loading a page that redirects from inside its HTML.
   async redirects() {
-    return [{ source: "/", destination: "/home", permanent: false }];
+    return [
+      { source: "/", destination: "/home", permanent: false },
+      // Spotify presave and listening stats were removed; old links in bios
+      // and posts land on the home page instead of an empty song page.
+      ...["/presave", "/presave/:path*", "/stats", "/artist"].map((source) => ({
+        source,
+        destination: "/home",
+        permanent: false
+      }))
+    ];
   },
   async headers() {
     return [

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
 import { recordDownload } from "@/lib/downloadLog";
+import { queueStatsRefresh } from "@/lib/statsRefresh";
 import { readGate, writeGate } from "@/lib/gateStore";
 import { fetchMe } from "@/lib/soundcloud";
 import {
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
       }
     }
     await recordDownload(track.slug, gate.username, profileUrl);
+    queueStatsRefresh();
 
     // What the server could see of how this visitor got here. This route
     // doesn't refuse anyone yet, so this is how a bypass shows up: a download

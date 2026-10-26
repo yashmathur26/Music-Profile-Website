@@ -23,7 +23,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-/** Same credential as the presave dashboard — one admin secret for the site. */
+/** One admin secret for the whole site. */
 const authorized = (request: NextRequest) => {
   const secret = process.env.TRIGGER_SAVES_SECRET;
   if (!secret) return false;

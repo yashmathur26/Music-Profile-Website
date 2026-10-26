@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
-import { campaign } from "@/config/campaign";
 import { readGate } from "@/lib/gateStore";
 import { numericId } from "@/lib/soundcloud";
 import {
@@ -37,7 +36,7 @@ export default async function UnsubscribePage({
 }: {
   searchParams: { t?: string };
 }) {
-  const accent = campaign.accentColor;
+  const accent = "#a78bfa";
   const token = (searchParams.t || "").trim();
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
 

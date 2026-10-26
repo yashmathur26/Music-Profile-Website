@@ -21,6 +21,12 @@ import {
   planIsNoop,
   removalDueAt
 } from "@/lib/subscriberPlan";
+import {
+  LEFT_ALONE_PREFIX,
+  loadArtistFollowings,
+  loadProfile,
+  screenProfile
+} from "@/lib/fanScreen";
 
 /**
  * The release fan-out: like and repost one track from every fan who opted in.
@@ -67,6 +73,8 @@ export type AnnounceSummary = {
   liked: number;
   reposted: number;
   failed: number;
+  /** Saved fans this release skipped on purpose — see lib/fanScreen.ts. */
+  leftAlone: number;
   revokedDeadTokens: number;
   /** Still to do after this pass — drive repeat calls off this, not off a clock. */
   remaining: number;
@@ -202,13 +210,15 @@ export const announceRelease = async (options: {
     // row whose like/repost has since been removed on retention is not done:
     // sending the release again should put it back, which is exactly what the
     // artist is asking for when they press the button a second time.
+    // A fan this release deliberately left alone is done too.
     alreadyDone = new Set(
       (await listActions(slug))
         .filter(
           (action) =>
-            !action.removed_at &&
-            (!plan.like || action.liked) &&
-            (!plan.repost || action.reposted)
+            action.error?.startsWith(LEFT_ALONE_PREFIX) ||
+            (!action.removed_at &&
+              (!plan.like || action.liked) &&
+              (!plan.repost || action.reposted))
         )
         .map((action) => action.subscriber_id)
     );
@@ -268,6 +278,7 @@ export const announceRelease = async (options: {
     liked: 0,
     reposted: 0,
     failed: 0,
+    leftAlone: 0,
     revokedDeadTokens: 0,
     remaining: pending.length,
     abortedReason: null,
@@ -275,6 +286,16 @@ export const announceRelease = async (options: {
   };
 
   if (dryRun) return { ok: true, summary: base };
+
+  // Who the artist follows, once per pass. Without it we can't tell who to
+  // leave alone, so nobody is touched until it can be read.
+  let following: Set<string>;
+  try {
+    following = queue.length ? await loadArtistFollowings() : new Set();
+  } catch (error) {
+    console.error("[release] could not read who the artist follows", error);
+    return { ok: true, summary: { ...base, abortedReason: "followings_unavailable" } };
+  }
 
   const results: Outcome[] = [];
   let blockedStreak = 0;
@@ -292,6 +313,45 @@ export const announceRelease = async (options: {
       const due = startedAt + i * paceMs;
       const wait = Math.min(due - Date.now(), MAX_PACE_WAIT_MS);
       if (wait > 0) await sleep(wait);
+    }
+
+    // Big accounts and people the artist follows are left alone. A lookup
+    // that fails for a passing reason leaves them for the next pass rather
+    // than acting without knowing.
+    let screen;
+    try {
+      screen = screenProfile(await loadProfile(fan.sc_user_id), following);
+    } catch (error) {
+      base.failed++;
+      results.push({
+        username: fan.sc_username,
+        liked: false,
+        reposted: false,
+        error: `profile_${describe(error)}`
+      });
+      if (error instanceof SoundcloudApiError && error.status === 429) {
+        abortedReason = "rate_limited";
+        break;
+      }
+      continue;
+    }
+    if (!screen.ok) {
+      base.leftAlone++;
+      const error = `${LEFT_ALONE_PREFIX}${screen.reason}`;
+      results.push({ username: fan.sc_username, liked: false, reposted: false, error });
+      try {
+        await recordAction({
+          subscriberId: fan.id,
+          trackSlug: slug,
+          liked: false,
+          reposted: false,
+          error,
+          removeAfter: null
+        });
+      } catch (recordError) {
+        console.error(`[release] could not record ${fan.id} as left alone`, recordError);
+      }
+      continue;
     }
 
     const token = await getAccessToken(fan);

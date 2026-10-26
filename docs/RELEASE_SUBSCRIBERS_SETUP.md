@@ -325,6 +325,6 @@ Or send them `https://yvshmusic.com/unsubscribe?t=<their revoke_token>`.
   request, and that request must never fail; worth building, not free.
 - **No release email.** A fan who loses their personal link and clears their
   cookies needs the Contact page, or SoundCloud's own Connections settings.
-- **Tokens are stored unencrypted**, matching the existing `presaves` table.
+- **Tokens are stored unencrypted** in Supabase.
   Encrypting them at rest is worth doing; it needs a key-rotation story first,
   since an unreadable token is an invisibly dead subscriber.

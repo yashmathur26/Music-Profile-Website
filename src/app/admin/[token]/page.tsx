@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import clsx from "clsx";
 import StatsTab from "@/components/admin/StatsTab";
+import SavedFansTab from "@/components/admin/SavedFansTab";
 import {
   DEFAULT_SITE_CONFIG,
   SiteConfig,
@@ -68,14 +69,7 @@ type DownloadEntry = {
   at: string | null;
 };
 
-type Stats = {
-  count: number;
-  campaignId: string;
-  trackTitle: string;
-  isActive: boolean;
-};
-
-type TabKey = "overview" | "stats" | "gates" | "downloads" | "home" | "presaves";
+type TabKey = "overview" | "stats" | "fans" | "gates" | "downloads" | "home";
 
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                         */
@@ -1697,95 +1691,6 @@ function HomeEditor({ token }: { token: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Presaves tab                                                        */
-/* ------------------------------------------------------------------ */
-
-function Presaves({ token }: { token: string }) {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [triggering, setTriggering] = useState(false);
-  const [result, setResult] = useState<{ saved: number; failed: number } | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/artist/stats?key=${encodeURIComponent(token)}`
-      );
-      if (res.ok) setStats(await res.json());
-    } catch {
-      /* retry on next poll */
-    }
-  }, [token]);
-
-  usePolling(load, 4000);
-
-  const trigger = async () => {
-    setTriggering(true);
-    setResult(null);
-    try {
-      const res = await fetch("/api/trigger-saves", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: "{}"
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setResult({ saved: data.saved, failed: data.failed });
-      load();
-    } catch {
-      setResult({ saved: 0, failed: 0 });
-    } finally {
-      setTriggering(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className={clsx(card, "relative overflow-hidden px-8 py-12")}>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent" />
-        <div className="relative">
-          <p className="text-center text-sm font-medium uppercase tracking-widest text-white/50">
-            Presaves{stats?.trackTitle ? ` — ${stats.trackTitle}` : ""}
-          </p>
-          <p
-            className="mt-3 text-center text-6xl font-extrabold tabular-nums text-white"
-            style={{
-              textShadow:
-                "0 0 60px rgba(167,139,250,0.4), 0 0 120px rgba(139,92,246,0.2)"
-            }}
-          >
-            {stats?.count ?? "—"}
-          </p>
-          <p className="mt-2 text-center text-sm text-white/40">fans locked in</p>
-        </div>
-      </div>
-
-      <div className={clsx(card, "p-6")}>
-        <p className="text-sm font-medium text-white/70">Release day</p>
-        <p className="mt-1 text-xs text-white/45">
-          Save the track to every fan’s Spotify library in one click.
-        </p>
-        <button
-          type="button"
-          onClick={trigger}
-          disabled={triggering}
-          className="mt-4 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-500 disabled:opacity-50"
-        >
-          {triggering ? "Running…" : "Trigger saves now"}
-        </button>
-        {result && (
-          <p className="mt-4 text-sm text-white/60">
-            {result.saved} saved, {result.failed} failed
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -1882,10 +1787,10 @@ function PasswordScreen({ onUnlocked }: { onUnlocked: () => void }) {
 const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "stats", label: "Stats" },
+  { key: "fans", label: "Saved fans" },
   { key: "gates", label: "Songs" },
   { key: "downloads", label: "Downloads" },
-  { key: "home", label: "Home Editor" },
-  { key: "presaves", label: "Presaves" }
+  { key: "home", label: "Home Editor" }
 ];
 
 export default function AdminPage() {
@@ -2047,10 +1952,10 @@ export default function AdminPage() {
           />
         )}
         {tab === "stats" && <StatsTab token={token} />}
+        {tab === "fans" && <SavedFansTab token={token} />}
         {tab === "gates" && <TracksManager token={token} />}
         {tab === "downloads" && <DownloadsList token={token} />}
         {tab === "home" && <HomeEditor token={token} />}
-        {tab === "presaves" && <Presaves token={token} />}
       </div>
     </main>
   );

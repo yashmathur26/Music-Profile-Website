@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
-import { campaign } from "@/config/campaign";
 
 function Check({
   className,
@@ -24,20 +23,16 @@ function Check({
 }
 
 export default function TermsPage() {
-  const accent = campaign.accentColor;
+  const accent = "#a78bfa";
 
   const sections = [
     {
       title: "Acceptance",
-      body: "By using this site and the presave feature, you agree to these terms. If you don’t agree, please don’t use the service.",
+      body: "By using this site, you agree to these terms. If you don’t agree, please don’t use the service.",
     },
     {
       title: "Age requirement",
       body: "You must be at least 13 years old to use this site. In the European Economic Area and the UK you must be at least 16. We don’t knowingly collect data from anyone under those ages.",
-    },
-    {
-      title: "What we do with presave",
-      body: "When you pre-save, we store your Spotify user ID and a token so we can add the track to your Spotify library on release day. We may store an optional email if you give it. We don’t sell your data. See our Privacy Policy for details.",
     },
     {
       title: "Automatic likes and reposts",
@@ -67,20 +62,12 @@ export default function TermsPage() {
       ),
     },
     {
-      title: "Spotify",
-      body: "The presave feature uses Spotify's platform. Spotify is a third-party beneficiary of these Terms. You may not reverse-engineer, decompile, disassemble, or otherwise attempt to derive the source code of the Spotify platform or our integration. To disconnect our app from your Spotify account: Spotify app → Settings → Apps → find this app → Remove access.",
-    },
-    {
-      title: "Remove your presave",
-      body: "You can remove your presave at any time from the presave success page using the 'Remove my presave' button. For data deletion requests, contact us via the Contact page.",
-    },
-    {
       title: "Your responsibility",
       body: "You use the site at your own risk. Don’t misuse the service, attempt to access systems you’re not allowed to, or use it for anything illegal.",
     },
     {
       title: "No warranty",
-      body: "The site and presave feature are provided “as is.” We don’t guarantee the site will be error-free or that the track will be added at an exact time.",
+      body: "The site is provided “as is.” We don’t guarantee it will be error-free or always available.",
     },
     {
       title: "Changes",

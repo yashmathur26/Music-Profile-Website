@@ -11,7 +11,7 @@ curl -L -o /tmp/git-lfs.zip https://github.com/git-lfs/git-lfs/releases/download
 # Unzip
 echo "Extracting..."
 cd /tmp
-unzip -q git-lfs.zip
+unzip -q git-lfs.zip              
 cd git-lfs-*
 
 # Install (requires sudo)

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
-import { campaign } from "@/config/campaign";
 
 function Check({
   className,
@@ -24,16 +23,16 @@ function Check({
 }
 
 export default function PrivacyPage() {
-  const accent = campaign.accentColor;
+  const accent = "#a78bfa";
 
   const sections = [
     {
       title: "Overview",
-      body: "This Privacy Policy describes how we collect, use, and protect your information when you use this website and the presave feature.",
+      body: "This Privacy Policy describes how we collect, use, and protect your information when you use this website and its SoundCloud download gates.",
     },
     {
       title: "Information we collect",
-      body: "When you pre-save a track, we collect: your Spotify user ID, a refresh token (so we can add the track to your library on release day), and optionally your email if you choose to receive release notifications. We do not sell your data.",
+      body: "When you connect SoundCloud to unlock a download, we collect your SoundCloud user ID, username and profile URL, and record which tracks you downloaded. We do not sell your data.",
     },
     {
       title: "Automatic likes and reposts (optional)",
@@ -41,23 +40,19 @@ export default function PrivacyPage() {
     },
     {
       title: "How we use it",
-      body: "We use your Spotify user ID and token solely to add the pre-saved track to your Spotify library on release day. If you provide an email, we use it to notify you when the track is released. We do not use your data for advertising or share it with third parties for marketing.",
+      body: "We use your SoundCloud connection to complete the follow and like a download gate asks for, and — only if automatic likes and reposts are on — to like and repost future releases. We do not use your data for advertising or share it with third parties for marketing.",
     },
     {
       title: "Cookies",
-      body: "We only use functional cookies, and none are set until you start a connect or presave flow. They are: a session cookie (gate_session) that identifies your visit; short-lived OAuth security cookies (sc_oauth_state, sc_oauth_verifier, sc_oauth_track, sc_oauth_prefs — and Spotify equivalents) that protect the sign-in handshake and expire within minutes; and an encrypted gate cookie (sc_gate) that remembers your SoundCloud connection and which tasks you completed, for up to 7 days. All are httpOnly and are strictly necessary to provide the download and presave features you request. We do not use tracking, analytics, or advertising cookies.",
-    },
-    {
-      title: "Spotify",
-      body: "Our presave feature uses the Spotify Web API. Your use of the presave feature is also subject to Spotify's Terms of Use and Privacy Policy. Spotify is a third-party beneficiary of our Terms.",
+      body: "We only use functional cookies, and none are set until you start connecting SoundCloud. They are: a session cookie (gate_session) that identifies your visit; short-lived OAuth security cookies (sc_oauth_state, sc_oauth_verifier, sc_oauth_track, sc_oauth_prefs) that protect the sign-in handshake and expire within minutes; and an encrypted gate cookie (sc_gate) that remembers your SoundCloud connection and which tasks you completed, for up to 7 days. All are httpOnly and are strictly necessary to provide the downloads you request. We do not use tracking, analytics, or advertising cookies.",
     },
     {
       title: "Data retention",
-      body: "We retain your presave data (Spotify user ID, token) until the track is released and added to your library, or until you remove your presave. We retain the SoundCloud tokens from a download until you switch automatic likes and reposts off \u2014 there is no fixed end date, which is why the off switch link never expires. We also delete them automatically as soon as SoundCloud tells us the connection is no longer valid. You can remove your presave at any time from the presave success page.",
+      body: "We retain the SoundCloud tokens from a download until you switch automatic likes and reposts off \u2014 there is no fixed end date, which is why the off switch link never expires. We also delete them automatically as soon as SoundCloud tells us the connection is no longer valid.",
     },
     {
       title: "Your rights",
-      body: "You can remove your presave at any time using the 'Remove my presave' option on the presave success page. You can switch off automatic likes and reposts at any time using the off switch link shown after your download or the link in our Terms, which deletes the SoundCloud tokens we hold for you and stops a later download opting you back in; you can also revoke this site's access from your SoundCloud account settings. For a copy of your data or other deletion requests, contact us via the Contact page. We will respond to legitimate requests in a reasonable time.",
+      body: "You can switch off automatic likes and reposts at any time using the off switch link shown after your download or the link in our Terms, which deletes the SoundCloud tokens we hold for you and stops a later download opting you back in; you can also revoke this site's access from your SoundCloud account settings. For a copy of your data or other deletion requests, contact us via the Contact page. We will respond to legitimate requests in a reasonable time.",
     },
     {
       title: "Contact",

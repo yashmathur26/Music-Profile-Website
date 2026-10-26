@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { soundcloudConfigured } from "@/lib/soundcloud";
+import {
+  SoundcloudApiError,
+  describeSoundcloudError,
+  getClientToken,
+  soundcloudConfigured
+} from "@/lib/soundcloud";
 import { announceRelease } from "@/lib/releaseRun";
 import { TEARDOWN_CHUNK, runTeardown } from "@/lib/releaseTeardown";
 import {
@@ -183,6 +188,7 @@ const announce = async (
     reposted: summary.reposted,
     failed: summary.failed,
     removeAfter: summary.removeAfter,
+    leftAlone: summary.leftAlone,
     revokedDeadTokens: summary.revokedDeadTokens,
     remaining: summary.remaining,
     abortedReason: summary.abortedReason
@@ -198,6 +204,25 @@ const announce = async (
  * the portal shows is honest.
  */
 const keepalive = async () => {
+  // Prove the app's own credentials first. With a wrong secret every refresh
+  // below would fail, and none of those failures would be the fans' doing —
+  // better to touch nobody and say why.
+  try {
+    await getClientToken();
+  } catch (error) {
+    console.error("[subscribers-cron] SoundCloud rejected the app credentials", error);
+    return NextResponse.json(
+      {
+        mode: "keepalive",
+        abortedReason:
+          error instanceof SoundcloudApiError
+            ? `credentials_${describeSoundcloudError(error)}`
+            : "credentials_unreachable"
+      },
+      { status: 503 }
+    );
+  }
+
   let subscribers;
   try {
     subscribers = await listActive();

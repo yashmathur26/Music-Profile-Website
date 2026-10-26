@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { tracks, DEFAULT_TRACK_SLUG } from "@/lib/tracks";
-import { campaign } from "@/config/campaign";
 
 export default function ContactPage() {
-  const accent = campaign.accentColor;
+  const accent = "#a78bfa";
+  const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
 
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
@@ -17,7 +17,7 @@ export default function ContactPage() {
               Contact
             </h1>
             <p className="mt-2 text-sm text-white/60">
-              Get in touch with {campaign.trackArtist}.
+              Get in touch with {artistName}.
             </p>
 
             <div className="mt-10 space-y-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
@@ -38,14 +38,6 @@ export default function ContactPage() {
                   Socials
                 </h2>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  <a
-                    href="https://open.spotify.com/artist/2mBs3Kdfu7pvYu4w8Hac5y"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-xl border border-[#1DB954]/40 bg-[#1DB954]/20 px-4 py-2.5 text-sm font-medium text-[#1DB954] transition hover:bg-[#1DB954]/30"
-                  >
-                    Spotify
-                  </a>
                   <a
                     href="https://www.instagram.com/itsyvshhh/"
                     target="_blank"
@@ -76,10 +68,10 @@ export default function ContactPage() {
 
             <p className="mt-10">
               <Link
-                href="/presave"
+                href="/home"
                 className="text-sm text-white/50 underline-offset-2 hover:text-white/70 hover:underline"
               >
-                ← Back to presave
+                ← Back home
               </Link>
             </p>
           </div>
