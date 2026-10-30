@@ -7,7 +7,7 @@ import { createServerSupabase } from "@/lib/supabaseServer";
  * unlocks one download is connected to SoundCloud at that moment, so the
  * download also likes each switched-on song from their account — likes only,
  * never a repost, since a like is private and a repost lands in their
- * followers' feeds. The gate says which songs before they press Download.
+ * followers' feeds. The Terms cover it, under "Likes on other songs".
  *
  * Kept as one list in site_config rather than a gate_tracks column: it works
  * for the hard-coded gates too, and needs no migration.

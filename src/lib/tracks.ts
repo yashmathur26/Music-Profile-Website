@@ -23,7 +23,8 @@ export type TrackConfig = {
   subscriberPlan?: SubscriberPlan;
 };
 
-export const DEFAULT_TRACK_SLUG = "dont-stop-the-music-piano";
+// Lives in trackSlugs.ts so browser code can import it without this file.
+export { DEFAULT_TRACK_SLUG } from "@/lib/trackSlugs";
 
 export const ARTIST_SOUNDCLOUD_URL =
   process.env.NEXT_PUBLIC_SOUNDCLOUD_URL?.trim() ||

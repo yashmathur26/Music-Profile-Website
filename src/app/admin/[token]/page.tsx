@@ -690,7 +690,7 @@ function CrossLikeField({ on, onChange }: { on: boolean; onChange: (on: boolean)
         <span className="block text-sm font-medium text-white/85">Like on every download</span>
         <span className="mt-0.5 block text-xs text-white/45">
           When a fan downloads any of your other songs, their account likes this one too.
-          The gate tells them first.
+          Covered in your Terms.
         </span>
       </span>
       <span

@@ -1,11 +1,13 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { clearOauthHandoff, getOauthHandoff } from "@/lib/session";
 import {
   SoundcloudApiError,
   exchangeCodeMatrix,
   fetchMe,
+  numericId,
   soundcloudConfigured
 } from "@/lib/soundcloud";
+import { findBySoundcloudId, revoke } from "@/lib/releaseSubscribers";
 import { writeGate } from "@/lib/gateStore";
 import { runEngagement } from "@/lib/soundcloudGate";
 import { popupResponse } from "@/lib/popupResponse";
@@ -23,6 +25,15 @@ export async function GET(request: NextRequest) {
     prefs
   } = getOauthHandoff();
   const slug = trackSlug || DEFAULT_TRACK_SLUG;
+  const unsubscribing = prefs.purpose === "unsubscribe";
+
+  /** Where a sign-in from the off-switch page lands, with what happened. */
+  const backToOffSwitch = (signed: string, username?: string) => {
+    const url = new URL("/unsubscribe", request.url);
+    url.searchParams.set("signed", signed);
+    if (username) url.searchParams.set("u", username);
+    return NextResponse.redirect(url);
+  };
 
   if (!soundcloudConfigured()) {
     return popupResponse(
@@ -51,11 +62,13 @@ export async function GET(request: NextRequest) {
 
   if (searchParams.get("error")) {
     clearOauthHandoff();
+    if (unsubscribing) return backToOffSwitch("denied");
     return popupResponse({ ok: false, reason: "denied" }, `/${slug}?sc=denied`);
   }
 
   if (!code || !state || !storedState || state !== storedState || !codeVerifier) {
     clearOauthHandoff();
+    if (unsubscribing) return backToOffSwitch("error");
     return popupResponse(
       { ok: false, reason: "state_mismatch" },
       `/${slug}?sc=error`,
@@ -95,6 +108,10 @@ export async function GET(request: NextRequest) {
   };
 
   const exchanged = await exchangeCodeMatrix(code, codeVerifier);
+  if (!exchanged.ok && unsubscribing) {
+    console.error("[unsubscribe] exchange failed:", exchanged.report);
+    return backToOffSwitch("error");
+  }
   if (!exchanged.ok) {
     console.error("[gate] all exchange variants failed:", exchanged.report);
     return popupResponse(
@@ -109,7 +126,27 @@ export async function GET(request: NextRequest) {
   try {
     me = await fetchMe(tokens.accessToken);
   } catch (error) {
+    if (unsubscribing) {
+      console.error("[unsubscribe] couldn't read who signed in", error);
+      return backToOffSwitch("error");
+    }
     return failPopup("me", error);
+  }
+
+  // The off switch: they've proved which account they are, so turn it off
+  // and stop. The token is dropped here — nothing is written to the gate
+  // cookie and nothing runs on their account.
+  if (unsubscribing) {
+    try {
+      const subscriber = await findBySoundcloudId(numericId(me.id));
+      if (!subscriber) return backToOffSwitch("none", me.username);
+      if (subscriber.revoked_at) return backToOffSwitch("already", me.username);
+      await revoke(subscriber.id, "fan");
+      return backToOffSwitch("off", me.username);
+    } catch (error) {
+      console.error("[unsubscribe] revoke after sign-in failed", error);
+      return backToOffSwitch("error");
+    }
   }
 
   try {

@@ -268,8 +268,7 @@ A separate per-song switch, **Like on every download**, on the create and
 edit forms. When a connected fan downloads *any other* song, the download
 also likes every switched-on song from their account, one after another,
 within six seconds, never failing the download. Likes only, never reposts.
-The gate names those songs above the Download button before the fan presses
-it. The list lives in `site_config` under the key `cross_like` (up to 10
+It's disclosed in the Terms ("Likes on other songs"), not on the gate. The list lives in `site_config` under the key `cross_like` (up to 10
 songs), so it needs no migration and works for the hard-coded gates too.
 
 The same API-terms caution as above applies: these are writes the fan didn't
@@ -325,7 +324,7 @@ and invalidates the old. Two places could hold the same token, so:
 - If writing the rotated token back to Supabase fails, the access token is
   thrown away rather than used, because its successor is lost.
 
-## The two ways a fan reaches the off switch
+## The three ways a fan reaches the off switch
 
 `/unsubscribe` has to work both with and without a token, because it is
 advertised in two places:
@@ -341,6 +340,13 @@ advertised in two places:
 
 A token that doesn't resolve falls back to the cookie rather than dead-ending,
 so a fan who mangled their link still has a way through.
+
+- **Sign in with SoundCloud** — when neither of those finds them, the page
+  offers a SoundCloud sign-in (`/api/soundcloud/unsubscribe`). It goes through
+  the gate's normal callback, marked so the callback only looks up who signed
+  in, switches that account off, and sends them back to `/unsubscribe` with
+  the result. Nothing runs on their account and the token from that sign-in
+  is never stored.
 
 ## Switching a fan off by hand
 

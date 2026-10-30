@@ -36,7 +36,6 @@ type GateMessage = {
   status?: GateStatus;
 };
 
-const MANUAL_KEY_PREFIX = "download_gate_manual";
 const MANUAL_OUTBOUND_KEY_PREFIX = "download_gate_outbound";
 /** How long a fan has to spend on SoundCloud for the manual step to count. */
 const MANUAL_MIN_MS = 5000;
@@ -121,7 +120,7 @@ const SoundcloudIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
   </svg>
 );
 
-/** Compact opt-in row: small purple checkbox + label. */
+/** Compact opt-in row: a rounded checkbox + label. */
 const PrefRow = ({
   checked,
   onChange,
@@ -131,7 +130,7 @@ const PrefRow = ({
   onChange: (next: boolean) => void;
   label: React.ReactNode;
 }) => (
-  <label className="flex cursor-pointer select-none items-center gap-2.5 px-1 py-0.5">
+  <label className="flex cursor-pointer select-none items-start gap-3">
     <input
       type="checkbox"
       checked={checked}
@@ -141,15 +140,14 @@ const PrefRow = ({
     <span
       aria-hidden
       className={clsx(
-        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
-        checked
-          ? "border-transparent bg-[#8b5cf6]"
-          : "border-purple-400/40 bg-transparent"
+        "mt-px flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition",
+        "peer-focus-visible:ring-2 peer-focus-visible:ring-violet-400/60",
+        checked ? "border-transparent bg-violet-500" : "border-white/25 bg-white/5"
       )}
     >
       {checked && (
         <svg
-          className="h-2.5 w-2.5"
+          className="h-3 w-3"
           viewBox="0 0 24 24"
           fill="none"
           stroke="white"
@@ -161,31 +159,35 @@ const PrefRow = ({
         </svg>
       )}
     </span>
-    <span className="text-xs text-purple-100/80">{label}</span>
+    <span className="text-[13px] leading-snug text-white/70">{label}</span>
   </label>
 );
 
-/** One promised action: label on the left, live state on the right. */
+/** One promised action: a tick that fills in when it's done. */
 const ActionRow = ({ done, label }: { done: boolean; label: string }) => (
-  <li className="flex items-center justify-between text-sm">
-    <span className={done ? "text-emerald-200" : "text-purple-100/80"}>
-      {label}
-    </span>
+  <li className="flex items-center gap-3 text-sm">
     <span
       className={clsx(
-        "text-[11px] uppercase tracking-[0.2em]",
-        done ? "text-emerald-300" : "text-purple-200/40"
+        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition",
+        done ? "bg-emerald-400 text-black" : "border border-white/20"
       )}
+      aria-hidden
     >
-      {done ? "✓ Done" : "Pending"}
+      {done && (
+        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m5 13 4 4L19 7" />
+        </svg>
+      )}
     </span>
+    <span className={done ? "text-white/90" : "text-white/50"}>{label}</span>
+    <span className="sr-only">{done ? "done" : "pending"}</span>
   </li>
 );
 
+const linkClass = "text-white/85 underline decoration-white/30 underline-offset-2 hover:decoration-white/70";
+
 type DownloadGateProps = {
   trackSlug: string;
-  /** Titles of the other songs a download here also likes. */
-  alsoLikes?: string[];
 };
 
 /**
@@ -210,8 +212,7 @@ const reportGateEvent = (
   }
 };
 
-export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGateProps) {
-  const MANUAL_KEY = `${MANUAL_KEY_PREFIX}:${trackSlug}`;
+export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const OUTBOUND_KEY = `${MANUAL_OUTBOUND_KEY_PREFIX}:${trackSlug}`;
 
   const [status, setStatus] = useState<GateStatus>(initialStatus);
@@ -220,7 +221,6 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
   // pressed the button this visit (attempted), never straight from the cookie.
   const [attempted, setAttempted] = useState(false);
   const postEngageRan = useRef(false);
-  const [manualUnlocked, setManualUnlocked] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
@@ -255,7 +255,12 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
     ? nameList(followTargets.map((target) => target.name))
     : artistName;
 
-  const downloadReady = status.unlocked || manualUnlocked;
+  // Only the server's word counts: /api/download refuses anyone it didn't see
+  // unlock, so this just mirrors it for the button.
+  const downloadReady = status.unlocked;
+  // The manual step's "check it worked" — set below, read by the tab-return
+  // listener, which is declared before handleRetry exists.
+  const verifyRef = useRef<() => Promise<GateStatus | null>>(async () => null);
   // Auto mode is the real gate; manual is the escape hatch when SoundCloud's
   // API isn't available to us.
   const manualMode = loaded && (!status.configured || status.apiBlocked);
@@ -313,14 +318,13 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
     setLoaded(false);
     setAttempted(false);
     postEngageRan.current = false;
-    setManualUnlocked(sessionStorage.getItem(MANUAL_KEY) === "1");
     setNotice(null);
     setDownloaded(false);
     outboundStartedAt.current = null;
     sessionStorage.removeItem(OUTBOUND_KEY);
     void fetchStatus();
     return stopPolling;
-  }, [MANUAL_KEY, OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
+  }, [OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
 
   /**
    * Enrols the fan in likes + reposts of future releases.
@@ -415,15 +419,20 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
 
       outboundStartedAt.current = null;
       sessionStorage.removeItem(OUTBOUND_KEY);
-      sessionStorage.setItem(MANUAL_KEY, "1");
       setNotice(null);
-      setManualUnlocked(true);
       reportGateEvent("manual", trackSlug);
+      // Back from SoundCloud: have the server check they really follow now.
+      // Only a confirmed follow unlocks anything.
+      void verifyRef.current().then((result) => {
+        if (!result?.unlocked) {
+          setNotice(`We can’t see the follow yet — follow ${artistName} on SoundCloud, then come back.`);
+        }
+      });
     };
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [MANUAL_KEY, OUTBOUND_KEY, artistName, trackSlug]);
+  }, [OUTBOUND_KEY, artistName, trackSlug]);
 
   const handleConnect = async () => {
     setNotice(null);
@@ -533,6 +542,8 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
     }
   };
 
+  verifyRef.current = handleRetry;
+
   const handleManual = () => {
     setNotice(null);
     const startedAt = Date.now();
@@ -541,11 +552,8 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
 
     const opened = window.open(artistUrl, "_blank", "noopener,noreferrer");
     if (!opened) {
-      outboundStartedAt.current = null;
-      sessionStorage.removeItem(OUTBOUND_KEY);
-      sessionStorage.setItem(MANUAL_KEY, "1");
-      setManualUnlocked(true);
-      reportGateEvent("manual", trackSlug);
+      // No new tab to come back from: send them there in this one instead.
+      window.location.href = artistUrl;
     }
   };
 
@@ -563,7 +571,7 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
         cache: "no-store"
       });
       const data = (await res.json().catch(() => null)) as
-        | { url?: string; title?: string; local?: boolean; error?: string }
+        | { url?: string; title?: string; error?: string }
         | null;
 
       if (!res.ok || !data?.url) {
@@ -575,23 +583,10 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
       // page, and anything still pending here would be cancelled with it.
       await enrol();
 
-      if (data.local) {
-        const head = await fetch(data.url, { method: "HEAD", cache: "no-store" });
-        if (!head.ok) {
-          setNotice(`That file isn’t on the site yet (public${data.url}).`);
-          return;
-        }
-        const link = document.createElement("a");
-        link.href = data.url;
-        link.download = data.url.split("/").pop() || "download";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } else {
-        // Drive answers with Content-Disposition: attachment, so the browser
-        // downloads in place and this page stays put.
-        window.location.href = data.url;
-      }
+      // A one-time-ish ticket to our own file route, which answers with
+      // Content-Disposition: attachment — the browser downloads in place and
+      // this page stays put.
+      window.location.href = data.url;
 
       setDownloadTitle(data.title ?? null);
       setDownloaded(true);
@@ -611,317 +606,226 @@ export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGate
     outboundStartedAt.current = null;
     stopPolling();
     sessionStorage.removeItem(OUTBOUND_KEY);
-    sessionStorage.removeItem(MANUAL_KEY);
-    setManualUnlocked(false);
     void fetchStatus();
   };
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-purple-500/15 bg-purple-900/10 px-4 py-4">
-        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-purple-200/60">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-purple-400/30 bg-purple-400/10 text-[10px] text-purple-300">
-            1
-          </span>
-          Required
-        </div>
-
-        {/* Loading skeleton */}
-        {!loaded && (
-          <div className="space-y-2" aria-live="polite">
-            <div className="h-11 w-full animate-pulse rounded-2xl bg-white/5" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-white/5" />
-            <span className="sr-only">Checking your SoundCloud status…</span>
-          </div>
-        )}
-
-        {/* Connect form — shown fresh on every visit until the fan presses
-            the button; already-connected fans skip the popup entirely. */}
-        {loaded && !(attempted && status.connected) && !manualMode && (
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold text-white">
-                Connect your SoundCloud
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-purple-200/50">
-                One tap follows {followPromise}
-                {multiFollow ? "," : ""} and likes this track — that unlocks
-                the download. Undo anything later on SoundCloud.
-              </p>
+    <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 backdrop-blur-xl">
+      {/* Connect */}
+      <div className="p-5 sm:p-6">
+        <div>
+          {/* Loading skeleton */}
+          {!loaded && (
+            <div className="space-y-3" aria-live="polite">
+              <div className="h-4 w-4/5 animate-pulse rounded bg-white/5" />
+              <div className="h-12 w-full animate-pulse rounded-2xl bg-white/5" />
+              <span className="sr-only">Checking your SoundCloud status…</span>
             </div>
+          )}
 
-            {/* Optional comment — leave it empty and nothing gets posted. */}
-            <input
-              type="text"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              maxLength={COMMENT_MAX}
-              placeholder="Drop a comment on the track (optional)"
-              className="w-full rounded-xl border border-purple-500/15 bg-black/20 px-3 py-2.5 text-sm text-white placeholder:text-purple-200/40 focus:border-purple-400/50 focus:outline-none"
-            />
+          {/* Connect form — shown fresh on every visit until the fan presses
+              the button; already-connected fans skip the popup entirely. */}
+          {loaded && !(attempted && status.connected) && !manualMode && (
+            <div className="space-y-4">
+              <p className="text-sm text-white/60">
+                Follow {followPromise} and like the track to download it.
+              </p>
 
-            <PrefRow
-              checked={repost}
-              onChange={setRepost}
-              label="Repost to my followers"
-            />
+              {/* Optional comment — leave it empty and nothing gets posted. */}
+              <input
+                type="text"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                maxLength={COMMENT_MAX}
+                placeholder="Add a comment"
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/30 transition focus:border-violet-400/60 focus:bg-black/40 focus:outline-none"
+              />
 
-            <button
-              onClick={handleConnect}
-              disabled={connecting}
-              className={clsx(
-                "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]",
-                connecting && "opacity-70"
-              )}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
-                  <SoundcloudIcon />
-                </span>
+              <PrefRow checked={repost} onChange={setRepost} label="Repost to my followers" />
+
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className={clsx(
+                  "group flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white transition",
+                  "bg-gradient-to-b from-[#ff6a1a] to-[#ff4d00] shadow-lg shadow-orange-600/25 hover:brightness-110 active:scale-[0.99]",
+                  connecting && "opacity-70"
+                )}
+              >
+                <SoundcloudIcon className="h-5 w-5" />
                 {connecting
                   ? "Waiting for SoundCloud…"
                   : status.connected
                     ? "Unlock the download"
-                    : "Proceed to SoundCloud"}
-              </span>
-              {!connecting && (
-                <svg
-                  className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M5 12h13m0 0-5-5m5 5-5 5" />
-                </svg>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Connected — show exactly what happened on their account. */}
-        {loaded && attempted && status.connected && !manualMode && (
-          <div className="space-y-3">
-            {status.isArtist ? (
-              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-4">
-                <p className="text-sm font-semibold text-emerald-200">
-                  This is the artist account 🎤
-                </p>
-                <p className="mt-1 text-xs text-emerald-200/70">
-                  No tasks needed — proceed to download.
-                </p>
-              </div>
-            ) : (
-            <ul className="space-y-2 rounded-2xl bg-black/20 px-4 py-3">
-              {followTargets.length > 0 ? (
-                followTargets.map((target) => (
-                  <ActionRow
-                    key={target.url}
-                    done={target.followed}
-                    label={`Following ${followLabel(target)}`}
-                  />
-                ))
-              ) : (
-                <ActionRow
-                  done={status.followed}
-                  label={`Following ${artistName}`}
-                />
-              )}
-              <ActionRow done={status.liked} label="Liked this track" />
-              {(repost || status.reposted) && (
-                <ActionRow done={status.reposted} label="Reposted to your followers" />
-              )}
-              {(comment.trim() || status.commented) && (
-                <ActionRow done={status.commented} label="Comment posted" />
-              )}
-            </ul>
-            )}
-
-            {!status.unlocked && (
-              <button
-                onClick={handleRetry}
-                disabled={connecting}
-                className="w-full rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/15"
-              >
-                {connecting ? "Retrying…" : "Retry"}
+                    : "Continue with SoundCloud"}
               </button>
-            )}
+            </div>
+          )}
 
-            {status.username && (
-              <p className="text-[11px] text-purple-200/40">
-                Connected as {status.username}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Manual fallback when the API isn't available. */}
-        {manualMode && (
-          <div className="space-y-2">
-            <button
-              onClick={handleManual}
-              disabled={manualUnlocked}
-              className={clsx(
-                "group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                manualUnlocked
-                  ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-[#8b5cf6] text-white hover:bg-[#9d75f8]"
+          {/* Connected — show exactly what happened on their account. */}
+          {loaded && attempted && status.connected && !manualMode && (
+            <div className="space-y-4">
+              {status.isArtist ? (
+                <p className="rounded-2xl bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200 ring-1 ring-emerald-400/20">
+                  This is the artist account — nothing to do, go ahead and download.
+                </p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {followTargets.length > 0 ? (
+                    followTargets.map((target) => (
+                      <ActionRow
+                        key={target.url}
+                        done={target.followed}
+                        label={`Following ${followLabel(target)}`}
+                      />
+                    ))
+                  ) : (
+                    <ActionRow done={status.followed} label={`Following ${artistName}`} />
+                  )}
+                  <ActionRow done={status.liked} label="Liked this track" />
+                  {(repost || status.reposted) && (
+                    <ActionRow done={status.reposted} label="Reposted to your followers" />
+                  )}
+                  {(comment.trim() || status.commented) && (
+                    <ActionRow done={status.commented} label="Comment posted" />
+                  )}
+                </ul>
               )}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/30">
-                  <SoundcloudIcon />
-                </span>
-                Follow + like on SoundCloud
-              </span>
-              <span className="text-[11px] uppercase tracking-[0.2em]">
-                {manualUnlocked ? "✓ Done" : "Pending"}
-              </span>
-            </button>
-            <p className="text-xs text-purple-200/50">
-              Opens SoundCloud in a new tab. Follow {artistName}, like the
-              track, then come back here.
-            </p>
-            {multiFollow && (
-              <p className="text-xs text-purple-200/50">
-                Also follow{" "}
-                {followTargets.slice(1).map((target, index) => (
-                  <span key={target.url}>
-                    {index > 0 && ", "}
-                    <a
-                      href={target.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
-                    >
-                      {target.name}
-                    </a>
-                  </span>
-                ))}
-                .
+
+              {!status.unlocked && (
+                <button
+                  onClick={handleRetry}
+                  disabled={connecting}
+                  className="w-full rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15"
+                >
+                  {connecting ? "Retrying…" : "Try again"}
+                </button>
+              )}
+
+              {status.username && (
+                <p className="text-xs text-white/35">Connected as {status.username}</p>
+              )}
+            </div>
+          )}
+
+          {/* Manual fallback when the API isn't available. */}
+          {manualMode && (
+            <div className="space-y-3">
+              <p className="text-sm text-white/60">
+                Follow {artistName} and like the track on SoundCloud, then come
+                back here.
               </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-2">
-        <PrefRow
-          checked={termsAccepted}
-          onChange={setTermsAccepted}
-          label={
-            <>
-              I accept the{" "}
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
+              <button
+                onClick={handleManual}
+                disabled={downloadReady}
+                className={clsx(
+                  "flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold transition",
+                  downloadReady
+                    ? "bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/25"
+                    : "bg-gradient-to-b from-[#ff6a1a] to-[#ff4d00] text-white shadow-lg shadow-orange-600/25 hover:brightness-110"
+                )}
               >
-                terms
-              </a>{" "}
-              and the use of cookies (
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
-              >
-                privacy policy
-              </a>
-              )
-            </>
-          }
-        />
-
-        {/* The terms carry the detail, but what the download actually does to
-            someone's account shouldn't be discoverable only by opening them. */}
-        {!manualMode && status.connected && (
-          <p className="px-1 pt-1.5 text-[11px] leading-relaxed text-purple-200/40">
-            Downloading also lets us like and repost {artistName}&rsquo;s
-            future releases from your SoundCloud. You can stop that any time —
-            we&rsquo;ll show you the link.
-            {alsoLikes.length > 0 && (
-              <>
-                {" "}It also likes {alsoLikes.length === 1 ? "" : "these songs: "}
-                {alsoLikes.map((title, i) => (
-                  <span key={title}>
-                    {i > 0 && (i === alsoLikes.length - 1 ? " and " : ", ")}
-                    &ldquo;{title}&rdquo;
-                  </span>
-                ))}
-                .
-              </>
-            )}
-          </p>
-        )}
-      </div>
-
-      <button
-        onClick={handleDownload}
-        disabled={!downloadReady || downloadBusy || !termsAccepted}
-        className={clsx(
-          "w-full rounded-2xl px-6 py-3 text-sm font-semibold uppercase tracking-wide transition",
-          downloadReady && termsAccepted
-            ? "bg-[#8b5cf6] text-white shadow-lg shadow-purple-500/25 hover:bg-[#9d75f8]"
-            : "bg-white/10 text-muted"
-        )}
-      >
-        {downloadBusy
-          ? "Preparing download..."
-          : downloaded
-            ? "Download again"
-            : "Download"}
-      </button>
-
-      <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
-
-      {/* Shown the moment the subscription starts, not buried in an email the
-          fan may never get — the off switch has to be as easy as the on one. */}
-      {downloaded && subscribed && revokeUrl && (
-        <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/60">
-          {artistName}&rsquo;s next releases will be liked and reposted from
-          your SoundCloud.{" "}
-          <a
-            href={revokeUrl}
-            className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
-          >
-            Save this link
-          </a>{" "}
-          to switch it off whenever you want — it&rsquo;s also in the{" "}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline decoration-purple-400/50 underline-offset-2 hover:text-purple-200"
-          >
-            terms
-          </a>
-          .
-        </p>
-      )}
-
-      {notice && (
-        <div
-          role="status"
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70"
-        >
-          {notice}
+                <SoundcloudIcon className="h-5 w-5" />
+                {downloadReady ? "Unlocked" : "Follow + like on SoundCloud"}
+              </button>
+              {multiFollow && (
+                <p className="text-xs text-white/45">
+                  Also follow{" "}
+                  {followTargets.slice(1).map((target, index) => (
+                    <span key={target.url}>
+                      {index > 0 && ", "}
+                      <a href={target.url} target="_blank" rel="noopener noreferrer" className={linkClass}>
+                        {target.name}
+                      </a>
+                    </span>
+                  ))}
+                  .
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <div className="flex items-center justify-between text-[11px] text-purple-200/40">
-        <span>Downloads are limited to one per session.</span>
-        <button
-          onClick={handleReset}
-          className="text-[11px] uppercase tracking-[0.2em] text-purple-300/50 transition hover:text-purple-200"
-        >
-          Reset
-        </button>
+      {/* Download */}
+      <div className="border-t border-white/[0.07] bg-black/20 p-5 sm:p-6">
+        <div className="space-y-4">
+          <PrefRow
+            checked={termsAccepted}
+            onChange={setTermsAccepted}
+            label={
+              <>
+                I agree to the{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className={linkClass}>
+                  terms
+                </a>{" "}
+                and{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className={linkClass}>
+                  privacy policy
+                </a>
+              </>
+            }
+          />
+
+          {/* The terms carry the detail, but what the download actually does to
+              someone's account shouldn't be discoverable only by opening them. */}
+          {!manualMode && status.connected && (
+            <p className="text-xs leading-relaxed text-white/40">
+              Your account will also like and repost {artistName}&rsquo;s
+              future releases. You can turn that off anytime.
+            </p>
+          )}
+
+          <button
+            onClick={handleDownload}
+            disabled={!downloadReady || downloadBusy || !termsAccepted}
+            className={clsx(
+              "flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition",
+              downloadReady && termsAccepted
+                ? "bg-white text-black shadow-lg shadow-white/10 hover:bg-white/90 active:scale-[0.99]"
+                : "cursor-not-allowed bg-white/[0.06] text-white/30"
+            )}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+            </svg>
+            {downloadBusy ? "Preparing download…" : downloaded ? "Download again" : "Download"}
+          </button>
+
+          <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
+
+          {/* Shown the moment the subscription starts, not buried in an email the
+              fan may never get — the off switch has to be as easy as the on one. */}
+          {downloaded && subscribed && revokeUrl && (
+            <p className="rounded-2xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/60 ring-1 ring-white/10">
+              {artistName}&rsquo;s next releases will be liked and reposted from
+              your SoundCloud.{" "}
+              <a href={revokeUrl} className={linkClass}>
+                Save this link
+              </a>{" "}
+              to switch it off whenever you want — it&rsquo;s also in the{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className={linkClass}>
+                terms
+              </a>
+              .
+            </p>
+          )}
+
+          {notice && (
+            <div role="status" className="rounded-2xl bg-white/5 px-4 py-3 text-xs text-white/70 ring-1 ring-white/10">
+              {notice}
+            </div>
+          )}
+
+          {(notice || downloaded) && (
+            <button
+              onClick={handleReset}
+              className="block w-full text-center text-xs text-white/30 transition hover:text-white/70"
+            >
+              Start over
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

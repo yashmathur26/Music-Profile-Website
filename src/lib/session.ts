@@ -12,6 +12,9 @@ export const OAUTH_PREFS_COOKIE = "sc_oauth_prefs";
 export type OauthPrefs = {
   repost: boolean;
   comment?: string;
+  /** Set when the sign-in is only to prove who they are on the off-switch
+   * page — the callback switches them off and does nothing else. */
+  purpose?: "unsubscribe";
 };
 
 const shortLivedCookie = {
@@ -63,7 +66,8 @@ const parsePrefs = (raw: string | undefined): OauthPrefs => {
       comment:
         typeof parsed.comment === "string" && parsed.comment.trim()
           ? parsed.comment
-          : undefined
+          : undefined,
+      purpose: parsed.purpose === "unsubscribe" ? "unsubscribe" : undefined
     };
   } catch {
     return { repost: true };

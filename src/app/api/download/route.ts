@@ -4,8 +4,10 @@ import { findTrack } from "@/lib/trackStore";
 import { recordDownload } from "@/lib/downloadLog";
 import { queueStatsRefresh } from "@/lib/statsRefresh";
 import { readGate, writeGate } from "@/lib/gateStore";
-import { fetchMe } from "@/lib/soundcloud";
+import { fetchMe, numericId } from "@/lib/soundcloud";
 import { likeOtherSongs } from "@/lib/soundcloudGate";
+import { artistId } from "@/lib/fanScreen";
+import { issueTicket } from "@/lib/downloadTicket";
 import {
   DownloadGateState,
   countryFrom,
@@ -13,11 +15,30 @@ import {
 } from "@/lib/gateEvents";
 
 /**
- * Resolves a track slug to its download URL.
- *
- * The gate calls this instead of reading the URL out of the client bundle, so
- * the link for every track goes through one place that can validate the slug
- * and report a usable error.
+ * Whether the server itself saw this fan unlock the gate: the follows went
+ * through (or were verified with a read) during an engagement run, which is
+ * recorded in the gate cookie. That cookie is encrypted and authenticated
+ * with a server-only key, so it can't be edited or forged in the browser —
+ * nothing the page says, and nothing typed into the console, counts.
+ */
+const unlockedOnServer = async (slug: string) => {
+  const gate = readGate();
+  const uid = numericId(gate.userId);
+  if (!gate.accessToken || !uid) return null;
+  if (gate.engagement?.[slug]?.followed) return uid;
+  // The artist opening their own gate has nothing to follow.
+  try {
+    if (uid === (await artistId())) return uid;
+  } catch {
+    /* can't tell, so treat them like anyone else */
+  }
+  return null;
+};
+
+/**
+ * Hands out a download for a track — but only to a fan the server saw unlock
+ * it, and never the file's real address: the reply is a short-lived ticket to
+ * /api/download/file, which streams the file and only works for this fan.
  */
 export async function POST(request: Request) {
   try {
@@ -39,6 +60,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "This track has no download link yet." },
         { status: 409 }
+      );
+    }
+
+    const uid = await unlockedOnServer(track.slug);
+    if (!uid) {
+      return NextResponse.json(
+        { error: "Connect SoundCloud and unlock the download first." },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -87,10 +116,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        url: track.downloadUrl,
-        title: track.title,
-        // Local files can carry a download filename; cross-origin ones can't.
-        local: track.downloadUrl.startsWith("/")
+        url: `/api/download/file?t=${issueTicket(track.slug, uid)}`,
+        title: track.title
       },
       { headers: { "Cache-Control": "no-store" } }
     );

@@ -34,11 +34,15 @@ export const metadata = {
 export default async function UnsubscribePage({
   searchParams
 }: {
-  searchParams: { t?: string };
+  searchParams: { t?: string; signed?: string; u?: string };
 }) {
   const accent = "#a78bfa";
   const token = (searchParams.t || "").trim();
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
+  // Back from "Sign in with SoundCloud to turn it off" — see
+  // /api/soundcloud/unsubscribe. The handle is only ever shown, never trusted.
+  const signed = searchParams.signed || "";
+  const signedAs = (searchParams.u || "").slice(0, 60);
 
   let subscriber: ReleaseSubscriber | null = null;
   let lookupFailed = false;
@@ -62,7 +66,73 @@ export default async function UnsubscribePage({
   const formToken =
     token && subscriber && subscriber.revoke_token === token ? token : null;
 
+  /** The way in for someone with no link and a different browser. */
+  const SignInButton = ({ again = false }: { again?: boolean }) => (
+    <a
+      href="/api/soundcloud/unsubscribe"
+      className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#ff5500] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#ff6a1f]"
+    >
+      {again ? "Try signing in again" : "Sign in with SoundCloud to turn it off"}
+    </a>
+  );
+
   const Body = () => {
+    if (signed === "off" || signed === "already") {
+      return (
+        <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-4">
+          <p className="text-sm font-semibold text-emerald-200">
+            {signed === "off" ? "Turned off." : "Already off."}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-white/70">
+            {signed === "off"
+              ? `Nothing will happen on${signedAs ? ` @${signedAs}` : " your account"} again, and the token we were keeping has been deleted. Anything already liked or reposted stays as it is — you can undo those on SoundCloud yourself.`
+              : `Automatic likes and reposts were already off${signedAs ? ` for @${signedAs}` : ""}. We hold no token for you and nothing runs on your account.`}
+          </p>
+          <Link
+            href="/home"
+            className="mt-4 inline-block text-sm font-medium text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
+          >
+            ← Back to site
+          </Link>
+        </div>
+      );
+    }
+
+    if (signed === "none") {
+      return (
+        <>
+          <p className="mt-4 text-sm leading-relaxed text-white/70">
+            {signedAs ? `@${signedAs} was` : "That account was"} never signed
+            up for automatic likes and reposts, so there&rsquo;s nothing
+            running on it. We didn&rsquo;t keep anything from that sign-in.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-white/70">
+            If you downloaded with a different SoundCloud account, sign out of
+            SoundCloud and sign in with that one instead.
+          </p>
+          <SignInButton again />
+        </>
+      );
+    }
+
+    if (signed === "error" || signed === "denied") {
+      return (
+        <>
+          <p className="mt-4 text-sm leading-relaxed text-white/70">
+            {signed === "denied"
+              ? "The SoundCloud sign-in was cancelled, so nothing changed."
+              : "The SoundCloud sign-in didn’t go through, so nothing changed."}{" "}
+            You can try again, or{" "}
+            <Link href="/contact" className="underline underline-offset-2" style={{ color: accent }}>
+              contact us
+            </Link>{" "}
+            and we&rsquo;ll switch it off by hand.
+          </p>
+          <SignInButton again />
+        </>
+      );
+    }
+
     if (lookupFailed) {
       return (
         <p className="mt-4 text-sm leading-relaxed text-white/70">
@@ -125,15 +195,16 @@ export default async function UnsubscribePage({
     return (
       <>
         <p className="mt-4 text-sm leading-relaxed text-white/70">
-          There&rsquo;s nothing to switch off here. Either you never turned on
-          automatic likes and reposts, or you&rsquo;re on a different browser or
-          device from the one you downloaded with.
+          We can&rsquo;t tell who you are from this browser. Sign in with the
+          SoundCloud account you downloaded with and we&rsquo;ll switch it off
+          straight away — the sign-in is only used to find you, and nothing
+          else happens on your account.
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-white/70">
-          If you did turn it on, open the personal off-switch link we showed you
-          after your download — it works from anywhere. You can also revoke this
-          site&rsquo;s access directly from SoundCloud (Settings &rarr;
-          Connections), which stops everything immediately, or{" "}
+        <SignInButton />
+        <p className="mt-6 text-xs leading-relaxed text-white/45">
+          You can also use the personal off-switch link we showed you after
+          your download, revoke this site&rsquo;s access directly from
+          SoundCloud (Settings &rarr; Connections), or{" "}
           <Link
             href="/contact"
             className="underline underline-offset-2"
@@ -150,7 +221,7 @@ export default async function UnsubscribePage({
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="relative flex min-h-screen overflow-x-hidden">
-        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
+        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks.map(({ slug, title }) => ({ slug, title }))} />
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-4 py-10 pb-28 md:px-6 md:py-14 md:pb-28">

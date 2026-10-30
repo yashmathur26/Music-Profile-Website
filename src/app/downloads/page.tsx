@@ -11,7 +11,7 @@ export default async function DownloadsPage() {
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="relative flex min-h-screen overflow-x-hidden">
-        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
+        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks.map(({ slug, title }) => ({ slug, title }))} />
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-4 py-8 pb-28 md:px-6 md:py-12 md:pb-28">

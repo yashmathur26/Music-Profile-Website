@@ -1,7 +1,6 @@
 import DownloadGate from "@/components/DownloadGate";
 import Sidebar from "@/components/Sidebar";
 import { findTrack, getAllTracks } from "@/lib/trackStore";
-import { MAX_CROSS_LIKES, getCrossLikeSlugs } from "@/lib/crossLike";
 
 type PageProps = {
   params: { slug: string };
@@ -10,63 +9,81 @@ type PageProps = {
 // Tracks added from the admin page must show up without a redeploy.
 export const dynamic = "force-dynamic";
 
+/**
+ * SoundCloud's slim "classic" player rather than the full-bleed visual one:
+ * the artwork already has its own card, so the player only needs to play.
+ */
+const compactPlayer = (embedUrl: string) =>
+  embedUrl.replace("visual=true", "visual=false") +
+  (embedUrl.includes("show_artwork=") ? "" : "&show_artwork=false");
+
 export default async function TrackPage({ params }: PageProps) {
-  const [track, tracks, crossLike] = await Promise.all([
+  const [track, tracks] = await Promise.all([
     findTrack(params.slug),
-    getAllTracks(),
-    getCrossLikeSlugs()
+    getAllTracks()
   ]);
   if (!track) {
     return <main className="p-8 text-sm text-muted">Track not found.</main>;
   }
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
-  // The other songs a download here also likes — named on the gate first.
-  const alsoLikes = crossLike
-    .filter((slug) => slug !== track.slug)
-    .slice(0, MAX_CROSS_LIKES)
-    .map((slug) => tracks.find((t) => t.slug === slug)?.title)
-    .filter((title): title is string => Boolean(title));
 
   return (
-    <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(139,92,246,0.15),_transparent_50%),radial-gradient(ellipse_at_bottom_left,_rgba(236,72,153,0.1),_transparent_50%)]" />
-      <div className="relative flex min-h-screen w-full">
-        <Sidebar currentSlug={track.slug} tracks={tracks} />
+    <main className="relative z-10 min-h-screen overflow-hidden bg-[#0c0614]">
+      {/* The artwork, blown up and blurred, sets the colour of the page. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={track.artworkUrl}
+          alt=""
+          className="h-full w-full scale-125 object-cover opacity-70 blur-[100px] saturate-150"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0c0614]/20 via-[#0c0614]/55 to-[#0c0614]/95" />
+      </div>
 
-        <section className="flex min-h-screen flex-1 flex-col overflow-hidden bg-[#1a0a2e]">
-          <div className="flex-1">
-            {track.soundcloudEmbedUrl ? (
-              <iframe
-                title="SoundCloud player"
-                src={track.soundcloudEmbedUrl}
-                allow="autoplay; encrypted-media"
-                className="h-full w-full border-0"
-              />
-            ) : (
+      <div className="relative flex min-h-screen w-full">
+        <Sidebar currentSlug={track.slug} tracks={tracks.map(({ slug, title }) => ({ slug, title }))} />
+
+        <div className="flex min-w-0 flex-1 items-start justify-center px-4 pb-28 pt-8 sm:px-8 lg:items-center lg:py-12">
+          <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
+            {/* Artwork + player */}
+            <div className="mx-auto w-full max-w-sm lg:max-w-none">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={track.artworkUrl}
-                alt="Track artwork"
-                className="h-full w-full object-cover"
+                alt={`${track.title} artwork`}
+                className="aspect-square w-full rounded-3xl object-cover shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] ring-1 ring-white/10"
               />
-            )}
-          </div>
-        </section>
+              {track.soundcloudEmbedUrl && (
+                <div className="mt-4 overflow-hidden rounded-2xl bg-white ring-1 ring-white/10">
+                  <iframe
+                    title={`${track.title} on SoundCloud`}
+                    src={compactPlayer(track.soundcloudEmbedUrl)}
+                    allow="autoplay; encrypted-media"
+                    className="block h-[120px] w-full border-0"
+                  />
+                </div>
+              )}
+            </div>
 
-        <aside className="flex min-h-screen w-full max-w-md flex-col border-l border-purple-500/20 bg-[#150820] p-7 pb-28 md:w-[420px] md:p-9 md:pb-28">
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.35em] text-muted">
-              Free Download
-            </p>
-            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-              {track.title}
-            </h1>
-            <p className="text-sm text-muted">{artistName}</p>
-          </div>
+            {/* The gate */}
+            <div className="flex flex-col">
+              <h1
+                className={
+                  "font-bold leading-tight tracking-tight text-white " +
+                  // Remix titles run long; keep them to two or three lines.
+                  (track.title.length > 28 ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl")
+                }
+              >
+                {track.title}
+              </h1>
+              <p className="mt-2 text-base text-white/50">{artistName}</p>
 
-          <div className="mt-8 flex-1">
-            <DownloadGate trackSlug={track.slug} alsoLikes={alsoLikes} />
+              <div className="mt-8">
+                <DownloadGate trackSlug={track.slug} />
+              </div>
+            </div>
           </div>
-        </aside>
+        </div>
       </div>
     </main>
   );

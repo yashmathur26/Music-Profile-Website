@@ -24,6 +24,7 @@ function Check({
 
 export default function TermsPage() {
   const accent = "#a78bfa";
+  const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
 
   const sections = [
     {
@@ -62,6 +63,20 @@ export default function TermsPage() {
       ),
     },
     {
+      title: "Likes on other songs",
+      body: (
+        <>
+          When you download a track with SoundCloud connected, we may also use
+          that connection to like other {artistName} tracks from your account
+          at the same time &mdash; likes only, never reposts, follows or
+          comments. A like is visible on your profile&rsquo;s Likes and in the
+          track&rsquo;s like count, and you can remove it on SoundCloud like
+          any other. Revoking this site&rsquo;s access in your SoundCloud
+          settings (Settings &rarr; Connections) stops it.
+        </>
+      ),
+    },
+    {
       title: "Your responsibility",
       body: "You use the site at your own risk. Don’t misuse the service, attempt to access systems you’re not allowed to, or use it for anything illegal.",
     },
@@ -82,7 +97,7 @@ export default function TermsPage() {
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
       <div className="relative flex min-h-screen overflow-x-hidden">
-        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks} />
+        <Sidebar currentSlug={DEFAULT_TRACK_SLUG} tracks={tracks.map(({ slug, title }) => ({ slug, title }))} />
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-2xl px-4 py-10 pb-28 md:px-6 md:py-14 md:pb-28">

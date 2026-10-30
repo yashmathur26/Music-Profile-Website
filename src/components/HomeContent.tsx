@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { DEFAULT_TRACK_SLUG } from "@/lib/tracks";
+import { DEFAULT_TRACK_SLUG } from "@/lib/trackSlugs";
 import { SiteConfig, nowPlayingEmbedUrl } from "@/lib/siteContent";
 import Sidebar from "@/components/Sidebar";
 
