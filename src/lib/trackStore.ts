@@ -36,6 +36,8 @@ export type GateTrackRow = {
   subscriber_repost?: boolean | null;
   subscriber_retain_days?: number | null;
   subscriber_rollout_minutes?: number | null;
+  /** Newest of the plan columns, so it can be missing on its own. */
+  subscriber_removal_minutes?: number | null;
   created_at?: string;
 };
 
@@ -58,6 +60,10 @@ const isMissingPlanColumn = (error: { message?: string }) =>
   /subscriber_(like|repost|retain_days|rollout_minutes)/.test(
     error?.message || ""
   );
+
+/** And for the removal window, added after the other four. */
+const isMissingRemovalColumn = (error: { message?: string }) =>
+  /subscriber_removal_minutes/.test(error?.message || "");
 
 let warnedMissingFollowColumn = false;
 
@@ -89,6 +95,7 @@ const withoutPlan = (row: GateTrackRow) => {
     subscriber_repost: _repost,
     subscriber_retain_days: _retain,
     subscriber_rollout_minutes: _rollout,
+    subscriber_removal_minutes: _removal,
     ...rest
   } = row;
   return rest;
@@ -136,7 +143,9 @@ const rowToPlan = (row: GateTrackRow): SubscriberPlan =>
     repost: row.subscriber_repost ?? DEFAULT_PLAN.repost,
     retainDays: row.subscriber_retain_days ?? DEFAULT_PLAN.retainDays,
     rolloutMinutes:
-      row.subscriber_rollout_minutes ?? DEFAULT_PLAN.rolloutMinutes
+      row.subscriber_rollout_minutes ?? DEFAULT_PLAN.rolloutMinutes,
+    removalMinutes:
+      row.subscriber_removal_minutes ?? DEFAULT_PLAN.removalMinutes
   });
 
 /** The four columns a plan writes, for an insert or a patch. */
@@ -144,7 +153,8 @@ export const planToRow = (plan: SubscriberPlan) => ({
   subscriber_like: plan.like,
   subscriber_repost: plan.repost,
   subscriber_retain_days: plan.retainDays,
-  subscriber_rollout_minutes: plan.rolloutMinutes
+  subscriber_rollout_minutes: plan.rolloutMinutes,
+  subscriber_removal_minutes: plan.removalMinutes
 });
 
 export const listDbTracks = async (): Promise<GateTrackRow[]> => {
@@ -222,12 +232,25 @@ const writeTolerantly = async (
   let planStored = true;
   let payload: Record<string, unknown> = { ...row };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let removalStored = true;
+  let planStripped = false;
+  for (let attempt = 0; attempt < 4; attempt++) {
     const { error } = await write(payload as GateTrackRow);
     if (!error) return { error: null, followTargetsStored, planStored };
 
     const message = error as { message?: string };
-    if (planStored && isMissingPlanColumn(message)) {
+    // Only the newest column missing: keep the rest of the plan, and still
+    // report it as not stored so the portal asks for the SQL.
+    if (removalStored && isMissingRemovalColumn(message)) {
+      warnMissingPlanColumns();
+      removalStored = false;
+      planStored = false;
+      const { subscriber_removal_minutes: _dropped, ...rest } = payload as GateTrackRow;
+      payload = rest;
+      continue;
+    }
+    if (!planStripped && isMissingPlanColumn(message)) {
+      planStripped = true;
       warnMissingPlanColumns();
       planStored = false;
       payload = withoutPlan(payload as GateTrackRow);

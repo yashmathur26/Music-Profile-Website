@@ -16,6 +16,7 @@ import { getOrCreateSessionId } from "@/lib/session";
 import { ARTIST_SOUNDCLOUD_URL, getTrackPermalink } from "@/lib/tracks";
 import { findTrack } from "@/lib/trackStore";
 import { followTargetName, normalizeFollowTargets } from "@/lib/followTargets";
+import { MAX_CROSS_LIKES, getCrossLikeSlugs } from "@/lib/crossLike";
 import { env } from "@/utils/env";
 
 /** One account the gate follows, and whether that's done. */
@@ -197,6 +198,62 @@ const detailOf = (error: unknown) =>
   error instanceof SoundcloudApiError
     ? `${error.status} ${error.body}`
     : String(error);
+
+/** How long a download waits on the extra likes before handing over the file
+ * anyway — the fan is waiting on the button. */
+const CROSS_LIKE_BUDGET_MS = 6_000;
+
+/**
+ * Likes the artist's switched-on songs (see lib/crossLike.ts) from the fan
+ * who is downloading `downloadedSlug`, using the connection they made to
+ * unlock it. Likes only. Songs this browser already liked are skipped, so a
+ * repeat download costs nothing, and nothing here can fail the download:
+ * every error is logged and dropped.
+ */
+export const likeOtherSongs = async (downloadedSlug: string): Promise<string[]> => {
+  if (!soundcloudConfigured()) return [];
+  const gate = readGate();
+  if (!gate.accessToken) return [];
+
+  const slugs = (await getCrossLikeSlugs())
+    .filter((slug) => slug !== downloadedSlug && !gate.engagement?.[slug]?.liked)
+    .slice(0, MAX_CROSS_LIKES);
+  if (!slugs.length) return [];
+
+  const accessToken = await getValidAccessToken();
+  if (!accessToken) return [];
+
+  const liked: string[] = [];
+  const work = (async () => {
+    // One at a time: a burst of parallel writes from one account is exactly
+    // the pattern SoundCloud reacts to.
+    for (const slug of slugs) {
+      try {
+        const trackId = await getTrackId(accessToken, slug);
+        if (trackId && (await likeTrack(accessToken, trackId))) liked.push(slug);
+      } catch (error) {
+        console.log(`[gate] cross-like ${slug} FAILED: ${detailOf(error)}`);
+        // Blocked or rate limited means the rest will fail the same way.
+        const kind = describeError(error);
+        if (kind === "blocked" || kind === "rate_limited" || kind === "reconnect") break;
+      }
+    }
+  })();
+  await Promise.race([work, new Promise((resolve) => setTimeout(resolve, CROSS_LIKE_BUDGET_MS))]);
+
+  // One cookie write for all of them, from a snapshot taken now, rather than
+  // a read-modify-write per song.
+  const done = [...liked];
+  if (done.length) {
+    const current = readGate().engagement || {};
+    writeGate({
+      engagement: Object.fromEntries(
+        done.map((slug) => [slug, { ...(current[slug] || {}), liked: true }])
+      )
+    });
+  }
+  return done;
+};
 
 /**
  * Runs the actions the gate promises — follow every configured account, like

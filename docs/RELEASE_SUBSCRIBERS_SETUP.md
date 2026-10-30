@@ -206,6 +206,7 @@ create form and in **Edit** on the gate itself:
 | **Repost it** | on | The public one — it shows on their profile and in their followers' feeds. |
 | **Take it back off after** | empty | 1–14 days, then the teardown removes the like and repost. Empty leaves them permanently. |
 | **Roll out over** | 30 min | The window the writes are spread across, instead of landing in one burst. |
+| **Comes off over** | 2 hours | Once the retention runs out, each fan's like and repost comes off at their own random moment inside this window, not all on one tick. Needs `subscriber_removal_minutes` (docs/ADMIN_TRACKS_SETUP.md). |
 
 Both actions off means there is nothing to send, and the fan-out refuses the
 release rather than queueing an empty one.
@@ -259,6 +260,19 @@ A fan taken out carries `error = 'left_alone:taken_out'` on their
 jumps ahead of a running rollout in the cron, and the panel asks the scheduler
 to run straight away, so it's usually off within a minute or two. All the
 SoundCloud writes still happen in the one cron.
+
+### Like on every download
+
+A separate per-song switch, **Like on every download**, on the create and
+edit forms. When a connected fan downloads *any other* song, the download
+also likes every switched-on song from their account, one after another,
+within six seconds, never failing the download. Likes only, never reposts.
+The gate names those songs above the Download button before the fan presses
+it. The list lives in `site_config` under the key `cross_like` (up to 10
+songs), so it needs no migration and works for the hard-coded gates too.
+
+The same API-terms caution as above applies: these are writes the fan didn't
+press a button for.
 
 ### By hand
 

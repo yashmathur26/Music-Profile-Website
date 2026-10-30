@@ -33,6 +33,14 @@ const PACE_OPTIONS: { value: number; label: string }[] = [
   { value: 1440, label: "1 day" }
 ];
 
+/** How spread out the take-off is once the time is up. */
+const REMOVAL_OPTIONS: { value: number; label: string }[] = [
+  { value: 30, label: "30 min" },
+  { value: 120, label: "2 hours" },
+  { value: 360, label: "6 hours" },
+  { value: 1440, label: "1 day" }
+];
+
 const PREVIEW = 5;
 
 const day = (iso: string) =>
@@ -163,7 +171,8 @@ function PersonRow({
 }) {
   const editable = ["live", "waiting", "taken_out", "not_sent"].includes(person.state);
   const keepValue = person.removeAfter && person.reachedAt
-    ? Math.round((Date.parse(person.removeAfter) - Date.parse(person.reachedAt)) / 86_400_000)
+    // Floored: each fan's take-off is spread up to a day past the deadline.
+    ? Math.floor((Date.parse(person.removeAfter) - Date.parse(person.reachedAt)) / 86_400_000)
     : null;
 
   const sub =
@@ -560,6 +569,20 @@ export default function SongPanel({
                         onPick={(days) => edit({ action: "keep_for", days }, "Updated for everyone.")}
                       />
                     </div>
+                    {plan.retainDays !== null && (
+                      <div>
+                        <p className="mb-2 text-xs text-white/55">
+                          How slowly it comes off
+                          <span className="text-white/35"> · each fan at their own moment</span>
+                        </p>
+                        <Pills
+                          options={REMOVAL_OPTIONS}
+                          value={plan.removalMinutes}
+                          busy={busy === "removal_pace"}
+                          onPick={(minutes) => edit({ action: "removal_pace", minutes }, "Re-spread for everyone.")}
+                        />
+                      </div>
+                    )}
                     {(canTakeAll || counts.takenOut > 0) && (
                       <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
                         {canTakeAll && (

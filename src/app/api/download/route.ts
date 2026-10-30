@@ -5,6 +5,7 @@ import { recordDownload } from "@/lib/downloadLog";
 import { queueStatsRefresh } from "@/lib/statsRefresh";
 import { readGate, writeGate } from "@/lib/gateStore";
 import { fetchMe } from "@/lib/soundcloud";
+import { likeOtherSongs } from "@/lib/soundcloudGate";
 import {
   DownloadGateState,
   countryFrom,
@@ -57,6 +58,14 @@ export async function POST(request: Request) {
       }
     }
     await recordDownload(track.slug, gate.username, profileUrl);
+
+    // The songs the artist wants liked on every download, from this fan's
+    // own connection — the gate told them which before they pressed the
+    // button. Never fails the download.
+    const alsoLiked = await likeOtherSongs(track.slug).catch((error) => {
+      console.error("[download] cross-like failed", error);
+      return [] as string[];
+    });
     queueStatsRefresh();
 
     // What the server could see of how this visitor got here. This route
@@ -73,7 +82,7 @@ export async function POST(request: Request) {
       trackSlug: track.slug,
       scUsername: gate.username,
       country: countryFrom(request.headers),
-      detail: { gate: gateState }
+      detail: { gate: gateState, ...(alsoLiked.length ? { alsoLiked } : {}) }
     });
 
     return NextResponse.json(

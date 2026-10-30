@@ -11,6 +11,7 @@ import { normalizePlan } from "@/lib/subscriberPlan";
 import { planToRow } from "@/lib/trackStore";
 import { resolveTrackMeta } from "@/lib/soundcloud";
 import { slugify, toDownloadUrl } from "@/lib/tracks";
+import { renameCrossLike, setCrossLike } from "@/lib/crossLike";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ type EditBody = {
   soundcloudUrl?: string;
   followTargets?: unknown;
   subscriberPlan?: unknown;
+  crossLike?: boolean;
 };
 
 /**
@@ -170,6 +172,8 @@ export async function PATCH(
       params.slug,
       patch
     );
+    if (track.slug !== params.slug) await renameCrossLike(params.slug, track.slug);
+    if (typeof body.crossLike === "boolean") await setCrossLike(track.slug, body.crossLike);
     return NextResponse.json({
       saved: true,
       track,
@@ -205,6 +209,7 @@ export async function DELETE(
 
   try {
     await deleteTrack(params.slug);
+    await renameCrossLike(params.slug, null).catch(() => undefined);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Delete failed." },

@@ -50,6 +50,8 @@ type AdminTrack = {
   deletable: boolean;
   /** Null until a subscriber like + repost has been asked for on this gate. */
   announcement: Announcement | null;
+  /** Liked from the fan's account whenever they download another song. */
+  crossLike: boolean;
 };
 
 type TrackPreview = {
@@ -396,13 +398,15 @@ type PlanDraft = {
   repost: boolean;
   retainDays: string;
   rolloutMinutes: string;
+  removalMinutes: number;
 };
 
 const planToDraft = (plan: SubscriberPlan): PlanDraft => ({
   like: plan.like,
   repost: plan.repost,
   retainDays: plan.retainDays === null ? "" : String(plan.retainDays),
-  rolloutMinutes: String(plan.rolloutMinutes)
+  rolloutMinutes: String(plan.rolloutMinutes),
+  removalMinutes: plan.removalMinutes
 });
 
 /** Server-side normalizePlan clamps this again; here it's for the preview. */
@@ -412,7 +416,8 @@ const draftToPlan = (draft: PlanDraft): SubscriberPlan =>
     repost: draft.repost,
     retainDays: draft.retainDays.trim() === "" ? null : draft.retainDays,
     rolloutMinutes:
-      draft.rolloutMinutes.trim() === "" ? null : draft.rolloutMinutes
+      draft.rolloutMinutes.trim() === "" ? null : draft.rolloutMinutes,
+    removalMinutes: draft.removalMinutes
   });
 
 const DEFAULT_PLAN_DRAFT = planToDraft(DEFAULT_PLAN);
@@ -435,6 +440,18 @@ const PACE_OPTIONS: { minutes: number; label: string }[] = [
   { minutes: 24 * 60, label: "Over a day" }
 ];
 
+/** How spread out the take-off is once the time is up. */
+const REMOVAL_OPTIONS: { minutes: number; label: string }[] = [
+  { minutes: 30, label: "Over 30 minutes" },
+  { minutes: 120, label: "Over 2 hours" },
+  { minutes: 360, label: "Over 6 hours" },
+  { minutes: 24 * 60, label: "Over a day" }
+];
+
+const removalLabel = (minutes: number) =>
+  REMOVAL_OPTIONS.find((o) => o.minutes === minutes)?.label.toLowerCase() ||
+  (minutes >= 120 ? `over ${Math.round(minutes / 60)} hours` : `over ${minutes} minutes`);
+
 const stayLabel = (days: number | null) =>
   STAY_OPTIONS.find((o) => o.days === days)?.label.toLowerCase() ||
   `${days} day${days === 1 ? "" : "s"}`;
@@ -455,7 +472,7 @@ const planSentence = (plan: SubscriberPlan, fans: number) => {
   const stays =
     plan.retainDays === null
       ? "It stays on their profiles."
-      : `It comes off on its own after ${stayLabel(plan.retainDays)}.`;
+      : `It comes off on its own after ${stayLabel(plan.retainDays)}, ${removalLabel(plan.removalMinutes)}.`;
   return `When you send it, ${who} ${actions} it ${when}. ${stays}`;
 };
 
@@ -519,6 +536,10 @@ function SubscriberPlanFields({
   const stayOptions = STAY_OPTIONS.map((o) => ({ value: o.days, label: o.label }));
   if (!stayOptions.some((o) => o.value === plan.retainDays)) {
     stayOptions.splice(-1, 0, { value: plan.retainDays, label: stayLabel(plan.retainDays) });
+  }
+  const removalOptions = REMOVAL_OPTIONS.map((o) => ({ value: o.minutes, label: o.label }));
+  if (!removalOptions.some((o) => o.value === plan.removalMinutes)) {
+    removalOptions.push({ value: plan.removalMinutes, label: removalLabel(plan.removalMinutes) });
   }
   const paceOptions = PACE_OPTIONS.map((o) => ({ value: o.minutes, label: o.label }));
   if (!paceOptions.some((o) => o.value === plan.rolloutMinutes)) {
@@ -604,6 +625,19 @@ function SubscriberPlanFields({
             onChange={(days) => set({ retainDays: days === null ? "" : String(days) })}
           />
         </div>
+        {plan.retainDays !== null && (
+          <div>
+            <p className="mb-1.5 text-xs text-white/55">
+              How slowly it comes off
+              <span className="text-white/35"> · each fan at their own moment, so it doesn&rsquo;t look automated</span>
+            </p>
+            <Choice
+              options={removalOptions}
+              value={plan.removalMinutes}
+              onChange={(minutes) => set({ removalMinutes: minutes })}
+            />
+          </div>
+        )}
         <div>
           <p className="mb-1.5 text-xs text-white/55">How fast it goes out</p>
           <Choice
@@ -626,6 +660,43 @@ function SubscriberPlanFields({
         {send?.on && " Only works once the track is public on SoundCloud."}
       </p>
     </div>
+  );
+}
+
+/**
+ * "Like this song whenever a fan downloads one of my other songs." One
+ * switch, because it's one yes/no — the gate names the songs to the fan.
+ */
+function CrossLikeField({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-black/20 p-4 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-white/85">Like on every download</span>
+        <span className="mt-0.5 block text-xs text-white/45">
+          When a fan downloads any of your other songs, their account likes this one too.
+          The gate tells them first.
+        </span>
+      </span>
+      <span
+        className={clsx(
+          "relative h-5 w-9 shrink-0 rounded-full transition",
+          on ? "bg-purple-500" : "bg-white/15"
+        )}
+      >
+        <span
+          className={clsx(
+            "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all",
+            on ? "left-[18px]" : "left-0.5"
+          )}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -745,6 +816,7 @@ function GateRow({
   const [draft, setDraft] = useState(track);
   const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
   const [planDraft, setPlanDraft] = useState<PlanDraft>(DEFAULT_PLAN_DRAFT);
+  const [crossLike, setCrossLike] = useState(track.crossLike);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The save went through but the database couldn't take part of it.
@@ -789,6 +861,7 @@ function GateRow({
       track.followTargets.length ? track.followTargets : [ARTIST_PROFILE]
     );
     setPlanDraft(planToDraft(plan));
+    setCrossLike(track.crossLike);
     setError(null);
     setWarning(null);
     setOpen(true);
@@ -811,7 +884,8 @@ function GateRow({
           downloadUrl: draft.downloadUrl,
           soundcloudUrl: draft.soundcloudUrl,
           followTargets: filledRows(followRows),
-          subscriberPlan: draftToPlan(planDraft)
+          subscriberPlan: draftToPlan(planDraft),
+          crossLike
         })
       });
       const data = await res.json();
@@ -878,6 +952,9 @@ function GateRow({
                 <span className="ml-2 text-purple-300/70">
                   follows {track.followTargets.length} accounts
                 </span>
+              )}
+              {track.crossLike && (
+                <span className="ml-2 text-rose-300/70">♥ on every download</span>
               )}
             </span>
           </span>
@@ -975,6 +1052,7 @@ function GateRow({
           </div>
 
           <SubscriberPlanFields draft={planDraft} onChange={setPlanDraft} fans={subscribers} />
+          <CrossLikeField on={crossLike} onChange={setCrossLike} />
 
           {error && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -1026,6 +1104,8 @@ function TracksManager({ token }: { token: string }) {
   // Off by default here too: sending a release to every subscriber's account
   // is a deliberate act, not the default consequence of adding a song.
   const [announceOnCreate, setAnnounceOnCreate] = useState(false);
+  // Like this new song whenever a fan downloads one of the others.
+  const [crossLikeOnCreate, setCrossLikeOnCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPath, setCreatedPath] = useState<string | null>(null);
@@ -1071,6 +1151,7 @@ function TracksManager({ token }: { token: string }) {
           followTargets: filledRows(followRows),
           subscriberPlan: draftToPlan(planDraft),
           announceToSubscribers: confirm && announceOnCreate,
+          crossLike: confirm && crossLikeOnCreate,
           preview: !confirm
         })
       });
@@ -1086,6 +1167,7 @@ function TracksManager({ token }: { token: string }) {
         setFollowRows([ARTIST_PROFILE]);
         setPlanDraft(DEFAULT_PLAN_DRAFT);
         setAnnounceOnCreate(false);
+        setCrossLikeOnCreate(false);
         loadTracks();
       } else {
         setPreview(data.track);
@@ -1190,6 +1272,7 @@ function TracksManager({ token }: { token: string }) {
             fans={subscribers}
             send={{ on: announceOnCreate, onChange: setAnnounceOnCreate }}
           />
+          <CrossLikeField on={crossLikeOnCreate} onChange={setCrossLikeOnCreate} />
 
           {!preview && (
             <button

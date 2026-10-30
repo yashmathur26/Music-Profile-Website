@@ -37,6 +37,11 @@ export const TEARDOWN_CHUNK = 60;
  * breaker as the fan-out, for the same reason. */
 const BLOCKED_STREAK_LIMIT = 5;
 
+/** A random 1–3 s between fans, so even the rows that fall due on the same
+ * tick don't come off back-to-back at machine speed. A full chunk still
+ * finishes well inside the five-minute tick. */
+const gap = () => new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
+
 export type TeardownSummary = {
   due: number;
   processed: number;
@@ -141,7 +146,8 @@ export const runTeardown = async (
   const resolveToken = tokenResolver();
   let blockedStreak = 0;
 
-  for (const row of due) {
+  for (const [index, row] of due.entries()) {
+    if (index > 0) await gap();
     if (!hasUsableGrant(row)) {
       // The fan revoked us, so their like and repost stay where they are.
       // Recording that is the honest outcome; pretending we removed them

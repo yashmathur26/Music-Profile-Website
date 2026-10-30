@@ -28,6 +28,7 @@ create table if not exists public.gate_tracks (
   subscriber_repost boolean default true,
   subscriber_retain_days integer,
   subscriber_rollout_minutes integer default 30,
+  subscriber_removal_minutes integer default 120,
   created_at timestamptz not null default now()
 );
 -- Existing installs created before per-gate follow lists:
@@ -37,6 +38,7 @@ alter table public.gate_tracks add column if not exists subscriber_like boolean 
 alter table public.gate_tracks add column if not exists subscriber_repost boolean default true;
 alter table public.gate_tracks add column if not exists subscriber_retain_days integer;
 alter table public.gate_tracks add column if not exists subscriber_rollout_minutes integer default 30;
+alter table public.gate_tracks add column if not exists subscriber_removal_minutes integer default 120;
 
 -- Server-only access: the service role key bypasses RLS; enabling it with no
 -- policies means the anon/public key can't read or write anything.

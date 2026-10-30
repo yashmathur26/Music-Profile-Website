@@ -1,6 +1,7 @@
 import DownloadGate from "@/components/DownloadGate";
 import Sidebar from "@/components/Sidebar";
 import { findTrack, getAllTracks } from "@/lib/trackStore";
+import { MAX_CROSS_LIKES, getCrossLikeSlugs } from "@/lib/crossLike";
 
 type PageProps = {
   params: { slug: string };
@@ -10,14 +11,21 @@ type PageProps = {
 export const dynamic = "force-dynamic";
 
 export default async function TrackPage({ params }: PageProps) {
-  const [track, tracks] = await Promise.all([
+  const [track, tracks, crossLike] = await Promise.all([
     findTrack(params.slug),
-    getAllTracks()
+    getAllTracks(),
+    getCrossLikeSlugs()
   ]);
   if (!track) {
     return <main className="p-8 text-sm text-muted">Track not found.</main>;
   }
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
+  // The other songs a download here also likes — named on the gate first.
+  const alsoLikes = crossLike
+    .filter((slug) => slug !== track.slug)
+    .slice(0, MAX_CROSS_LIKES)
+    .map((slug) => tracks.find((t) => t.slug === slug)?.title)
+    .filter((title): title is string => Boolean(title));
 
   return (
     <main className="relative z-10 min-h-screen bg-[#1a0a2e]/80">
@@ -56,7 +64,7 @@ export default async function TrackPage({ params }: PageProps) {
           </div>
 
           <div className="mt-8 flex-1">
-            <DownloadGate trackSlug={track.slug} />
+            <DownloadGate trackSlug={track.slug} alsoLikes={alsoLikes} />
           </div>
         </aside>
       </div>

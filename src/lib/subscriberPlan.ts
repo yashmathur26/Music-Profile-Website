@@ -22,6 +22,9 @@ export const DEFAULT_ROLLOUT_MINUTES = 30;
 /** A day. Longer than this and a release is still trickling out next week. */
 export const MAX_ROLLOUT_MINUTES = 24 * 60;
 
+/** Take a release back off over two hours unless the gate says otherwise. */
+export const DEFAULT_REMOVAL_MINUTES = 120;
+
 export type SubscriberPlan = {
   /** Like the new song from each saved account. */
   like: boolean;
@@ -35,6 +38,13 @@ export type SubscriberPlan = {
   retainDays: number | null;
   /** Minutes to spread one release's writes across. */
   rolloutMinutes: number;
+  /**
+   * Minutes to spread the take-off across once the retention runs out. Each
+   * fan gets their own random moment inside the window, so a release doesn't
+   * vanish from every profile in the same five minutes — the mirror image of
+   * the rollout, for the same reason.
+   */
+  removalMinutes: number;
 };
 
 /**
@@ -46,7 +56,8 @@ export const DEFAULT_PLAN: SubscriberPlan = {
   like: true,
   repost: true,
   retainDays: null,
-  rolloutMinutes: DEFAULT_ROLLOUT_MINUTES
+  rolloutMinutes: DEFAULT_ROLLOUT_MINUTES,
+  removalMinutes: DEFAULT_REMOVAL_MINUTES
 };
 
 const clamp = (value: number, min: number, max: number) =>
@@ -75,6 +86,7 @@ export const normalizePlan = (input: unknown): SubscriberPlan => {
 
   const retainDays = toInt(raw.retainDays);
   const rolloutMinutes = toInt(raw.rolloutMinutes);
+  const removalMinutes = toInt(raw.removalMinutes);
 
   return {
     like: toBool(raw.like, DEFAULT_PLAN.like),
@@ -88,7 +100,11 @@ export const normalizePlan = (input: unknown): SubscriberPlan => {
     rolloutMinutes:
       rolloutMinutes === null || rolloutMinutes <= 0
         ? DEFAULT_ROLLOUT_MINUTES
-        : clamp(rolloutMinutes, 1, MAX_ROLLOUT_MINUTES)
+        : clamp(rolloutMinutes, 1, MAX_ROLLOUT_MINUTES),
+    removalMinutes:
+      removalMinutes === null || removalMinutes <= 0
+        ? DEFAULT_REMOVAL_MINUTES
+        : clamp(removalMinutes, 1, MAX_ROLLOUT_MINUTES)
   };
 };
 
@@ -106,6 +122,20 @@ export const removalDueAt = (
   plan.retainDays === null
     ? null
     : new Date(from.getTime() + plan.retainDays * 86_400_000).toISOString();
+
+/**
+ * One fan's take-off moment: the release's deadline plus a random point in
+ * the removal window. Null stays null — nothing is coming off.
+ */
+export const spreadRemoval = (
+  deadline: string | null,
+  plan: SubscriberPlan
+): string | null =>
+  deadline === null
+    ? null
+    : new Date(
+        Date.parse(deadline) + Math.floor(Math.random() * plan.removalMinutes * 60_000)
+      ).toISOString();
 
 /** One line for the admin portal and the confirm dialog. */
 export const describePlan = (plan: SubscriberPlan) => {

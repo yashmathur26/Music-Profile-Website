@@ -16,7 +16,7 @@ import {
 import { runSchedulerSoon } from "@/lib/scheduler";
 import { appGet, appGetAll, numericId, resolveTrackMeta } from "@/lib/soundcloud";
 import { FanSnapshot, SnapshotData, isUnresolved, latestSnapshot } from "@/lib/statsSnapshot";
-import { normalizePlan, planIsNoop, removalDueAt } from "@/lib/subscriberPlan";
+import { normalizePlan, planIsNoop, removalDueAt, spreadRemoval } from "@/lib/subscriberPlan";
 import { createServerSupabase } from "@/lib/supabaseServer";
 import { findTrack, planToRow, updateTrack } from "@/lib/trackStore";
 import { TrackConfig, getTrackPermalink } from "@/lib/tracks";
@@ -368,11 +368,15 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
   const plan = normalizePlan(track.subscriberPlan);
 
   const savePlan = async (patch: Record<string, unknown>) => {
-    const { planStored } = await updateTrack(
-      slug,
-      planToRow(normalizePlan({ ...plan, ...patch }))
+    const wanted = normalizePlan({ ...plan, ...patch });
+    const { planStored } = await updateTrack(slug, planToRow(wanted));
+    // "Not stored" can mean only the newest column is missing; complain only
+    // if the field this edit was about didn't take.
+    const stored = normalizePlan((await findTrack(slug))?.subscriberPlan);
+    const took = Object.keys(patch).every(
+      (key) => stored[key as keyof typeof stored] === wanted[key as keyof typeof wanted]
     );
-    if (!planStored) {
+    if (!planStored && !took) {
       throw new Error(
         "The subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md."
       );
@@ -434,7 +438,12 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
           subscriberIds: ids,
           skipMarker: TAKEN_OUT,
           due: (action) =>
-            days === null ? null : removalDueAt({ ...plan, retainDays: days }, new Date(action.created_at))
+            days === null
+              ? null
+              : spreadRemoval(
+                  removalDueAt({ ...plan, retainDays: days }, new Date(action.created_at)),
+                  plan
+                )
         });
         return NextResponse.json({ ok: true, changed });
       }
@@ -447,6 +456,33 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
         // The rollout reads the window fresh every tick, so a send that's
         // already going speeds up or slows down from the next one.
         await savePlan({ rolloutMinutes: minutes });
+        return NextResponse.json({ ok: true });
+      }
+
+      case "removal_pace": {
+        const minutes = Number((body as { minutes?: unknown }).minutes);
+        if (!Number.isFinite(minutes) || minutes <= 0) {
+          return NextResponse.json({ error: "Pick how slowly." }, { status: 400 });
+        }
+        await savePlan({ removalMinutes: minutes });
+        // Re-spread what's already scheduled over the new window, so the
+        // change applies to this send. Each fan keeps their own number of
+        // days: the spread is under a day, so flooring recovers it.
+        const next = normalizePlan({ ...plan, removalMinutes: minutes });
+        await reschedule({
+          trackSlug: slug,
+          subscriberIds: null,
+          skipMarker: TAKEN_OUT,
+          due: (action) => {
+            if (action.remove_after === null) return null;
+            const reached = Date.parse(action.created_at);
+            const days = Math.max(
+              1,
+              Math.floor((Date.parse(action.remove_after) - reached) / 86_400_000)
+            );
+            return spreadRemoval(new Date(reached + days * 86_400_000).toISOString(), next);
+          }
+        });
         return NextResponse.json({ ok: true });
       }
 

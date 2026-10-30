@@ -14,6 +14,7 @@ import {
   listAnnouncements,
   requestAnnouncement
 } from "@/lib/releaseSubscribers";
+import { getCrossLikeSlugs, setCrossLike } from "@/lib/crossLike";
 import {
   driveFileId,
   getTrackPermalink,
@@ -38,11 +39,12 @@ const unauthorized = () =>
 
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return unauthorized();
-  const [rows, all, subscribers, announcements] = await Promise.all([
+  const [rows, all, subscribers, announcements, crossLike] = await Promise.all([
     listDbTracks(),
     getAllTracks(),
     countActive(),
-    listAnnouncements()
+    listAnnouncements(),
+    getCrossLikeSlugs()
   ]);
   const dbSlugs = new Set(rows.map((row) => row.slug));
   const queued = new Map(announcements.map((row) => [row.track_slug, row]));
@@ -64,7 +66,9 @@ export async function GET(request: NextRequest) {
       // Static tracks ship in the bundle; only DB rows can be deleted here.
       deletable: dbSlugs.has(track.slug),
       // Null until someone asks for a fan-out on this gate.
-      announcement: queued.get(track.slug) ?? null
+      announcement: queued.get(track.slug) ?? null,
+      // Liked from the fan's account whenever they download another song.
+      crossLike: crossLike.includes(track.slug)
     }))
   });
 }
@@ -79,6 +83,8 @@ export async function POST(request: NextRequest) {
     preview?: boolean;
     /** Tick on the create form: queue a like + repost from every subscriber. */
     announceToSubscribers?: boolean;
+    /** Like this song whenever a fan downloads one of the others. */
+    crossLike?: boolean;
     /** What that fan-out may do, and for how long — see SubscriberPlan. */
     subscriberPlan?: unknown;
   };
@@ -189,6 +195,15 @@ export async function POST(request: NextRequest) {
   // back to the artist as "the song didn't save".
   let announcementQueued = false;
   let announcementError: string | undefined;
+  if (body.crossLike) {
+    try {
+      await setCrossLike(slug, true);
+    } catch (error) {
+      announcementError =
+        "The gate is live, but liking it on other downloads didn't switch on: " +
+        (error instanceof Error ? error.message : "save failed.");
+    }
+  }
   if (body.announceToSubscribers) {
     try {
       await requestAnnouncement(slug);

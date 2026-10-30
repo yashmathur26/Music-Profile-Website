@@ -184,6 +184,8 @@ const ActionRow = ({ done, label }: { done: boolean; label: string }) => (
 
 type DownloadGateProps = {
   trackSlug: string;
+  /** Titles of the other songs a download here also likes. */
+  alsoLikes?: string[];
 };
 
 /**
@@ -208,7 +210,7 @@ const reportGateEvent = (
   }
 };
 
-export default function DownloadGate({ trackSlug }: DownloadGateProps) {
+export default function DownloadGate({ trackSlug, alsoLikes = [] }: DownloadGateProps) {
   const MANUAL_KEY = `${MANUAL_KEY_PREFIX}:${trackSlug}`;
   const OUTBOUND_KEY = `${MANUAL_OUTBOUND_KEY_PREFIX}:${trackSlug}`;
 
@@ -843,6 +845,18 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             Downloading also lets us like and repost {artistName}&rsquo;s
             future releases from your SoundCloud. You can stop that any time —
             we&rsquo;ll show you the link.
+            {alsoLikes.length > 0 && (
+              <>
+                {" "}It also likes {alsoLikes.length === 1 ? "" : "these songs: "}
+                {alsoLikes.map((title, i) => (
+                  <span key={title}>
+                    {i > 0 && (i === alsoLikes.length - 1 ? " and " : ", ")}
+                    &ldquo;{title}&rdquo;
+                  </span>
+                ))}
+                .
+              </>
+            )}
           </p>
         )}
       </div>

@@ -19,7 +19,8 @@ import {
   SubscriberPlan,
   normalizePlan,
   planIsNoop,
-  removalDueAt
+  removalDueAt,
+  spreadRemoval
 } from "@/lib/subscriberPlan";
 import {
   LEFT_ALONE_PREFIX,
@@ -422,8 +423,9 @@ export const announceRelease = async (options: {
         liked: outcome.liked,
         reposted: outcome.reposted,
         error: outcome.error,
-        // Only schedule a teardown for something that actually landed.
-        removeAfter: landed > 0 ? removeAfter : null
+        // Only schedule a teardown for something that actually landed, and
+        // give each fan their own moment in the removal window.
+        removeAfter: landed > 0 ? spreadRemoval(removeAfter, plan) : null
       });
     } catch (error) {
       // Losing the log risks a duplicate repost on a re-run, so say so loudly.
