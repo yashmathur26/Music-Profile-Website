@@ -138,6 +138,10 @@ const resolveTrackId = async (
   }
 };
 
+/** When this process last reached a fan for `slug` — for the admin's
+ * countdowns, which need the same starting point the next tick will use. */
+export const lastReachedAt = (slug: string) => lastReach.get(slug) || 0;
+
 export const announceRelease = async (options: {
   slug: string;
   /** Cap this pass; the caller re-runs until `remaining` hits 0. */

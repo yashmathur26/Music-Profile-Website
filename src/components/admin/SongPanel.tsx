@@ -53,6 +53,38 @@ const when = (iso: string) => {
   return sameDay ? time(iso) : `${day(iso)}, ${time(iso)}`;
 };
 
+/**
+ * How long until `iso`, sized to how far off it is: "3d 4h", then "4h 12m",
+ * then "12m 30s", then "45s". Past due reads "any moment" — the next refresh
+ * replaces it with what actually happened.
+ */
+const countdown = (iso: string, now: number) => {
+  const total = Math.floor((Date.parse(iso) - now) / 1000);
+  if (total <= 0) return "any moment";
+  const d = Math.floor(total / 86_400);
+  const h = Math.floor((total % 86_400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (d > 0) return h ? `${d}d ${h}h` : `${d}d`;
+  if (h > 0) return m ? `${h}h ${m}m` : `${h}h`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+};
+const inTime = (iso: string, now: number) => {
+  const left = countdown(iso, now);
+  return left === "any moment" ? left : `in ${left}`;
+};
+
+/** The current time, ticking once a second while the panel is open. */
+const useNow = () => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+};
+
 const plural = (n: number, word: string) => `${compact(n)} ${word}${n === 1 ? "" : "s"}`;
 
 const STATE_LABEL: Record<BoostState, string> = {
@@ -156,18 +188,49 @@ function Marks({ person }: { person: BoostPerson }) {
   );
 }
 
+/** "Next to like: @name, in 4m 12s" — one fan and a live countdown. */
+function NextCard({
+  label,
+  person,
+  iso,
+  now
+}: {
+  label: string;
+  person: BoostPerson;
+  iso: string;
+  now: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5 ring-1 ring-white/[0.06]">
+      <Avatar url={person.avatarUrl} name={person.username} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-white/45">{label}</p>
+        <p className="truncate text-sm text-white/90">{person.username}</p>
+      </div>
+      <p className="shrink-0 text-right font-mono text-sm tabular-nums text-white">
+        {countdown(iso, now)}
+      </p>
+    </div>
+  );
+}
+
 function PersonRow({
   person,
   open,
   onToggle,
   edit,
-  busy
+  busy,
+  now,
+  verb
 }: {
   person: BoostPerson;
   open: boolean;
   onToggle: () => void;
   edit: (body: BoostEdit) => Promise<void>;
   busy: boolean;
+  now: number;
+  /** "Likes", "Reposts" or "Likes + reposts", from the song's plan. */
+  verb: string;
 }) {
   const editable = ["live", "waiting", "taken_out", "not_sent"].includes(person.state);
   const keepValue = person.removeAfter && person.reachedAt
@@ -176,8 +239,12 @@ function PersonRow({
     : null;
 
   const sub =
-    person.state === "live"
-      ? person.note || (person.removeAfter ? `Comes off ${day(person.removeAfter)}` : "Stays up")
+    person.state === "waiting" && person.dueAt
+      ? `${verb} ${inTime(person.dueAt, now)}`
+      : comingOff(person) && person.offAt
+        ? `Coming off ${inTime(person.offAt, now)}`
+        : person.state === "live"
+      ? person.note || (person.offAt ? `Comes off ${inTime(person.offAt, now)}` : "Stays up")
       : person.state === "came_off" && person.removedAt
         ? `Came off ${day(person.removedAt)}`
         : person.note ||
@@ -301,8 +368,15 @@ export default function SongPanel({
   }, [slug, token]);
 
   // Refresh while something is moving — a send going out, or people coming off.
+  const now = useNow();
   const moving =
-    data?.boost.people.some((p) => p.state === "waiting" || comingOff(p)) ?? false;
+    data?.boost.people.some(
+      (p) =>
+        p.state === "waiting" ||
+        comingOff(p) ||
+        // A take-off due in the next quarter hour: refresh to see it happen.
+        (p.offAt !== null && Date.parse(p.offAt) - Date.now() < 15 * 60_000)
+    ) ?? false;
   useEffect(() => {
     load();
   }, [load]);
@@ -374,12 +448,19 @@ export default function SongPanel({
   const shown = showAll ? people : people.slice(0, PREVIEW);
   const canTakeAll = counts.live + counts.waiting > 0;
 
-  // Fans who were reached together come off together, so the earliest live
-  // deadline is the honest one to quote for "everyone".
-  const nextOff = people
-    .filter((p) => p.state === "live" && p.removeAfter)
-    .map((p) => p.removeAfter!)
-    .sort()[0];
+  const verb =
+    plan && plan.like && plan.repost
+      ? "Likes + reposts"
+      : plan?.repost
+        ? "Reposts"
+        : "Likes";
+  // The soonest of each, from the server's estimates.
+  const nextUp = people
+    .filter((p) => p.state === "waiting" && p.dueAt)
+    .sort((a, b) => a.dueAt!.localeCompare(b.dueAt!))[0];
+  const nextOffPerson = people
+    .filter((p) => p.offAt && (p.state === "live" || comingOff(p)))
+    .sort((a, b) => a.offAt!.localeCompare(b.offAt!))[0];
 
   // Plays gained each day, not the running total, which draws as a flat line.
   const plays = (data?.history || []).slice(1).map((h, i) => Math.max(0, h.plays - data!.history[i].plays));
@@ -509,7 +590,7 @@ export default function SongPanel({
                     </p>
                     <p className="mt-2 text-sm text-white/80">
                       {neverSent
-                        ? "Not sent yet — send it from the song's row."
+                        ? "Not sent yet. Send it from the song's row."
                         : announcement?.status === "stopped"
                           ? `Stopped · reached ${reached} of ${counts.sendable}`
                           : sending
@@ -539,8 +620,25 @@ export default function SongPanel({
                         <span>
                           <span className="text-sky-300">↻</span> {counts.reposted} reposted
                         </span>
-                        <span>{nextOff ? `Comes off ${day(nextOff)}` : "Stays up"}</span>
+                        {!nextOffPerson && <span>Stays up</span>}
                       </p>
+                    )}
+
+                    {/* Who's next, both ways, with a live countdown. */}
+                    {(nextUp || nextOffPerson) && (
+                      <div className="mt-4 grid gap-2">
+                        {nextUp && (
+                          <NextCard
+                            label={`Next to ${verb.toLowerCase().replace("likes", "like").replace("reposts", "repost")}`}
+                            person={nextUp}
+                            iso={nextUp.dueAt!}
+                            now={now}
+                          />
+                        )}
+                        {nextOffPerson && (
+                          <NextCard label="Next to come off" person={nextOffPerson} iso={nextOffPerson.offAt!} now={now} />
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -645,6 +743,8 @@ export default function SongPanel({
                             onToggle={() => setOpenPerson((id) => (id === person.id ? null : person.id))}
                             edit={(body) => edit(body)}
                             busy={busy !== null}
+                            now={now}
+                            verb={verb}
                           />
                         ))}
                       </ul>

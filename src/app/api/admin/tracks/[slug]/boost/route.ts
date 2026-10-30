@@ -13,7 +13,8 @@ import {
   subscriptionsConfigured,
   takeOut
 } from "@/lib/releaseSubscribers";
-import { runSchedulerSoon } from "@/lib/scheduler";
+import { runSchedulerSoon, schedulerStatus } from "@/lib/scheduler";
+import { lastReachedAt } from "@/lib/releaseRun";
 import { appGet, appGetAll, numericId, resolveTrackMeta } from "@/lib/soundcloud";
 import { FanSnapshot, SnapshotData, isUnresolved, latestSnapshot } from "@/lib/statsSnapshot";
 import { normalizePlan, planIsNoop, removalDueAt, spreadRemoval } from "@/lib/subscriberPlan";
@@ -116,6 +117,23 @@ const stateOf = (
       : { state: "came_off", note: null };
   }
   return up ? { state: "live", note: null } : { state: "failed", note: noteFor(action.error) };
+};
+
+/** Mirrors the cron: it runs every five minutes and reaches fans only in the
+ * first 200 seconds of each run (see /api/cron/subscribers). */
+const TICK_MS = 5 * 60_000;
+const SPREAD_MS = 200_000;
+
+/**
+ * The moment something due at `t` actually happens: `t` itself if a run is
+ * going then, otherwise the start of the next run. Without the scheduler's
+ * clock (a laptop, say) the guess is just `t`.
+ */
+const onTick = (t: number, nextTick: number | null, window = SPREAD_MS) => {
+  if (!nextTick) return t;
+  let tick = nextTick - TICK_MS;
+  while (t > tick + window) tick += TICK_MS;
+  return Math.max(t, tick);
 };
 
 const ORDER: BoostState[] = ["live", "waiting", "came_off", "taken_out", "failed", "skipped", "not_sent"];
@@ -273,7 +291,8 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
   const likerSet = likers ? new Set(likers) : null;
   const reposterSet = reposters ? new Set(reposters) : null;
 
-  const people: BoostPerson[] = subscribers
+  // `queuedSince` is the queue order; it's dropped before the reply.
+  const people: (BoostPerson & { queuedSince: string })[] = subscribers
     // Everyone this song touched, plus everyone still saved who it could.
     .filter((sub) => bySubscriber.has(sub.id) || !sub.revoked_at)
     .map((sub) => {
@@ -295,16 +314,50 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
         reachedAt: action && touched ? action.created_at : null,
         removeAfter: action?.remove_after || null,
         removedAt: action?.removed_at || null,
-        note
+        dueAt: null as string | null,
+        offAt: null as string | null,
+        note,
+        queuedSince: sub.created_at
       };
-    })
-    .sort(
-      (a, b) =>
-        ORDER.indexOf(a.state) - ORDER.indexOf(b.state) ||
-        (b.followers ?? -1) - (a.followers ?? -1)
-    );
+    });
 
   const going = announcement && ["pending", "running"].includes(announcement.status);
+  const nextTick = Date.parse(schedulerStatus().nextTickAt || "") || null;
+  const now = Date.now();
+
+  // Who the send reaches next, and when: the queue goes oldest saved fan
+  // first, one gap after the last fan it reached, fitted to the runs.
+  if (going) {
+    const reachedInDb = actions
+      .filter((a) => a.liked || a.reposted)
+      .reduce((latest, a) => Math.max(latest, Date.parse(a.created_at) || 0), 0);
+    let at = Math.max(now, Math.max(lastReachedAt(slug), reachedInDb) + plan.gapSeconds * 1000);
+    for (const person of people
+      .filter((p) => p.state === "waiting")
+      .sort((a, b) => a.queuedSince.localeCompare(b.queuedSince))) {
+      at = onTick(at, nextTick);
+      person.dueAt = new Date(at).toISOString();
+      at += plan.gapSeconds * 1000;
+    }
+  }
+
+  // When each like/repost actually comes off: the first run after its
+  // deadline (a teardown runs at the start of one, not spread across it).
+  for (const person of people) {
+    const deadline = Date.parse(person.removeAfter || "");
+    const takenOutPending = person.state === "taken_out" && (person.liked || person.reposted) && !person.removedAt;
+    if ((person.state === "live" && deadline) || takenOutPending) {
+      person.offAt = new Date(onTick(Math.max(now, deadline || now), nextTick, 0)).toISOString();
+    }
+  }
+
+  people.sort(
+    (a, b) =>
+      ORDER.indexOf(a.state) - ORDER.indexOf(b.state) ||
+      (a.dueAt || "").localeCompare(b.dueAt || "") ||
+      (a.offAt || "").localeCompare(b.offAt || "") ||
+      (b.followers ?? -1) - (a.followers ?? -1)
+  );
   const payload: SongBoost = {
     checkedAt: new Date().toISOString(),
     song: {
@@ -328,14 +381,12 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
             lastError: announcement.last_error
           }
         : null,
-      // Everyone still waiting, one gap apart, from now.
-      finishesAt: going
-        ? new Date(
-            Date.now() +
-              people.filter((p) => p.state === "waiting").length * plan.gapSeconds * 1000
-          ).toISOString()
-        : null,
-      people
+      // The last waiting fan's turn.
+      finishesAt: people.reduce<string | null>(
+        (latest, p) => (p.dueAt && (!latest || p.dueAt > latest) ? p.dueAt : latest),
+        null
+      ),
+      people: people.map(({ queuedSince: _q, ...person }) => person)
     }
   };
   return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

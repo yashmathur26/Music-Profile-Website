@@ -38,6 +38,11 @@ export type BoostPerson = {
   reachedAt: string | null;
   /** When it comes back off; null means it stays. */
   removeAfter: string | null;
+  /** Best guess at when the send reaches them, while they're waiting. */
+  dueAt: string | null;
+  /** Best guess at when the take-off actually runs — the first scheduler
+   * run at or after `removeAfter`. */
+  offAt: string | null;
   removedAt: string | null;
   /** Why they were skipped or failed, in words. */
   note: string | null;
