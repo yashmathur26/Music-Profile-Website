@@ -147,6 +147,19 @@ const tick = async () => {
   }
 };
 
+/**
+ * Runs the next tick now instead of in up to five minutes — for the song
+ * panel's "take them out", where the artist is watching. Does nothing when
+ * this server isn't the one running the cron, or a tick is already going:
+ * the no-overlap rule matters more than the wait.
+ */
+export const runSchedulerSoon = () => {
+  const s = state();
+  if (!s.on || s.running || s.stopping) return false;
+  void tick();
+  return true;
+};
+
 export const startScheduler = (why: string) => {
   const s = state();
   if (s.on) return;

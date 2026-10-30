@@ -7,8 +7,10 @@ import {
 } from "@/lib/soundcloud";
 import { announceRelease } from "@/lib/releaseRun";
 import { TEARDOWN_CHUNK, runTeardown } from "@/lib/releaseTeardown";
+import { TAKEN_OUT } from "@/lib/fanScreen";
 import {
   countDueRemovals,
+  countForcedRemovals,
   getAccessToken,
   listActive,
   nextAnnouncement,
@@ -53,7 +55,8 @@ const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
  *
  * Announcements outrank teardowns, which outrank the keepalive. A release is
  * time-sensitive to the minute; a teardown deadline is set in days, so losing
- * a few ticks to a rollout costs it nothing.
+ * a few ticks to a rollout costs it nothing. The one exception is a fan the
+ * artist took out by hand, which goes first — they asked for it now.
  *
  * One cron rather than two on purpose. SoundCloud's refresh tokens are
  * single-use, so two jobs refreshing the same fan at the same moment would
@@ -91,6 +94,10 @@ const handle = async (request: NextRequest) => {
       { status: 503 }
     );
   }
+
+  // Except removals the artist asked for by hand on the song panel: "take
+  // them out now" can't wait for a day-long rollout to finish.
+  if (job && (await countForcedRemovals(TAKEN_OUT)) > 0) return teardown();
 
   if (job) return announce(job);
 

@@ -53,6 +53,9 @@ export type ReleaseAction = {
    * refusing is eventually given up on instead of retried every tick until
    * the end of time. */
   remove_attempts: number;
+  /** When the release first reached this fan. A re-send keeps it. */
+  created_at: string;
+  updated_at: string;
 };
 
 /** Attempts before a row is written off — see `remove_attempts`. */
@@ -424,6 +427,166 @@ export const countDueRemovals = async (): Promise<number> => {
 };
 
 /**
+ * Removals the artist asked for by hand — "take them out" on the song panel.
+ * These jump ahead of a rollout in the cron, because "now" is what was asked;
+ * scheduled ones wait, since their deadline is measured in days.
+ */
+export const countForcedRemovals = async (marker: string): Promise<number> => {
+  if (!supabase) return 0;
+  try {
+    const { count, error } = await supabase
+      .from(ACTIONS)
+      .select("*", { count: "exact", head: true })
+      .eq("error", marker)
+      .lte("remove_after", new Date().toISOString())
+      .is("removed_at", null)
+      .or("liked.eq.true,reposted.eq.true");
+    if (error) throw error;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Takes fans out of one song's boost. Fans it hasn't reached yet get a row
+ * carrying `marker`, so the rollout skips them; fans it has reached get the
+ * same marker and a deadline of now, so the teardown takes the like and
+ * repost back off on its next pass.
+ */
+export const takeOut = async (params: {
+  trackSlug: string;
+  subscriberIds: string[];
+  marker: string;
+}): Promise<void> => {
+  const { trackSlug, subscriberIds, marker } = params;
+  if (!subscriberIds.length) return;
+  const now = new Date().toISOString();
+
+  // Only the columns named here are written on conflict, so a fan who was
+  // reached keeps the liked/reposted flags the teardown needs.
+  const { error } = await client()
+    .from(ACTIONS)
+    .upsert(
+      subscriberIds.map((id) => ({
+        subscriber_id: id,
+        track_slug: trackSlug,
+        error: marker,
+        updated_at: now
+      })),
+      { onConflict: "subscriber_id,track_slug" }
+    );
+  if (error) throw error;
+
+  const { error: dueError } = await client()
+    .from(ACTIONS)
+    .update({ remove_after: now, remove_attempts: 0, remove_error: null, updated_at: now })
+    .eq("track_slug", trackSlug)
+    .in("subscriber_id", subscriberIds)
+    .is("removed_at", null)
+    .or("liked.eq.true,reposted.eq.true");
+  if (dueError) throw dueError;
+};
+
+/**
+ * Undoes `takeOut`. Whatever is still on their profile gets `removeAfter`
+ * back as its deadline; whatever already came off is put back by the next
+ * send, which the caller queues.
+ */
+export const putBack = async (params: {
+  trackSlug: string;
+  subscriberIds: string[] | null;
+  marker: string;
+  removeAfter: string | null;
+}): Promise<void> => {
+  const { trackSlug, subscriberIds, marker, removeAfter } = params;
+  const now = new Date().toISOString();
+  const ids = (await listActions(trackSlug))
+    .filter(
+      (a) => a.error === marker && (!subscriberIds || subscriberIds.includes(a.subscriber_id))
+    )
+    .map((a) => a.id);
+  if (!ids.length) return;
+
+  const { error: pendingError } = await client()
+    .from(ACTIONS)
+    .update({ remove_after: removeAfter, updated_at: now })
+    .in("id", ids)
+    .is("removed_at", null);
+  if (pendingError) throw pendingError;
+
+  const { error } = await client()
+    .from(ACTIONS)
+    .update({ error: null, updated_at: now })
+    .in("id", ids);
+  if (error) throw error;
+};
+
+/**
+ * Moves the deadline on likes and reposts that are still in place — the
+ * song panel's "keep it up for". `due` gets each row's current state and
+ * returns its new deadline, so the caller decides what "a week" counts from.
+ * Rows already taken off, or taken out by hand, are left as they are.
+ */
+export const reschedule = async (params: {
+  trackSlug: string;
+  subscriberIds: string[] | null;
+  skipMarker: string;
+  due: (action: ReleaseAction) => string | null;
+}): Promise<number> => {
+  const { trackSlug, subscriberIds, skipMarker, due } = params;
+  const live = (await listActions(trackSlug)).filter(
+    (a) =>
+      !a.removed_at &&
+      (a.liked || a.reposted) &&
+      a.error !== skipMarker &&
+      (!subscriberIds || subscriberIds.includes(a.subscriber_id))
+  );
+
+  const now = new Date().toISOString();
+  // Grouped by deadline, so a whole song is a handful of writes, not one per fan.
+  const byDeadline = new Map<string | null, string[]>();
+  for (const action of live) {
+    const deadline = due(action);
+    byDeadline.set(deadline, [...(byDeadline.get(deadline) || []), action.id]);
+  }
+  for (const [deadline, ids] of byDeadline) {
+    const { error } = await client()
+      .from(ACTIONS)
+      .update({ remove_after: deadline, remove_attempts: 0, remove_error: null, updated_at: now })
+      .in("id", ids);
+    if (error) throw error;
+  }
+  return live.length;
+};
+
+/** Stops a rollout where it is. Sending the song again picks it back up. */
+export const stopAnnouncement = async (trackSlug: string): Promise<void> => {
+  const { error } = await client()
+    .from(ANNOUNCEMENTS)
+    .update({
+      status: "stopped",
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("track_slug", trackSlug)
+    .in("status", ["pending", "running"]);
+  if (error) throw error;
+};
+
+export const findAnnouncement = async (
+  trackSlug: string
+): Promise<ReleaseAnnouncement | null> => {
+  const { data, error } = await client()
+    .from(ANNOUNCEMENTS)
+    .select("*")
+    .eq("track_slug", trackSlug)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as ReleaseAnnouncement) ?? null;
+};
+
+/**
  * Closes out a teardown. `liked`/`reposted` are what is still on the account
  * afterwards, so a clean removal passes false for both; a partial one records
  * what it couldn't take off alongside the reason.
@@ -498,7 +661,7 @@ export const noteRemovalFailure = async (params: {
  * That also spreads the writes out instead of firing every account at
  * SoundCloud in the same second.
  */
-export type AnnouncementStatus = "pending" | "running" | "done" | "failed";
+export type AnnouncementStatus = "pending" | "running" | "done" | "failed" | "stopped";
 
 export type ReleaseAnnouncement = {
   id: string;

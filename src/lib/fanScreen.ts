@@ -112,3 +112,11 @@ export const screenProfile = (
 
 /** How a release records a fan it skipped on purpose — see releaseRun.ts. */
 export const LEFT_ALONE_PREFIX = "left_alone:";
+
+/**
+ * A fan the artist took out of one song's boost by hand, from the song panel.
+ * Shares the left-alone prefix on purpose: the fan-out already treats those
+ * rows as done, so a rollout still going out skips them, and a later send of
+ * the same song does too, until the artist puts them back.
+ */
+export const TAKEN_OUT = `${LEFT_ALONE_PREFIX}taken_out`;

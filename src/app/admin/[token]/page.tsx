@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
 import StatsTab from "@/components/admin/StatsTab";
 import FansTab from "@/components/admin/FansTab";
+import SongPanel from "@/components/admin/SongPanel";
 import {
   DEFAULT_SITE_CONFIG,
   SiteConfig,
@@ -28,7 +29,7 @@ import {
 /* ------------------------------------------------------------------ */
 
 type Announcement = {
-  status: "pending" | "running" | "done" | "failed";
+  status: "pending" | "running" | "done" | "failed" | "stopped";
   processed: number;
   liked: number;
   reposted: number;
@@ -725,7 +726,8 @@ function GateRow({
   onCopy,
   onDelete,
   onSaved,
-  onAnnounce
+  onAnnounce,
+  onOpen
 }: {
   track: AdminTrack;
   token: string;
@@ -736,6 +738,8 @@ function GateRow({
   onDelete: () => void;
   onSaved: () => void;
   onAnnounce: () => Promise<void>;
+  /** Opens the song's stats and boost panel. */
+  onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(track);
@@ -754,7 +758,9 @@ function GateRow({
       ? `Sent to ${announcement.processed} ✓`
       : announcement.status === "failed"
         ? "Retry sending"
-        : `Sending… ${announcement.processed}/${subscribers}`;
+        : announcement.status === "stopped"
+          ? "Stopped · send again"
+          : `Sending… ${announcement.processed}/${subscribers}`;
 
   const plan = normalizePlan(track.subscriberPlan);
 
@@ -845,17 +851,37 @@ function GateRow({
   return (
     <li className="rounded-xl border border-white/10 bg-black/20">
       <div className="flex items-center gap-3 px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-white/85">{track.title}</p>
-          <p className="truncate text-xs text-white/40">
-            /{track.slug}
-            {track.followTargets.length > 1 && (
-              <span className="ml-2 text-purple-300/70">
-                follows {track.followTargets.length} accounts
-              </span>
-            )}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          title="Stats and boost"
+          className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+        >
+          {track.artworkUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={track.artworkUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-md object-cover"
+            />
+          ) : (
+            <div className="h-9 w-9 shrink-0 rounded-md bg-white/10" />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm text-white/85 transition group-hover:text-white">
+              {track.title}
+              <span className="ml-1.5 text-white/25 transition group-hover:text-white/60">›</span>
+            </span>
+            <span className="block truncate text-xs text-white/40">
+              /{track.slug}
+              {track.followTargets.length > 1 && (
+                <span className="ml-2 text-purple-300/70">
+                  follows {track.followTargets.length} accounts
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => (open ? setOpen(false) : startEditing())}
@@ -1006,6 +1032,8 @@ function TracksManager({ token }: { token: string }) {
   const [announcedOnCreate, setAnnouncedOnCreate] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  // The song whose stats-and-boost panel is open.
+  const [openSlug, setOpenSlug] = useState<string | null>(null);
 
   const authHeaders = useCallback(
     () => ({ Authorization: `Bearer ${token}` }),
@@ -1272,11 +1300,24 @@ function TracksManager({ token }: { token: string }) {
                 onDelete={() => remove(track.slug)}
                 onSaved={loadTracks}
                 onAnnounce={() => announce(track.slug)}
+                onOpen={() => setOpenSlug(track.slug)}
               />
             ))}
           </ul>
         </div>
       )}
+
+      <AnimatePresence>
+        {openSlug && (
+          <SongPanel
+            key={openSlug}
+            slug={openSlug}
+            token={token}
+            onClose={() => setOpenSlug(null)}
+            onChanged={loadTracks}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

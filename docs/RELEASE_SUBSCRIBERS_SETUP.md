@@ -236,6 +236,30 @@ skipped — including, deliberately, anyone whose like and repost were since
 removed on retention, because putting them back is what pressing the button
 again means.
 
+### Editing a send afterwards — the song panel
+
+Tap a song in **Live gates** to open its panel: SoundCloud's all-time plays,
+likes, reposts and comments, the gate's views and downloads, and every saved
+fan's standing on that song (live, waiting, came off, skipped, taken out).
+Five show up front; **Show all** lists the rest.
+
+- **How fast it goes out** changes the rollout window. A send that's already
+  going picks the new pace up on the next tick.
+- **How long everyone keeps it up** changes the song's retention *and* moves
+  the deadline on every like/repost still in place, counted from when it
+  reached each fan.
+- **Take everyone out now** stops the send and takes down what's up. Tapping a
+  single fan does the same for just them (or skips them, before it reaches
+  them), and can give them their own retention.
+- **Put back** undoes a take-out; anything already off goes back up on the
+  next send.
+
+A fan taken out carries `error = 'left_alone:taken_out'` on their
+`release_actions` row, so the rollout and later sends skip them. Their removal
+jumps ahead of a running rollout in the cron, and the panel asks the scheduler
+to run straight away, so it's usually off within a minute or two. All the
+SoundCloud writes still happen in the one cron.
+
 ### By hand
 
 The manual endpoint runs the fan-out inline instead of queueing it:
