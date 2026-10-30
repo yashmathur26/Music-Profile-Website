@@ -23,15 +23,10 @@ export const dynamic = "force-dynamic";
 // invalidate each other. lib/scheduler.ts never starts a run while one is
 // still going, so nothing here needs a time limit to keep them apart.
 
-/**
- * How often lib/scheduler.ts fires this — every five minutes on Railway.
- * The rollout maths needs to know how much of a gate's window one tick is
- * responsible for, so change the two together.
- */
-const TICK_MS = 5 * 60_000;
-
 /** How much of a tick a pass may spend spacing its writes — well inside the
- * five minutes, so a pass is finished before the scheduler's next tick. */
+ * five minutes lib/scheduler.ts waits between ticks, so a pass is finished
+ * before the next one. A gate's gap that doesn't fit carries over: the next
+ * tick knows when the last fan was reached. */
 const SPREAD_MS = 200_000;
 
 /** Hard ceiling on fans per announcement pass, whatever the pacing works
@@ -49,7 +44,7 @@ const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
  * one of three jobs, never two:
  *
  *  1. drain the release queue the portal's "Tell my subscribers" checkbox
- *     feeds, at the pace the gate's rollout window asks for;
+ *     feeds, one fan at a time with the gap the gate asks for;
  *  2. otherwise, take back the likes and reposts whose retention has run out;
  *  3. otherwise, refresh the grants that haven't been touched in 20 hours.
  *
@@ -144,12 +139,7 @@ const announce = async (
   const result = await announceRelease({
     slug: job.track_slug,
     limit: ANNOUNCE_CHUNK,
-    rollout: {
-      startedAt: job.started_at,
-      alreadyProcessed: job.processed,
-      tickMs: TICK_MS,
-      spreadMs: SPREAD_MS
-    }
+    rollout: { spreadMs: SPREAD_MS }
   });
 
   if (!result.ok) {

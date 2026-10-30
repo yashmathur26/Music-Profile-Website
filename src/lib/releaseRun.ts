@@ -18,6 +18,7 @@ import { getTrackPermalink } from "@/lib/tracks";
 import {
   SubscriberPlan,
   normalizePlan,
+  jitteredGap,
   planIsNoop,
   removalDueAt,
   spreadRemoval
@@ -41,10 +42,16 @@ import {
 
 const BATCH_SIZE = 20;
 const BATCH_PAUSE_MS = 1000;
-/** Never sit on an open function for longer than this waiting to pace: the
- * caller's own timeout is the real limit, and the leftovers are picked up on
- * the next tick anyway. */
-const MAX_PACE_WAIT_MS = 30_000;
+/**
+ * When each release last reached a fan, kept in memory across ticks so the
+ * gap holds from one tick to the next. On globalThis because the cron route
+ * is its own bundle. A restart forgets it, and the database's newest reach
+ * time stands in — which misses only a re-send, whose rows already existed.
+ */
+const LAST_REACH_KEY = Symbol.for("yvsh.releaseLastReach");
+const lastReach = ((globalThis as typeof globalThis & {
+  [LAST_REACH_KEY]?: Map<string, number>;
+})[LAST_REACH_KEY] ??= new Map<string, number>());
 /** Consecutive 403s that mean SoundCloud has shut the write API, not that one
  * fan is unusual — see the June 2026 note in docs/SOUNDCLOUD_GATE_SETUP.md. */
 const BLOCKED_STREAK_LIMIT = 5;
@@ -143,24 +150,18 @@ export const announceRelease = async (options: {
    */
   paceMs?: number | null;
   /**
-   * Turns this pass into one slice of a timed rollout.
+   * Turns this pass into one tick's worth of a paced release.
    *
-   * The gate says how long a release should take to go out; the cron fires
-   * on a fixed tick and has no idea how far through that window it is. Given
-   * when the release started and how many fans are already done, this works
-   * out the share that belongs to this tick and how far apart to space it —
-   * which is what keeps a release arriving as a trickle rather than as one
-   * burst of identical writes from a single client id.
+   * The gate sets the time between one fan and the next; the cron fires on a
+   * fixed tick. This works out when the last fan was reached, so the first
+   * one this tick still waits out the gap, then fits as many more as the
+   * gap allows inside `spreadMs` — each gap randomised a little, so the
+   * writes arrive as a trickle with no fixed rhythm rather than a burst of
+   * identical writes from one client id. A gap longer than the tick simply
+   * means some ticks reach nobody.
    */
   rollout?: {
-    /** When the release began. Null means it starts now. */
-    startedAt: string | null;
-    /** Fans completed by earlier passes. */
-    alreadyProcessed: number;
-    /** How much of the window one tick covers. */
-    tickMs: number;
-    /** How much of that tick this pass may actually spend spacing writes —
-     * under the function's own timeout, with headroom. */
+    /** How much of the tick this pass may spend spacing writes. */
     spreadMs: number;
   } | null;
   dryRun?: boolean;
@@ -204,6 +205,7 @@ export const announceRelease = async (options: {
 
   let subscribers;
   let alreadyDone: Set<string>;
+  let actions: Awaited<ReturnType<typeof listActions>>;
   try {
     subscribers = await listActive();
     // One query rather than one per fan.
@@ -212,8 +214,9 @@ export const announceRelease = async (options: {
     // sending the release again should put it back, which is exactly what the
     // artist is asking for when they press the button a second time.
     // A fan this release deliberately left alone is done too.
+    actions = await listActions(slug);
     alreadyDone = new Set(
-      (await listActions(slug))
+      actions
         .filter(
           (action) =>
             action.error?.startsWith(LEFT_ALONE_PREFIX) ||
@@ -236,36 +239,24 @@ export const announceRelease = async (options: {
 
   let queue = limit ? pending.slice(0, limit) : pending;
   let paceMs = fixedPace;
+  /** Milliseconds from the start of the pass at which each fan goes out. */
+  let slots: number[] | null = null;
 
   if (rollout && pending.length) {
-    const windowMs = plan.rolloutMinutes * 60_000;
-    const startedAt = rollout.startedAt ? Date.parse(rollout.startedAt) : NaN;
-    const elapsed = Number.isNaN(startedAt)
-      ? 0
-      : Math.max(0, Date.now() - startedAt);
+    const reachedInDb = actions
+      .filter((a) => a.liked || a.reposted)
+      .reduce((latest, a) => Math.max(latest, Date.parse(a.created_at) || 0), 0);
+    const last = Math.max(lastReach.get(slug) || 0, reachedInDb);
+    const first = Math.max(0, last + plan.gapSeconds * 1000 - Date.now());
 
-    // The share of the whole release that should be done by the time this
-    // tick's slice of the window is over.
-    const total = rollout.alreadyProcessed + pending.length;
-    const fraction =
-      windowMs <= 0 ? 1 : Math.min(1, (elapsed + rollout.tickMs) / windowMs);
-    const targetDone = Math.ceil(total * fraction);
-
-    // At least one per tick: a release with fewer fans than ticks would
-    // otherwise round down to nothing and never finish. A run that has
-    // fallen behind its window catches up here rather than staying behind.
-    const share = Math.max(1, targetDone - rollout.alreadyProcessed);
-    queue = pending.slice(0, Math.min(share, limit ?? pending.length));
-
-    // Space this tick's share across the tick, but never drag past the end
-    // of the window the artist asked for.
-    const remainingWindow = Math.max(0, windowMs - elapsed);
-    const spreadOver = Math.min(
-      rollout.spreadMs,
-      remainingWindow || rollout.spreadMs
-    );
-    paceMs = queue.length > 1 ? Math.floor(spreadOver / queue.length) : 0;
+    slots = [];
+    for (let at = first; at <= rollout.spreadMs; at += jitteredGap(plan)) {
+      slots.push(at);
+      if (slots.length >= Math.min(pending.length, limit ?? pending.length)) break;
+    }
+    queue = pending.slice(0, slots.length);
   }
+
 
   const base: AnnounceSummary = {
     track: { slug, trackId, title },
@@ -310,11 +301,9 @@ export const announceRelease = async (options: {
     // wait is measured from the start of the pass rather than slept between
     // calls, so time SoundCloud spends answering counts towards the spacing
     // instead of stretching it.
-    if (paceMs && i > 0) {
-      const due = startedAt + i * paceMs;
-      const wait = Math.min(due - Date.now(), MAX_PACE_WAIT_MS);
-      if (wait > 0) await sleep(wait);
-    }
+    const due = slots ? startedAt + slots[i] : paceMs && i > 0 ? startedAt + i * paceMs : 0;
+    const wait = due - Date.now();
+    if (wait > 0) await sleep(wait);
 
     // Big accounts and people the artist follows are left alone. A lookup
     // that fails for a passing reason leaves them for the next pass rather
@@ -408,6 +397,7 @@ export const announceRelease = async (options: {
       );
     }
 
+    if (outcome.liked || outcome.reposted) lastReach.set(slug, Date.now());
     if (outcome.liked) base.liked++;
     if (outcome.reposted) base.reposted++;
     // Failure is "nothing the gate asked for landed" — with repost switched

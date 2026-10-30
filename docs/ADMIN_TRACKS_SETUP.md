@@ -23,12 +23,15 @@ create table if not exists public.gate_tracks (
   -- "use the default", so an un-migrated row behaves exactly as before.
   --   subscriber_like / subscriber_repost      which actions are allowed
   --   subscriber_retain_days                   1..14, or null to keep them
-  --   subscriber_rollout_minutes               window to spread the writes over
+  --   subscriber_rollout_minutes               (old, unused) window to spread the writes over
+  --   subscriber_gap_seconds                   time between one fan's writes and the next
+  --   subscriber_removal_minutes               window to spread the take-off over
   subscriber_like boolean default true,
   subscriber_repost boolean default true,
   subscriber_retain_days integer,
   subscriber_rollout_minutes integer default 30,
   subscriber_removal_minutes integer default 120,
+  subscriber_gap_seconds integer default 60,
   created_at timestamptz not null default now()
 );
 -- Existing installs created before per-gate follow lists:
@@ -39,6 +42,7 @@ alter table public.gate_tracks add column if not exists subscriber_repost boolea
 alter table public.gate_tracks add column if not exists subscriber_retain_days integer;
 alter table public.gate_tracks add column if not exists subscriber_rollout_minutes integer default 30;
 alter table public.gate_tracks add column if not exists subscriber_removal_minutes integer default 120;
+alter table public.gate_tracks add column if not exists subscriber_gap_seconds integer default 60;
 
 -- Server-only access: the service role key bypasses RLS; enabling it with no
 -- policies means the anon/public key can't read or write anything.

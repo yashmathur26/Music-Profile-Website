@@ -18,8 +18,8 @@ import {
 } from "@/lib/followTargets";
 import {
   DEFAULT_PLAN,
-  DEFAULT_ROLLOUT_MINUTES,
   SubscriberPlan,
+  gapLabel,
   normalizePlan,
   planIsNoop
 } from "@/lib/subscriberPlan";
@@ -397,7 +397,7 @@ type PlanDraft = {
   like: boolean;
   repost: boolean;
   retainDays: string;
-  rolloutMinutes: string;
+  gapSeconds: number;
   removalMinutes: number;
 };
 
@@ -405,7 +405,7 @@ const planToDraft = (plan: SubscriberPlan): PlanDraft => ({
   like: plan.like,
   repost: plan.repost,
   retainDays: plan.retainDays === null ? "" : String(plan.retainDays),
-  rolloutMinutes: String(plan.rolloutMinutes),
+  gapSeconds: plan.gapSeconds,
   removalMinutes: plan.removalMinutes
 });
 
@@ -415,8 +415,7 @@ const draftToPlan = (draft: PlanDraft): SubscriberPlan =>
     like: draft.like,
     repost: draft.repost,
     retainDays: draft.retainDays.trim() === "" ? null : draft.retainDays,
-    rolloutMinutes:
-      draft.rolloutMinutes.trim() === "" ? null : draft.rolloutMinutes,
+    gapSeconds: draft.gapSeconds,
     removalMinutes: draft.removalMinutes
   });
 
@@ -431,13 +430,14 @@ const STAY_OPTIONS: { days: number | null; label: string }[] = [
   { days: null, label: "Forever" }
 ];
 
-/** How long a send takes to reach everyone. Five minutes is one scheduler
- * tick — as fast as the queue drains anyway. */
-const PACE_OPTIONS: { minutes: number; label: string }[] = [
-  { minutes: 5, label: "Right away" },
-  { minutes: DEFAULT_ROLLOUT_MINUTES, label: "Over 30 minutes" },
-  { minutes: 120, label: "Over 2 hours" },
-  { minutes: 24 * 60, label: "Over a day" }
+/** Time between one fan and the next, randomised a little either way. */
+const GAP_OPTIONS: { seconds: number; label: string }[] = [
+  { seconds: 10, label: "10 sec" },
+  { seconds: 30, label: "30 sec" },
+  { seconds: 60, label: "1 min" },
+  { seconds: 300, label: "5 min" },
+  { seconds: 900, label: "15 min" },
+  { seconds: 3600, label: "1 hour" }
 ];
 
 /** How spread out the take-off is once the time is up. */
@@ -455,25 +455,32 @@ const removalLabel = (minutes: number) =>
 const stayLabel = (days: number | null) =>
   STAY_OPTIONS.find((o) => o.days === days)?.label.toLowerCase() ||
   `${days} day${days === 1 ? "" : "s"}`;
-const paceLabel = (minutes: number) =>
-  PACE_OPTIONS.find((o) => o.minutes === minutes)?.label.toLowerCase() ||
-  (minutes >= 120 ? `over ${Math.round(minutes / 60)} hours` : `over ${minutes} minutes`);
+/** "about 23 minutes" — roughly how long a send to `fans` takes. */
+const totalLabel = (plan: SubscriberPlan, fans: number) => {
+  const minutes = Math.round((Math.max(0, fans - 1) * plan.gapSeconds) / 60);
+  if (minutes < 1) return "a minute or so";
+  if (minutes < 90) return `about ${minutes} minutes`;
+  if (minutes < 36 * 60) return `about ${Math.round(minutes / 60)} hours`;
+  return `about ${Math.round(minutes / 1440)} days`;
+};
 
 /**
  * The plan in one plain sentence, for the card and the send confirmation —
- * "When you send it, up to 14 fans like and repost it over 30 minutes. It
- * comes off on its own after 1 week."
+ * "When you send it, up to 14 fans like and repost it, one fan every 1 min
+ * (about 13 minutes for everyone). It comes off on its own after 1 week."
  */
 const planSentence = (plan: SubscriberPlan, fans: number) => {
   const actions = [plan.like && "like", plan.repost && "repost"].filter(Boolean).join(" and ");
   if (!actions) return "Pick Like, Repost or both — right now sending would do nothing.";
   const who = fans > 0 ? `up to ${fans} fan${fans === 1 ? "" : "s"}` : "your saved fans";
-  const when = paceLabel(plan.rolloutMinutes);
+  const when =
+    `one fan every ${gapLabel(plan.gapSeconds)}` +
+    (fans > 1 ? ` (${totalLabel(plan, fans)} for everyone)` : "");
   const stays =
     plan.retainDays === null
       ? "It stays on their profiles."
       : `It comes off on its own after ${stayLabel(plan.retainDays)}, ${removalLabel(plan.removalMinutes)}.`;
-  return `When you send it, ${who} ${actions} it ${when}. ${stays}`;
+  return `When you send it, ${who} ${actions} it, ${when}. ${stays}`;
 };
 
 /** A row of pill buttons where exactly one is picked. */
@@ -541,9 +548,9 @@ function SubscriberPlanFields({
   if (!removalOptions.some((o) => o.value === plan.removalMinutes)) {
     removalOptions.push({ value: plan.removalMinutes, label: removalLabel(plan.removalMinutes) });
   }
-  const paceOptions = PACE_OPTIONS.map((o) => ({ value: o.minutes, label: o.label }));
-  if (!paceOptions.some((o) => o.value === plan.rolloutMinutes)) {
-    paceOptions.push({ value: plan.rolloutMinutes, label: paceLabel(plan.rolloutMinutes) });
+  const gapOptions = GAP_OPTIONS.map((o) => ({ value: o.seconds, label: o.label }));
+  if (!gapOptions.some((o) => o.value === plan.gapSeconds)) {
+    gapOptions.push({ value: plan.gapSeconds, label: gapLabel(plan.gapSeconds) });
   }
 
   const action = (key: "like" | "repost", icon: string, label: string, hint: string) => (
@@ -639,11 +646,14 @@ function SubscriberPlanFields({
           </div>
         )}
         <div>
-          <p className="mb-1.5 text-xs text-white/55">How fast it goes out</p>
+          <p className="mb-1.5 text-xs text-white/55">
+            Time between each fan
+            <span className="text-white/35"> · varies a little, so it looks natural</span>
+          </p>
           <Choice
-            options={paceOptions}
-            value={plan.rolloutMinutes}
-            onChange={(minutes) => set({ rolloutMinutes: String(minutes) })}
+            options={gapOptions}
+            value={plan.gapSeconds}
+            onChange={(seconds) => set({ gapSeconds: seconds })}
           />
         </div>
       </div>

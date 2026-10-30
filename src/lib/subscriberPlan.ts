@@ -16,11 +16,14 @@
 /** Two weeks. Past this it isn't a temporary boost, it's just a repost. */
 export const MAX_RETAIN_DAYS = 14;
 
-/** Spread a release over half an hour unless the gate says otherwise. */
-export const DEFAULT_ROLLOUT_MINUTES = 30;
+/** A minute between fans unless the gate says otherwise. */
+export const DEFAULT_GAP_SECONDS = 60;
 
-/** A day. Longer than this and a release is still trickling out next week. */
-export const MAX_ROLLOUT_MINUTES = 24 * 60;
+/** An hour. Longer and a release to a few hundred fans takes weeks. */
+export const MAX_GAP_SECONDS = 60 * 60;
+
+/** A day — the longest a take-off may be spread over. */
+export const MAX_REMOVAL_MINUTES = 24 * 60;
 
 /** Take a release back off over two hours unless the gate says otherwise. */
 export const DEFAULT_REMOVAL_MINUTES = 120;
@@ -36,8 +39,12 @@ export type SubscriberPlan = {
    * this setting existed.
    */
   retainDays: number | null;
-  /** Minutes to spread one release's writes across. */
-  rolloutMinutes: number;
+  /**
+   * Seconds between one fan's like/repost and the next. The actual gap is
+   * randomised around this (see `jitteredGap`), so the writes never arrive
+   * on a metronome.
+   */
+  gapSeconds: number;
   /**
    * Minutes to spread the take-off across once the retention runs out. Each
    * fan gets their own random moment inside the window, so a release doesn't
@@ -56,7 +63,7 @@ export const DEFAULT_PLAN: SubscriberPlan = {
   like: true,
   repost: true,
   retainDays: null,
-  rolloutMinutes: DEFAULT_ROLLOUT_MINUTES,
+  gapSeconds: DEFAULT_GAP_SECONDS,
   removalMinutes: DEFAULT_REMOVAL_MINUTES
 };
 
@@ -85,7 +92,7 @@ export const normalizePlan = (input: unknown): SubscriberPlan => {
   const raw = input as Record<string, unknown>;
 
   const retainDays = toInt(raw.retainDays);
-  const rolloutMinutes = toInt(raw.rolloutMinutes);
+  const gapSeconds = toInt(raw.gapSeconds);
   const removalMinutes = toInt(raw.removalMinutes);
 
   return {
@@ -97,14 +104,14 @@ export const normalizePlan = (input: unknown): SubscriberPlan => {
       retainDays === null || retainDays <= 0
         ? null
         : clamp(retainDays, 1, MAX_RETAIN_DAYS),
-    rolloutMinutes:
-      rolloutMinutes === null || rolloutMinutes <= 0
-        ? DEFAULT_ROLLOUT_MINUTES
-        : clamp(rolloutMinutes, 1, MAX_ROLLOUT_MINUTES),
+    gapSeconds:
+      gapSeconds === null || gapSeconds <= 0
+        ? DEFAULT_GAP_SECONDS
+        : clamp(gapSeconds, 5, MAX_GAP_SECONDS),
     removalMinutes:
       removalMinutes === null || removalMinutes <= 0
         ? DEFAULT_REMOVAL_MINUTES
-        : clamp(removalMinutes, 1, MAX_ROLLOUT_MINUTES)
+        : clamp(removalMinutes, 1, MAX_REMOVAL_MINUTES)
   };
 };
 
@@ -122,6 +129,18 @@ export const removalDueAt = (
   plan.retainDays === null
     ? null
     : new Date(from.getTime() + plan.retainDays * 86_400_000).toISOString();
+
+/** One gap, somewhere between 70% and 130% of the setting. */
+export const jitteredGap = (plan: SubscriberPlan) =>
+  Math.round(plan.gapSeconds * 1000 * (0.7 + Math.random() * 0.6));
+
+/** "1 min", "30 sec", "2 hours" — for the admin portal. */
+export const gapLabel = (seconds: number) =>
+  seconds < 60
+    ? `${seconds} sec`
+    : seconds < 3600
+      ? `${Math.round(seconds / 60)} min`
+      : `${Math.round(seconds / 3600)} hour${seconds >= 7200 ? "s" : ""}`;
 
 /**
  * One fan's take-off moment: the release's deadline plus a random point in
@@ -144,13 +163,10 @@ export const describePlan = (plan: SubscriberPlan) => {
   ) as string[];
   if (!actions.length) return "Does nothing to your subscribers.";
   const verb = actions.join(" + ");
-  const window =
-    plan.rolloutMinutes >= 120
-      ? `${Math.round(plan.rolloutMinutes / 60)}h`
-      : `${plan.rolloutMinutes} min`;
+  const window = `one fan every ${gapLabel(plan.gapSeconds)}`;
   const kept =
     plan.retainDays === null
       ? "kept permanently"
       : `removed after ${plan.retainDays} day${plan.retainDays === 1 ? "" : "s"}`;
-  return `${verb[0].toUpperCase()}${verb.slice(1)} over ${window}, ${kept}.`;
+  return `${verb[0].toUpperCase()}${verb.slice(1)}, ${window}, ${kept}.`;
 };

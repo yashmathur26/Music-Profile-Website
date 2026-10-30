@@ -90,7 +90,7 @@ export type BoostEdit =
   | { action: "put_back"; ids?: string[] }
   /** Keep it up for this many days from the send; null keeps it for good. */
   | { action: "keep_for"; days: number | null; ids?: string[] }
-  /** Spread the rollout over this many minutes. */
-  | { action: "pace"; minutes: number }
+  /** Leave about this many seconds between one fan and the next. */
+  | { action: "pace"; seconds: number }
   /** Spread the take-off over this many minutes, re-spreading what's scheduled. */
   | { action: "removal_pace"; minutes: number };

@@ -23,14 +23,14 @@ const KEEP_OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: "Forever" }
 ];
 
-/** How fast a send reaches everyone. The cron ticks every five minutes. */
-const PACE_OPTIONS: { value: number; label: string }[] = [
-  { value: 5, label: "Right away" },
-  { value: 30, label: "30 min" },
-  { value: 120, label: "2 hours" },
-  { value: 360, label: "6 hours" },
-  { value: 720, label: "12 hours" },
-  { value: 1440, label: "1 day" }
+/** Time between one fan and the next, randomised a little either way. */
+const GAP_OPTIONS: { value: number; label: string }[] = [
+  { value: 10, label: "10 sec" },
+  { value: 30, label: "30 sec" },
+  { value: 60, label: "1 min" },
+  { value: 300, label: "5 min" },
+  { value: 900, label: "15 min" },
+  { value: 3600, label: "1 hour" }
 ];
 
 /** How spread out the take-off is once the time is up. */
@@ -547,14 +547,16 @@ export default function SongPanel({
                   <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
                     <div>
                       <p className="mb-2 text-xs text-white/55">
-                        How fast it goes out
-                        {sending && <span className="text-white/35"> · changes the rest of this send</span>}
+                        Time between each fan
+                        <span className="text-white/35">
+                          {sending ? " · changes the rest of this send" : " · varies a little, so it looks natural"}
+                        </span>
                       </p>
                       <Pills
-                        options={PACE_OPTIONS}
-                        value={plan.rolloutMinutes}
+                        options={GAP_OPTIONS}
+                        value={plan.gapSeconds}
                         busy={busy === "pace"}
-                        onPick={(minutes) => edit({ action: "pace", minutes })}
+                        onPick={(seconds) => edit({ action: "pace", seconds })}
                       />
                     </div>
                     <div>

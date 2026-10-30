@@ -156,10 +156,11 @@ is why the schedule now lives in the server.)
 
 Every tick it does exactly one of three jobs, never two.
 
-**Draining the release queue** — the oldest unfinished release, at the pace the
-gate's rollout window asks for. A gate set to 30 minutes gets roughly a sixth
-of its subscribers per tick, spaced out within the tick rather than fired in a
-block, and a release that falls behind its window catches up on later ticks.
+**Draining the release queue** — the oldest unfinished release, one fan at a
+time with the gap the gate asks for between them. Each gap is randomised to
+between 70% and 130% of the setting, so there's no fixed rhythm. A tick fits
+as many fans as the gap allows inside its first 200 seconds; a gap longer than
+that carries over, since the next tick knows when the last fan was reached.
 150 fans a tick is the hard ceiling whatever the maths says. It's a queue
 rather than something that runs when you press the button because the fan-out
 can outlive any single request (a slow send would otherwise read back to you
@@ -205,7 +206,7 @@ create form and in **Edit** on the gate itself:
 | **Like the song** | on | Likes it from each saved account. Private; only a count moves. |
 | **Repost it** | on | The public one — it shows on their profile and in their followers' feeds. |
 | **Take it back off after** | empty | 1–14 days, then the teardown removes the like and repost. Empty leaves them permanently. |
-| **Roll out over** | 30 min | The window the writes are spread across, instead of landing in one burst. |
+| **Time between each fan** | 1 min | How long after one fan's like/repost the next one goes out, randomised ±30%. Needs `subscriber_gap_seconds`. |
 | **Comes off over** | 2 hours | Once the retention runs out, each fan's like and repost comes off at their own random moment inside this window, not all on one tick. Needs `subscriber_removal_minutes` (docs/ADMIN_TRACKS_SETUP.md). |
 
 Both actions off means there is nothing to send, and the fan-out refuses the
@@ -244,8 +245,8 @@ likes, reposts and comments, the gate's views and downloads, and every saved
 fan's standing on that song (live, waiting, came off, skipped, taken out).
 Five show up front; **Show all** lists the rest.
 
-- **How fast it goes out** changes the rollout window. A send that's already
-  going picks the new pace up on the next tick.
+- **Time between each fan** changes the gap. A send that's already going
+  picks the new gap up from the next fan.
 - **How long everyone keeps it up** changes the song's retention *and* moves
   the deadline on every like/repost still in place, counted from when it
   reached each fan.

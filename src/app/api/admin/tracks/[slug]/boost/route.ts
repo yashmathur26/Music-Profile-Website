@@ -328,12 +328,13 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
             lastError: announcement.last_error
           }
         : null,
-      finishesAt:
-        going && announcement?.started_at
-          ? new Date(
-              Date.parse(announcement.started_at) + plan.rolloutMinutes * 60_000
-            ).toISOString()
-          : null,
+      // Everyone still waiting, one gap apart, from now.
+      finishesAt: going
+        ? new Date(
+            Date.now() +
+              people.filter((p) => p.state === "waiting").length * plan.gapSeconds * 1000
+          ).toISOString()
+        : null,
       people
     }
   };
@@ -449,13 +450,13 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
       }
 
       case "pace": {
-        const minutes = Number((body as { minutes?: unknown }).minutes);
-        if (!Number.isFinite(minutes) || minutes <= 0) {
-          return NextResponse.json({ error: "Pick how fast." }, { status: 400 });
+        const seconds = Number((body as { seconds?: unknown }).seconds);
+        if (!Number.isFinite(seconds) || seconds <= 0) {
+          return NextResponse.json({ error: "Pick how far apart." }, { status: 400 });
         }
-        // The rollout reads the window fresh every tick, so a send that's
-        // already going speeds up or slows down from the next one.
-        await savePlan({ rolloutMinutes: minutes });
+        // The send reads the gap fresh every tick, so one that's already
+        // going speeds up or slows down from the next fan.
+        await savePlan({ gapSeconds: seconds });
         return NextResponse.json({ ok: true });
       }
 
