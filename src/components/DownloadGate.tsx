@@ -62,21 +62,19 @@ const initialStatus: GateStatus = {
 };
 
 const FAILURE_COPY: Record<string, string> = {
-  unconfigured: "SoundCloud connect isn’t set up yet — use the manual step instead.",
-  denied: "You cancelled the SoundCloud connection.",
-  state_mismatch: "That session expired. Connect again.",
-  auth_failed: "SoundCloud wouldn’t complete the connection.",
-  blocked: "SoundCloud blocked the automatic follow — use the manual step instead.",
-  rate_limited: "SoundCloud is rate-limiting us. Wait a moment, then retry.",
-  reconnect: "Your SoundCloud session expired. Connect again.",
-  artist_unresolved:
-    "Couldn’t reach one of the profiles to follow on SoundCloud — hit retry.",
+  unconfigured: "SoundCloud isn’t set up yet.",
+  denied: "Connection cancelled.",
+  state_mismatch: "Session expired. Connect again.",
+  auth_failed: "SoundCloud didn’t connect. Try again.",
+  blocked: "Follow and like on SoundCloud yourself, then come back.",
+  rate_limited: "SoundCloud is busy. Try again in a moment.",
+  reconnect: "Session expired. Connect again.",
+  artist_unresolved: "Couldn’t reach SoundCloud. Try again.",
   track_unresolved: "Couldn’t find this track on SoundCloud.",
-  exchange_401:
-    "SoundCloud rejected the app credentials (401). The client secret on the server is likely mistyped.",
+  exchange_401: "SoundCloud rejected the connection (401).",
   exchange_403: "SoundCloud refused the connection (403).",
-  exchange_429: "SoundCloud is rate-limiting us. Wait a minute, then retry.",
-  exchange_matrix: "Every exchange variant failed. Variant report:"
+  exchange_429: "SoundCloud is busy. Try again in a minute.",
+  exchange_matrix: "SoundCloud didn’t connect:"
 };
 
 const failureCopy = (reason: string) => {
@@ -84,9 +82,9 @@ const failureCopy = (reason: string) => {
   const m = reason.match(/^(exchange|me|finalize)_(\d+)(?:_([a-z_]+))?$/);
   if (m) {
     if (m[3] === "invalid_grant")
-      return "The sign-in code came back stale (invalid_grant). Close any leftover SoundCloud popups and try once more.";
+      return "Sign-in expired. Close any SoundCloud popups and try again.";
     if (m[3] === "invalid_client")
-      return "SoundCloud rejected the app credentials (invalid_client) — check the client secret on the server.";
+      return "SoundCloud rejected the connection (invalid_client).";
     const step =
       m[1] === "me" ? "reading your profile" : m[1] === "finalize" ? "finishing up" : "the sign-in exchange";
     return `SoundCloud returned ${m[3] || `error ${m[2]}`} during ${step}.`;
@@ -163,16 +161,33 @@ const PrefRow = ({
   </label>
 );
 
-/** One promised action: a tick that fills in when it's done. */
-const ActionRow = ({ done, label }: { done: boolean; label: string }) => (
+/** A small spinner that inherits the text colour. */
+const Spinner = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg className={clsx("animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
+/** One promised action: spins while SoundCloud is working on it, then ticks. */
+const ActionRow = ({
+  done,
+  label,
+  working = false
+}: {
+  done: boolean;
+  label: string;
+  working?: boolean;
+}) => (
   <li className="flex items-center gap-3 text-sm">
     <span
       className={clsx(
         "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition",
-        done ? "bg-emerald-400 text-black" : "border border-white/20"
+        done ? "bg-emerald-400 text-black" : working ? "text-white/60" : "border border-white/20"
       )}
       aria-hidden
     >
+      {!done && working && <Spinner className="h-5 w-5" />}
       {done && (
         <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="m5 13 4 4L19 7" />
@@ -180,7 +195,7 @@ const ActionRow = ({ done, label }: { done: boolean; label: string }) => (
       )}
     </span>
     <span className={done ? "text-white/90" : "text-white/50"}>{label}</span>
-    <span className="sr-only">{done ? "done" : "pending"}</span>
+    <span className="sr-only">{done ? "done" : working ? "in progress" : "pending"}</span>
   </li>
 );
 
@@ -223,6 +238,9 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const postEngageRan = useRef(false);
   const [connecting, setConnecting] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  /** null while idle or preparing; 0–100 while the file arrives, or -1 when
+   * the size isn't known and only a spinner can be honest. */
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [downloaded, setDownloaded] = useState(false);
   const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -231,11 +249,6 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const [comment, setComment] = useState("");
   // Downloading requires an explicit opt-in to the terms + cookie use.
   const [termsAccepted, setTermsAccepted] = useState(false);
-  // Downloading enrols the fan in likes + reposts of future releases; the
-  // terms above the button are what disclose it. Both of these are set from
-  // the enrolment call's answer, and only drive the notice shown afterwards.
-  const [subscribed, setSubscribed] = useState(false);
-  const [revokeUrl, setRevokeUrl] = useState<string | null>(null);
   const outboundStartedAt = useRef<number | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -336,18 +349,14 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
    */
   const enrol = useCallback(async () => {
     try {
-      const response = await fetch("/api/soundcloud/subscribe", {
+      // Downloading enrols the fan in likes + reposts of future releases.
+      // The Terms disclose it and carry the off switch (/unsubscribe), so
+      // nothing about it is shown here.
+      await fetch("/api/soundcloud/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ track: trackSlug })
       });
-      const data = (await response.json().catch(() => null)) as
-        | { ok?: boolean; revokeUrl?: string }
-        | null;
-      if (data?.ok) {
-        setSubscribed(true);
-        setRevokeUrl(data.revokeUrl ?? null);
-      }
     } catch {
       /* never block the download on this */
     }
@@ -391,7 +400,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       const reason = event.data.reason || "auth_failed";
       const base = failureCopy(reason) || "SoundCloud connection failed.";
       setNotice(
-        event.data.detail ? `${base} — “${event.data.detail}”` : base
+        event.data.detail ? `${base} (${event.data.detail})` : base
       );
       if (reason === "unconfigured") {
         setStatus((prev) => ({ ...prev, configured: false }));
@@ -412,7 +421,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       if (!startedAt) return;
       if (Date.now() - startedAt < MANUAL_MIN_MS) {
         setNotice(
-          `Give it a few seconds on SoundCloud — follow ${artistName}, like the track, then come back.`
+          `Follow ${artistName} and like the track first.`
         );
         return;
       }
@@ -425,7 +434,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       // Only a confirmed follow unlocks anything.
       void verifyRef.current().then((result) => {
         if (!result?.unlocked) {
-          setNotice(`We can’t see the follow yet — follow ${artistName} on SoundCloud, then come back.`);
+          setNotice(`No follow yet. Follow ${artistName} on SoundCloud, then come back.`);
         }
       });
     };
@@ -464,7 +473,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
 
     if (!popup) {
       setConnecting(false);
-      setNotice("Allow popups for this site, or use the manual step below.");
+      setNotice("Allow popups for this site.");
       setStatus((prev) => ({ ...prev, apiBlocked: true }));
       return;
     }
@@ -583,17 +592,50 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       // page, and anything still pending here would be cancelled with it.
       await enrol();
 
-      // A one-time-ish ticket to our own file route, which answers with
-      // Content-Disposition: attachment — the browser downloads in place and
-      // this page stays put.
-      window.location.href = data.url;
+      // Fetched here rather than navigated to, so the button can show the
+      // file arriving and only say "done" once it has. The ticket only works
+      // for this fan, from this browser, for a few minutes.
+      const file = await fetch(data.url, { cache: "no-store" });
+      if (!file.ok || !file.body) {
+        setNotice((await file.text().catch(() => "")) || "Download failed. Please try again.");
+        return;
+      }
+      const total = Number(file.headers.get("content-length")) || 0;
+      setDownloadProgress(total ? 0 : -1);
+      const reader = file.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total) setDownloadProgress(Math.min(99, Math.floor((received / total) * 100)));
+      }
+      setDownloadProgress(100);
+
+      const disposition = file.headers.get("content-disposition") || "";
+      const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plain = disposition.match(/filename="([^"]+)"/i)?.[1];
+      const name = (encoded && decodeURIComponent(encoded)) || plain || `${data.title || "download"}.wav`;
+      const href = URL.createObjectURL(
+        new Blob(chunks as BlobPart[], { type: file.headers.get("content-type") || "application/octet-stream" })
+      );
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(href), 60_000);
 
       setDownloadTitle(data.title ?? null);
       setDownloaded(true);
     } catch {
-      setNotice("Couldn’t reach the server. Check your connection and retry.");
+      setNotice("Connection lost. Try again.");
     } finally {
       setDownloadBusy(false);
+      setDownloadProgress(null);
     }
   };
 
@@ -652,7 +694,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                   connecting && "opacity-70"
                 )}
               >
-                <SoundcloudIcon className="h-5 w-5" />
+                {connecting ? <Spinner className="h-5 w-5" /> : <SoundcloudIcon className="h-5 w-5" />}
                 {connecting
                   ? "Waiting for SoundCloud…"
                   : status.connected
@@ -667,7 +709,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             <div className="space-y-4">
               {status.isArtist ? (
                 <p className="rounded-2xl bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200 ring-1 ring-emerald-400/20">
-                  This is the artist account — nothing to do, go ahead and download.
+                  Artist account. Nothing to do.
                 </p>
               ) : (
                 <ul className="space-y-2.5">
@@ -676,18 +718,19 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                       <ActionRow
                         key={target.url}
                         done={target.followed}
+                        working={connecting}
                         label={`Following ${followLabel(target)}`}
                       />
                     ))
                   ) : (
-                    <ActionRow done={status.followed} label={`Following ${artistName}`} />
+                    <ActionRow done={status.followed} working={connecting} label={`Following ${artistName}`} />
                   )}
-                  <ActionRow done={status.liked} label="Liked this track" />
+                  <ActionRow done={status.liked} working={connecting} label="Liked this track" />
                   {(repost || status.reposted) && (
-                    <ActionRow done={status.reposted} label="Reposted to your followers" />
+                    <ActionRow done={status.reposted} working={connecting} label="Reposted to your followers" />
                   )}
                   {(comment.trim() || status.commented) && (
-                    <ActionRow done={status.commented} label="Comment posted" />
+                    <ActionRow done={status.commented} working={connecting} label="Comment posted" />
                   )}
                 </ul>
               )}
@@ -696,9 +739,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 <button
                   onClick={handleRetry}
                   disabled={connecting}
-                  className="w-full rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/15"
                 >
-                  {connecting ? "Retrying…" : "Try again"}
+                  {connecting && <Spinner />}
+                  {connecting ? "Checking…" : "Try again"}
                 </button>
               )}
 
@@ -712,8 +756,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
           {manualMode && (
             <div className="space-y-3">
               <p className="text-sm text-white/60">
-                Follow {artistName} and like the track on SoundCloud, then come
-                back here.
+                Follow {artistName} and like the track, then come back.
               </p>
               <button
                 onClick={handleManual}
@@ -725,8 +768,8 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                     : "bg-gradient-to-b from-[#ff6a1a] to-[#ff4d00] text-white shadow-lg shadow-orange-600/25 hover:brightness-110"
                 )}
               >
-                <SoundcloudIcon className="h-5 w-5" />
-                {downloadReady ? "Unlocked" : "Follow + like on SoundCloud"}
+                {connecting ? <Spinner className="h-5 w-5" /> : <SoundcloudIcon className="h-5 w-5" />}
+                {downloadReady ? "Unlocked" : connecting ? "Checking your follow…" : "Follow + like on SoundCloud"}
               </button>
               {multiFollow && (
                 <p className="text-xs text-white/45">
@@ -767,49 +810,49 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             }
           />
 
-          {/* The terms carry the detail, but what the download actually does to
-              someone's account shouldn't be discoverable only by opening them. */}
-          {!manualMode && status.connected && (
-            <p className="text-xs leading-relaxed text-white/40">
-              Your account will also like and repost {artistName}&rsquo;s
-              future releases. You can turn that off anytime.
-            </p>
-          )}
-
           <button
             onClick={handleDownload}
             disabled={!downloadReady || downloadBusy || !termsAccepted}
+            aria-busy={downloadBusy}
             className={clsx(
-              "flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition",
-              downloadReady && termsAccepted
-                ? "bg-white text-black shadow-lg shadow-white/10 hover:bg-white/90 active:scale-[0.99]"
-                : "cursor-not-allowed bg-white/[0.06] text-white/30"
+              "relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-semibold transition",
+              downloadBusy
+                ? "cursor-wait bg-white/90 text-black"
+                : downloadReady && termsAccepted
+                  ? "bg-white text-black shadow-lg shadow-white/10 hover:bg-white/90 active:scale-[0.99]"
+                  : "cursor-not-allowed bg-white/[0.06] text-white/30"
             )}
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
-            </svg>
-            {downloadBusy ? "Preparing download…" : downloaded ? "Download again" : "Download"}
+            {/* The file arriving, as a fill behind the label. */}
+            {downloadBusy && downloadProgress !== null && downloadProgress >= 0 && (
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-0 bg-violet-300/60 transition-[width] duration-200 ease-out"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            )}
+            <span className="relative flex items-center gap-2">
+              {downloadBusy ? (
+                <Spinner />
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+                </svg>
+              )}
+              {downloadBusy
+                ? downloadProgress === null
+                  ? "Getting your file…"
+                  : downloadProgress >= 0
+                    ? `Downloading… ${downloadProgress}%`
+                    : "Downloading…"
+                : downloaded
+                  ? "Download again"
+                  : "Download"}
+            </span>
           </button>
 
           <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
 
-          {/* Shown the moment the subscription starts, not buried in an email the
-              fan may never get — the off switch has to be as easy as the on one. */}
-          {downloaded && subscribed && revokeUrl && (
-            <p className="rounded-2xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/60 ring-1 ring-white/10">
-              {artistName}&rsquo;s next releases will be liked and reposted from
-              your SoundCloud.{" "}
-              <a href={revokeUrl} className={linkClass}>
-                Save this link
-              </a>{" "}
-              to switch it off whenever you want — it&rsquo;s also in the{" "}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className={linkClass}>
-                terms
-              </a>
-              .
-            </p>
-          )}
 
           {notice && (
             <div role="status" className="rounded-2xl bg-white/5 px-4 py-3 text-xs text-white/70 ring-1 ring-white/10">

@@ -55,9 +55,11 @@ export default function TermsPage() {
           >
             Turn off automatic likes and reposts
           </Link>{" "}
-          &mdash; that link works at any time and needs no login, it deletes
-          the SoundCloud token we hold for you, and once you use it we will not
-          opt you back in on later downloads. You can also revoke access in
+          &mdash; that page works at any time and from any device: if
+          we can&rsquo;t tell who you are from your browser, sign in with
+          SoundCloud there and we switch your account off. It deletes the
+          SoundCloud token we hold for you, and once you use it we will not opt
+          you back in on later downloads. You can also revoke access in
           your SoundCloud settings (Settings &rarr; Connections).
         </>
       ),

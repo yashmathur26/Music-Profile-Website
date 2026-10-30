@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("t") || "";
   const gate = readGate();
   const slug = checkTicket(raw, numericId(gate.userId) || null);
-  if (!slug) return refuse("This download link has expired. Go back to the song and press Download again.");
+  if (!slug) return refuse("Link expired. Press Download again.");
 
   const track = await findTrack(slug);
   if (!track?.downloadUrl) return refuse("That track doesn’t exist.", 404);
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
   }
   if (!upstream?.ok || !upstream.body || /text\/html/.test(upstream.headers.get("content-type") || "")) {
     console.error(`[download] couldn't fetch the file for ${slug}: ${upstream?.status}`);
-    return refuse("Couldn’t fetch the file right now. Try again in a minute.", 502);
+    return refuse("Couldn’t get the file. Try again.", 502);
   }
 
   const type = upstream.headers.get("content-type") || "application/octet-stream";

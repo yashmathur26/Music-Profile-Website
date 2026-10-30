@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const uid = await unlockedOnServer(track.slug);
     if (!uid) {
       return NextResponse.json(
-        { error: "Connect SoundCloud and unlock the download first." },
+        { error: "Connect SoundCloud first." },
         { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }

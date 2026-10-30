@@ -3,6 +3,7 @@ import {
   checkFollowing,
   commentOnTrack,
   followUser,
+  randomCommentSpot,
   likeTrack,
   numericId,
   refreshAccessToken,
@@ -388,12 +389,11 @@ export const runEngagement = async (
     try {
       const trackId = await getTrackId(accessToken, trackSlug);
       if (trackId) {
-        status.commented = await commentOnTrack(
-          accessToken,
-          trackId,
-          commentText
-        );
-        console.log(`[gate] comment track=${trackId} -> ok`);
+        // Each fan's comment lands at its own random point in the song, so
+        // the gate's comments don't stack up at 0:00 in one clump.
+        const at = await randomCommentSpot(trackId);
+        status.commented = await commentOnTrack(accessToken, trackId, commentText, at);
+        console.log(`[gate] comment track=${trackId} at=${at ?? "none"} -> ok`);
       }
     } catch (error) {
       console.log(`[gate] comment FAILED: ${detailOf(error)}`);

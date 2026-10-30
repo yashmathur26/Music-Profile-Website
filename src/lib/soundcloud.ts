@@ -563,19 +563,47 @@ export const unrepostTrack = async (accessToken: string, trackId: string) => {
  * Not idempotent: re-running posts a second comment, so callers must only
  * fire this once per fan per track.
  */
+/**
+ * Posts a fan's comment as a top-level comment at `timestampMs` into the
+ * track. Never a reply: SoundCloud threads a comment under someone else's
+ * when it opens with "@handle", so the @ comes off every mention, and no
+ * parent comment is ever sent.
+ */
 export const commentOnTrack = async (
   accessToken: string,
   trackId: string,
-  body: string
+  body: string,
+  timestampMs?: number | null
 ) => {
-  const text = body.trim();
+  const text = body.replace(/(^|\s)@+(?=[\w.-])/g, "$1").replace(/\s+/g, " ").trim();
   if (!text) return false;
   await apiRequest(`/tracks/${trackId}/comments`, accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ comment: { body: text } })
+    body: JSON.stringify({
+      comment: {
+        body: text,
+        ...(timestampMs != null ? { timestamp: Math.max(0, Math.round(timestampMs)) } : {})
+      }
+    })
   });
   return true;
+};
+
+/**
+ * A random point in the track for a comment to sit at, kept off the first and
+ * last 5% so it lands somewhere in the music. Null when the length can't be
+ * read, which posts the comment without a time rather than not at all.
+ */
+export const randomCommentSpot = async (trackId: string): Promise<number | null> => {
+  try {
+    const track = await appGet<{ duration?: number; full_duration?: number }>(`/tracks/${trackId}`);
+    const duration = track.duration || track.full_duration || 0;
+    if (duration < 10_000) return null;
+    return Math.round(duration * (0.05 + Math.random() * 0.9));
+  } catch {
+    return null;
+  }
 };
 
 type FollowingsPage = {

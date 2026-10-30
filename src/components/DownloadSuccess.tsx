@@ -150,14 +150,14 @@ export default function DownloadSuccess({
                 variants={item}
                 className="text-sm font-semibold text-emerald-100"
               >
-                Successfully downloaded
+                Downloaded
               </motion.p>
               {/* Titles run long, so this wraps instead of truncating. */}
               <motion.p
                 variants={item}
                 className="mt-0.5 text-xs leading-snug text-emerald-200/60"
               >
-                {trackTitle ? `${trackTitle} — ` : ""}check your downloads folder
+                Check your downloads folder.
               </motion.p>
             </div>
           </div>
