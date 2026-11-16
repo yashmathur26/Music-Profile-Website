@@ -18,7 +18,7 @@ import {
  * Whether the server itself saw this fan unlock the gate: the follows went
  * through (or were verified with a read) during an engagement run, which is
  * recorded in the gate cookie. That cookie is encrypted and authenticated
- * with a server-only key, so it can't be edited or forged in the browser —
+ * with a server-only key, so it can't be edited or forged in the browser - 
  * nothing the page says, and nothing typed into the console, counts.
  */
 const unlockedOnServer = async (slug: string) => {
@@ -36,7 +36,7 @@ const unlockedOnServer = async (slug: string) => {
 };
 
 /**
- * Hands out a download for a track — but only to a fan the server saw unlock
+ * Hands out a download for a track - but only to a fan the server saw unlock
  * it, and never the file's real address: the reply is a short-lived ticket to
  * /api/download/file, which streams the file and only works for this fan.
  */
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     const gate = readGate();
     let profileUrl = gate.profileUrl;
     // Fans who connected before profile links existed have a cookie without
-    // one — backfill it from their token so their history rows link too.
+    // one - backfill it from their token so their history rows link too.
     if (!profileUrl && gate.accessToken) {
       try {
         profileUrl = (await fetchMe(gate.accessToken)).permalinkUrl || undefined;
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     await recordDownload(track.slug, gate.username, profileUrl);
 
     // The songs the artist wants liked on every download, from this fan's
-    // own connection — the gate told them which before they pressed the
+    // own connection - the gate told them which before they pressed the
     // button. Never fails the download.
     const alsoLiked = await likeOtherSongs(track.slug).catch((error) => {
       console.error("[download] cross-like failed", error);

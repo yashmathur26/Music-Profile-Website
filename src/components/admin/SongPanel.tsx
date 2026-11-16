@@ -9,7 +9,7 @@ import { Sparkline, compact } from "@/components/admin/statsCharts";
 
 /**
  * One song, opened from its row in Live gates: SoundCloud's all-time numbers
- * for it, and its boost from fans — who it reached, what's on their profiles
+ * for it, and its boost from fans - who it reached, what's on their profiles
  * right now, and the controls to change that after it has gone out: take
  * people out (one or everyone), slow the rest down, or keep it up longer.
  */
@@ -55,7 +55,7 @@ const when = (iso: string) => {
 
 /**
  * How long until `iso`, sized to how far off it is: "3d 4h", then "4h 12m",
- * then "12m 30s", then "45s". Past due reads "any moment" — the next refresh
+ * then "12m 30s", then "45s". Past due reads "any moment" - the next refresh
  * replaces it with what actually happened.
  */
 const countdown = (iso: string, now: number) => {
@@ -143,7 +143,7 @@ const Avatar = ({ url, name }: { url: string | null; name: string }) =>
 const Stat = ({ label, value }: { label: string; value: number | null }) => (
   <div>
     <p className="text-2xl font-semibold tracking-tight text-white">
-      {value === null ? "—" : compact(value)}
+      {value === null ? " - " : compact(value)}
     </p>
     <p className="mt-0.5 text-[11px] text-white/45">{label}</p>
   </div>
@@ -188,7 +188,7 @@ function Marks({ person }: { person: BoostPerson }) {
   );
 }
 
-/** "Next to like: @name, in 4m 12s" — one fan and a live countdown. */
+/** "Next to like: @name, in 4m 12s" - one fan and a live countdown. */
 function NextCard({
   label,
   person,
@@ -367,7 +367,7 @@ export default function SongPanel({
     }
   }, [slug, token]);
 
-  // Refresh while something is moving — a send going out, or people coming off.
+  // Refresh while something is moving - a send going out, or people coming off.
   const now = useNow();
   const moving =
     data?.boost.people.some(
@@ -478,7 +478,7 @@ export default function SongPanel({
       return;
     }
     setConfirmAll(false);
-    void edit({ action: "take_out" }, "Taking it off everyone — give it a few minutes.");
+    void edit({ action: "take_out" }, "Taking it off everyone - give it a few minutes.");
   };
 
   // Portalled to <body>: the admin tabs animate with transforms, and a
@@ -731,7 +731,7 @@ export default function SongPanel({
                     </div>
                     {people.length === 0 ? (
                       <p className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-white/40">
-                        Nobody saved yet — fans join when they download.
+                        Nobody saved yet - fans join when they download.
                       </p>
                     ) : (
                       <ul className="-mx-3">

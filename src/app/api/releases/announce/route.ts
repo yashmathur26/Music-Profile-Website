@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     ...(summary.abortedReason === "api_blocked"
       ? {
           note:
-            "SoundCloud answered with 403 repeatedly — the write API is " +
+            "SoundCloud answered with 403 repeatedly - the write API is " +
             "likely paused. Nothing further was attempted; re-run later, " +
             "it picks up where it stopped."
         }

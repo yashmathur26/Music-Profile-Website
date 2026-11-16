@@ -41,7 +41,7 @@ const MANUAL_OUTBOUND_KEY_PREFIX = "download_gate_outbound";
 const MANUAL_MIN_MS = 5000;
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 180000;
-/** How long to keep polling after the popup looks closed — long enough for a
+/** How long to keep polling after the popup looks closed - long enough for a
  * COOP-severed flow (where `closed` lies) to finish sign-in and the callback. */
 const POPUP_CLOSED_GRACE_MS = 90000;
 const COMMENT_MAX = 300;
@@ -94,7 +94,7 @@ const failureCopy = (reason: string) => {
 
 /**
  * The server is the authority on *which* accounts to follow, but a status poll
- * reports stored state — never let one un-tick a follow the engagement just
+ * reports stored state - never let one un-tick a follow the engagement just
  * confirmed this visit.
  */
 const mergeFollows = (prev: FollowTarget[], next: FollowTarget[]) => {
@@ -106,7 +106,7 @@ const mergeFollows = (prev: FollowTarget[], next: FollowTarget[]) => {
   }));
 };
 
-/** "A", "A and B", "A, B and C" — for the one-tap promise in the copy. */
+/** "A", "A and B", "A, B and C" - for the one-tap promise in the copy. */
 const nameList = (names: string[]) =>
   names.length <= 1
     ? names[0] || ""
@@ -203,6 +203,11 @@ const linkClass = "text-white/85 underline decoration-white/30 underline-offset-
 
 type DownloadGateProps = {
   trackSlug: string;
+  /** After download: thank-you Widget for the artist's featured / newest track. */
+  featuredEmbedUrl?: string;
+  featuredTitle?: string;
+  /** Forces the thank-you card open - for previewing layout only. */
+  previewThankYou?: boolean;
 };
 
 /**
@@ -227,7 +232,12 @@ const reportGateEvent = (
   }
 };
 
-export default function DownloadGate({ trackSlug }: DownloadGateProps) {
+export default function DownloadGate({
+  trackSlug,
+  featuredEmbedUrl,
+  featuredTitle,
+  previewThankYou = false
+}: DownloadGateProps) {
   const OUTBOUND_KEY = `${MANUAL_OUTBOUND_KEY_PREFIX}:${trackSlug}`;
 
   const [status, setStatus] = useState<GateStatus>(initialStatus);
@@ -241,8 +251,10 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   /** null while idle or preparing; 0–100 while the file arrives, or -1 when
    * the size isn't known and only a spinner can be honest. */
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [downloaded, setDownloaded] = useState(false);
-  const [downloadTitle, setDownloadTitle] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(previewThankYou);
+  const [downloadTitle, setDownloadTitle] = useState<string | null>(
+    previewThankYou ? "Preview track" : null
+  );
   const [notice, setNotice] = useState<string | null>(null);
   // The fan's choices, made before the popup opens.
   const [repost, setRepost] = useState(true);
@@ -271,7 +283,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   // Only the server's word counts: /api/download refuses anyone it didn't see
   // unlock, so this just mirrors it for the button.
   const downloadReady = status.unlocked;
-  // The manual step's "check it worked" — set below, read by the tab-return
+  // The manual step's "check it worked" - set below, read by the tab-return
   // listener, which is declared before handleRetry exists.
   const verifyRef = useRef<() => Promise<GateStatus | null>>(async () => null);
   // Auto mode is the real gate; manual is the escape hatch when SoundCloud's
@@ -293,7 +305,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       );
       if (!response.ok) return null;
       const next = (await response.json()) as GateStatus;
-      // Status polls report unlocked:false by design (per-visit reset) — never
+      // Status polls report unlocked:false by design (per-visit reset) - never
       // let one clobber an unlock the engagement already granted this visit.
       setStatus((prev) => ({
         ...prev,
@@ -332,12 +344,14 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     setAttempted(false);
     postEngageRan.current = false;
     setNotice(null);
-    setDownloaded(false);
+    // Keep the thank-you card when ?previewThankYou=1 is forcing it open.
+    setDownloaded(previewThankYou);
+    setDownloadTitle(previewThankYou ? "Preview track" : null);
     outboundStartedAt.current = null;
     sessionStorage.removeItem(OUTBOUND_KEY);
     void fetchStatus();
     return stopPolling;
-  }, [OUTBOUND_KEY, fetchStatus, stopPolling, trackSlug]);
+  }, [OUTBOUND_KEY, fetchStatus, previewThankYou, stopPolling, trackSlug]);
 
   /**
    * Enrols the fan in likes + reposts of future releases.
@@ -446,12 +460,12 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
   const handleConnect = async () => {
     setNotice(null);
 
-    // Already connected from a previous visit: no popup needed — verify the
+    // Already connected from a previous visit: no popup needed - verify the
     // four tasks against SoundCloud and checkmark what's already done.
     if (status.connected) {
       const verified = await handleRetry();
       if (verified?.connected) return;
-      // Token died since last visit — fall through to a fresh popup connect.
+      // Token died since last visit - fall through to a fresh popup connect.
       setStatus((prev) => ({ ...prev, connected: false }));
     }
 
@@ -482,7 +496,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
     // postMessage from the popup is unreliable in the real world: Google's
     // sign-in pages sever the popup↔opener link (COOP), which also makes
     // `popup.closed` read true while the fan is still mid-login. So: poll the
-    // whole window, and only use `closed` to shorten the tail — never to stop
+    // whole window, and only use `closed` to shorten the tail - never to stop
     // immediately.
     const startedAt = Date.now();
     let closedSeenAt: number | null = null;
@@ -491,7 +505,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
       const next = await fetchStatus();
       if (next?.connected) {
         stopPolling();
-        // COOP-severed popups can't postMessage their result — verify the
+        // COOP-severed popups can't postMessage their result - verify the
         // tasks over the fresh session so the checkmarks still appear.
         if (!postEngageRan.current) {
           postEngageRan.current = true;
@@ -665,7 +679,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             </div>
           )}
 
-          {/* Connect form — shown fresh on every visit until the fan presses
+          {/* Connect form - shown fresh on every visit until the fan presses
               the button; already-connected fans skip the popup entirely. */}
           {loaded && !(attempted && status.connected) && !manualMode && (
             <div className="space-y-4">
@@ -673,7 +687,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
                 Follow {followPromise} and like the track to download it.
               </p>
 
-              {/* Optional comment — leave it empty and nothing gets posted. */}
+              {/* Optional comment - leave it empty and nothing gets posted. */}
               <input
                 type="text"
                 value={comment}
@@ -704,7 +718,7 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             </div>
           )}
 
-          {/* Connected — show exactly what happened on their account. */}
+          {/* Connected - show exactly what happened on their account. */}
           {loaded && attempted && status.connected && !manualMode && (
             <div className="space-y-4">
               {status.isArtist ? (
@@ -851,7 +865,12 @@ export default function DownloadGate({ trackSlug }: DownloadGateProps) {
             </span>
           </button>
 
-          <DownloadSuccess show={downloaded} trackTitle={downloadTitle ?? undefined} />
+          <DownloadSuccess
+            show={downloaded}
+            trackTitle={downloadTitle ?? undefined}
+            featuredEmbedUrl={featuredEmbedUrl}
+            featuredTitle={featuredTitle}
+          />
 
 
           {notice && (

@@ -1,7 +1,7 @@
 /**
  * What a gate is allowed to do on the accounts it has saved, and for how long.
  *
- * Every gate carries one of these. It governs the *unattended* work only —
+ * Every gate carries one of these. It governs the *unattended* work only - 
  * the release fan-out that likes and reposts a new song from fans who are not
  * on the site at the time. The follow/like/repost a fan performs themselves to
  * unlock a download is their own deliberate action and is never touched here.
@@ -22,7 +22,7 @@ export const DEFAULT_GAP_SECONDS = 60;
 /** An hour. Longer and a release to a few hundred fans takes weeks. */
 export const MAX_GAP_SECONDS = 60 * 60;
 
-/** A day — the longest a take-off may be spread over. */
+/** A day - the longest a take-off may be spread over. */
 export const MAX_REMOVAL_MINUTES = 24 * 60;
 
 /** Take a release back off over two hours unless the gate says otherwise. */
@@ -31,7 +31,7 @@ export const DEFAULT_REMOVAL_MINUTES = 120;
 export type SubscriberPlan = {
   /** Like the new song from each saved account. */
   like: boolean;
-  /** Repost it — the public one, the one that shows up in their followers' feeds. */
+  /** Repost it - the public one, the one that shows up in their followers' feeds. */
   repost: boolean;
   /**
    * Days to leave the like and repost in place before taking them back off.
@@ -48,14 +48,14 @@ export type SubscriberPlan = {
   /**
    * Minutes to spread the take-off across once the retention runs out. Each
    * fan gets their own random moment inside the window, so a release doesn't
-   * vanish from every profile in the same five minutes — the mirror image of
+   * vanish from every profile in the same five minutes - the mirror image of
    * the rollout, for the same reason.
    */
   removalMinutes: number;
 };
 
 /**
- * Like and repost, kept forever, spread over half an hour — the behaviour
+ * Like and repost, kept forever, spread over half an hour - the behaviour
  * every gate had before these controls existed, so an un-migrated database
  * and an old row both keep working unchanged.
  */
@@ -85,7 +85,7 @@ const toBool = (value: unknown, fallback: boolean) =>
  * Coerces anything into a plan that is safe to act on. Out-of-range numbers
  * are clamped rather than rejected: this runs on the fan-out path as well as
  * the form, and a bad number in the database must not stop a release going
- * out — a 400-day retention becoming 14 days is the failure we want.
+ * out - a 400-day retention becoming 14 days is the failure we want.
  */
 export const normalizePlan = (input: unknown): SubscriberPlan => {
   if (!input || typeof input !== "object") return { ...DEFAULT_PLAN };
@@ -115,7 +115,7 @@ export const normalizePlan = (input: unknown): SubscriberPlan => {
   };
 };
 
-/** Nothing to do — the artist turned both actions off. */
+/** Nothing to do - the artist turned both actions off. */
 export const planIsNoop = (plan: SubscriberPlan) => !plan.like && !plan.repost;
 
 /**
@@ -134,7 +134,7 @@ export const removalDueAt = (
 export const jitteredGap = (plan: SubscriberPlan) =>
   Math.round(plan.gapSeconds * 1000 * (0.7 + Math.random() * 0.6));
 
-/** "1 min", "30 sec", "2 hours" — for the admin portal. */
+/** "1 min", "30 sec", "2 hours" - for the admin portal. */
 export const gapLabel = (seconds: number) =>
   seconds < 60
     ? `${seconds} sec`
@@ -144,7 +144,7 @@ export const gapLabel = (seconds: number) =>
 
 /**
  * One fan's take-off moment: the release's deadline plus a random point in
- * the removal window. Null stays null — nothing is coming off.
+ * the removal window. Null stays null - nothing is coming off.
  */
 export const spreadRemoval = (
   deadline: string | null,

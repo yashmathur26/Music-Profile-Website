@@ -21,7 +21,7 @@ export default function Sidebar({ currentSlug, tracks }: SidebarProps) {
 
   return (
     <>
-      {/* Backdrop on mobile when expanded — tap to close */}
+      {/* Backdrop on mobile when expanded - tap to close */}
       {expanded && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"

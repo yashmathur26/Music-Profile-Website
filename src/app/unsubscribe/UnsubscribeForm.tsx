@@ -50,7 +50,7 @@ export default function UnsubscribeForm({
         <p className="mt-1.5 text-sm leading-relaxed text-white/70">
           We won&rsquo;t touch your SoundCloud account again, and the token we
           were keeping has been deleted. Anything already liked or reposted
-          stays as it is — you can undo those on SoundCloud yourself.
+          stays as it is - you can undo those on SoundCloud yourself.
         </p>
         <Link
           href="/home"
@@ -87,7 +87,7 @@ export default function UnsubscribeForm({
         {username
           ? `This affects the SoundCloud account @${username} only.`
           : "This affects one SoundCloud account only."}{" "}
-        You can download tracks from the site again afterwards — this
+        You can download tracks from the site again afterwards - this
         doesn&rsquo;t block anything.
       </p>
     </div>

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * "Refresh SoundCloud now" — the same snapshot the daily cron takes, on
+ * "Refresh SoundCloud now" - the same snapshot the daily cron takes, on
  * demand. It replaces today's row rather than adding one, so pressing it
  * twice is harmless.
  *
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: missingTable
-          ? "The stats_snapshots table doesn't exist yet — run the SQL in docs/ADMIN_STATS_SETUP.md."
+          ? "The stats_snapshots table doesn't exist yet - run the SQL in docs/ADMIN_STATS_SETUP.md."
           : "SoundCloud refresh failed. Try again in a minute."
       },
       { status: 500 }

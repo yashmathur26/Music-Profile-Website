@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   // The site never uses next/image. Self-hosted (Railway), the optimizer
-  // endpoint would still be public and has open DoS advisories on 14.x —
+  // endpoint would still be public and has open DoS advisories on 14.x - 
   // this makes /_next/image a 404 before it does any work.
   images: { unoptimized: true },
   experimental: {

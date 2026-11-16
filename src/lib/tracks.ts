@@ -12,13 +12,13 @@ export type TrackConfig = {
   soundcloudTrackId?: string;
   /**
    * soundcloud.com profiles this gate follows, all at once, when a fan
-   * unlocks it — the artist plus any collaborators on this particular track.
+   * unlocks it - the artist plus any collaborators on this particular track.
    * Empty falls back to ARTIST_SOUNDCLOUD_URL.
    */
   followTargets?: string[];
   /**
    * What this gate's release fan-out may do on saved accounts, and for how
-   * long. Omitted means DEFAULT_PLAN — like + repost, kept permanently.
+   * long. Omitted means DEFAULT_PLAN - like + repost, kept permanently.
    */
   subscriberPlan?: SubscriberPlan;
 };

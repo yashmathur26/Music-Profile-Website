@@ -34,7 +34,7 @@ import {
  * The release fan-out: like and repost one track from every fan who opted in.
  *
  * Lives here rather than in a route because three callers need exactly the
- * same behaviour — the manual endpoint, the queue drain the admin portal's
+ * same behaviour - the manual endpoint, the queue drain the admin portal's
  * checkbox feeds, and anything added later. Divergence between "the artist
  * pressed the button" and "the cron did it" is the kind of bug nobody notices
  * until a release goes out twice.
@@ -46,14 +46,14 @@ const BATCH_PAUSE_MS = 1000;
  * When each release last reached a fan, kept in memory across ticks so the
  * gap holds from one tick to the next. On globalThis because the cron route
  * is its own bundle. A restart forgets it, and the database's newest reach
- * time stands in — which misses only a re-send, whose rows already existed.
+ * time stands in - which misses only a re-send, whose rows already existed.
  */
 const LAST_REACH_KEY = Symbol.for("yvsh.releaseLastReach");
 const lastReach = ((globalThis as typeof globalThis & {
   [LAST_REACH_KEY]?: Map<string, number>;
 })[LAST_REACH_KEY] ??= new Map<string, number>());
 /** Consecutive 403s that mean SoundCloud has shut the write API, not that one
- * fan is unusual — see the June 2026 note in docs/SOUNDCLOUD_GATE_SETUP.md. */
+ * fan is unusual - see the June 2026 note in docs/SOUNDCLOUD_GATE_SETUP.md. */
 const BLOCKED_STREAK_LIMIT = 5;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,7 +67,7 @@ export type Outcome = {
 
 export type AnnounceSummary = {
   track: { slug: string; trackId: string; title: string };
-  /** What this gate was allowed to do, after clamping — worth echoing back so
+  /** What this gate was allowed to do, after clamping - worth echoing back so
    * a run that only liked isn't mistaken for a run whose reposts all failed. */
   plan: SubscriberPlan;
   /** When this pass's likes/reposts are due to come back off, or null when the
@@ -81,10 +81,10 @@ export type AnnounceSummary = {
   liked: number;
   reposted: number;
   failed: number;
-  /** Saved fans this release skipped on purpose — see lib/fanScreen.ts. */
+  /** Saved fans this release skipped on purpose - see lib/fanScreen.ts. */
   leftAlone: number;
   revokedDeadTokens: number;
-  /** Still to do after this pass — drive repeat calls off this, not off a clock. */
+  /** Still to do after this pass - drive repeat calls off this, not off a clock. */
   remaining: number;
   abortedReason: string | null;
   sample: Outcome[];
@@ -99,7 +99,7 @@ const describe = (error: unknown) =>
     ? `soundcloud_${error.status}`
     : "unknown";
 
-/** Resolves the track's numeric SoundCloud id over the app token — no fan's
+/** Resolves the track's numeric SoundCloud id over the app token - no fan's
  * credentials involved, and only once per run rather than once per fan. */
 const resolveTrackId = async (
   slug: string
@@ -138,7 +138,7 @@ const resolveTrackId = async (
   }
 };
 
-/** When this process last reached a fan for `slug` — for the admin's
+/** When this process last reached a fan for `slug` - for the admin's
  * countdowns, which need the same starting point the next tick will use. */
 export const lastReachedAt = (slug: string) => lastReach.get(slug) || 0;
 
@@ -159,7 +159,7 @@ export const announceRelease = async (options: {
    * The gate sets the time between one fan and the next; the cron fires on a
    * fixed tick. This works out when the last fan was reached, so the first
    * one this tick still waits out the gap, then fits as many more as the
-   * gap allows inside `spreadMs` — each gap randomised a little, so the
+   * gap allows inside `spreadMs` - each gap randomised a little, so the
    * writes arrive as a trickle with no fixed rhythm rather than a burst of
    * identical writes from one client id. A gap longer than the tick simply
    * means some ticks reach nobody.
@@ -404,7 +404,7 @@ export const announceRelease = async (options: {
     if (outcome.liked || outcome.reposted) lastReach.set(slug, Date.now());
     if (outcome.liked) base.liked++;
     if (outcome.reposted) base.reposted++;
-    // Failure is "nothing the gate asked for landed" — with repost switched
+    // Failure is "nothing the gate asked for landed" - with repost switched
     // off, a successful like is a complete success, not half of one.
     const wanted = (plan.like ? 1 : 0) + (plan.repost ? 1 : 0);
     const landed = (outcome.liked ? 1 : 0) + (outcome.reposted ? 1 : 0);

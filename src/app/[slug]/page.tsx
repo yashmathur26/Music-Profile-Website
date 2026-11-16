@@ -1,9 +1,12 @@
 import DownloadGate from "@/components/DownloadGate";
 import Sidebar from "@/components/Sidebar";
+import { nowPlayingEmbedUrl } from "@/lib/siteContent";
+import { getTrackPermalink } from "@/lib/tracks";
 import { findTrack, getAllTracks } from "@/lib/trackStore";
 
 type PageProps = {
   params: { slug: string };
+  searchParams?: { previewThankYou?: string };
 };
 
 // Tracks added from the admin page must show up without a redeploy.
@@ -17,7 +20,7 @@ const compactPlayer = (embedUrl: string) =>
   embedUrl.replace("visual=true", "visual=false") +
   (embedUrl.includes("show_artwork=") ? "" : "&show_artwork=false");
 
-export default async function TrackPage({ params }: PageProps) {
+export default async function TrackPage({ params, searchParams }: PageProps) {
   const [track, tracks] = await Promise.all([
     findTrack(params.slug),
     getAllTracks()
@@ -26,6 +29,12 @@ export default async function TrackPage({ params }: PageProps) {
     return <main className="p-8 text-sm text-muted">Track not found.</main>;
   }
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
+
+  // getAllTracks puts the newest admin drop first - play that after download,
+  // unless this gate already is that song.
+  const newest = tracks[0];
+  const showFeatured = Boolean(newest && newest.slug !== track.slug);
+  const featuredPermalink = showFeatured ? getTrackPermalink(newest) : "";
 
   return (
     <main className="relative z-10 min-h-screen overflow-hidden bg-[#0c0614]">
@@ -79,7 +88,16 @@ export default async function TrackPage({ params }: PageProps) {
               <p className="mt-2 text-base text-white/50">{artistName}</p>
 
               <div className="mt-8">
-                <DownloadGate trackSlug={track.slug} />
+                <DownloadGate
+                  trackSlug={track.slug}
+                  featuredEmbedUrl={
+                    showFeatured && featuredPermalink
+                      ? nowPlayingEmbedUrl(featuredPermalink)
+                      : undefined
+                  }
+                  featuredTitle={showFeatured ? newest.title : undefined}
+                  previewThankYou={searchParams?.previewThankYou === "1"}
+                />
               </div>
             </div>
           </div>

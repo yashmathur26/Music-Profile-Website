@@ -10,7 +10,7 @@ const OVERDUE_MS = 26 * 60 * 60 * 1000;
 /**
  * Is the cron alive, and are the saved fans' grants being kept fresh?
  *
- * Public on purpose, so it can be checked with a plain curl after a deploy —
+ * Public on purpose, so it can be checked with a plain curl after a deploy - 
  * which is also why it says nothing about who anyone is: counts and
  * timestamps only, never usernames or tokens.
  */

@@ -1,12 +1,12 @@
 /**
  * The shape of /api/admin/stats, shared by the route that builds it and the
- * Stats tab that draws it. No server imports here — the browser bundles this.
+ * Stats tab that draws it. No server imports here - the browser bundles this.
  *
  * Rows are sent as compact tuples with lookup tables rather than objects:
  * the tab filters and regroups them on the fly for every range and song
  * choice, so it needs the raw rows, and a year of gate events as objects
  * would be several times the size for no benefit. The browser also never
- * sees a visitor cookie — sessions arrive as plain indices.
+ * sees a visitor cookie - sessions arrive as plain indices.
  */
 
 export type StatsTrack = {
@@ -71,7 +71,7 @@ export type StatsPayload = {
   downloads: StatsDownloadRow[];
   history: StatsHistoryDay[];
   events: {
-    /** First event ever logged — the funnel means nothing before this. */
+    /** First event ever logged - the funnel means nothing before this. */
     since: string | null;
     rows: StatsEventRow[];
     kinds: string[];

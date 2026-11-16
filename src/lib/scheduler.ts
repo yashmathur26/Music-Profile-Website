@@ -4,15 +4,15 @@ import { createServerSupabase } from "@/lib/supabaseServer";
  * The site's cron. Railway runs one long-lived server, so the schedule lives
  * inside it rather than in a platform config.
  *
- * Started from instrumentation.ts — see `schedulerWanted` for when. Every
+ * Started from instrumentation.ts - see `schedulerWanted` for when. Every
  * five minutes it calls the /api/cron/* routes with CRON_SECRET, so the work
  * itself has exactly one code path whether the scheduler or a person
  * triggers it.
  *
- *  - /api/cron/subscribers every tick: the release rollout, teardowns and
+ * - /api/cron/subscribers every tick: the release rollout, teardowns and
  *    keepalive. Five minutes is what makes a 30-minute rollout possible.
- *  - /api/cron/stats once a day, on the first tick after 06:00 UTC with no
- *    snapshot for today yet — opening the Stats tab or a download may already
+ * - /api/cron/stats once a day, on the first tick after 06:00 UTC with no
+ *    snapshot for today yet - opening the Stats tab or a download may already
  *    have taken one, which counts.
  *
  * Two runs of the subscriber job at once would race on SoundCloud's
@@ -80,8 +80,8 @@ export const schedulerStatus = (): SchedulerStatus => {
  * Whether this server should run the cron.
  *
  * RUN_SCHEDULER=1 turns it on anywhere and RUN_SCHEDULER=0 turns it off
- * anywhere. Unset, it runs only in Railway's production environment — the one
- * place there is exactly one long-lived copy of the site — so a forgotten
+ * anywhere. Unset, it runs only in Railway's production environment - the one
+ * place there is exactly one long-lived copy of the site - so a forgotten
  * variable no longer means a silently dead cron, while a laptop or a Railway
  * PR environment still never runs it.
  */
@@ -148,7 +148,7 @@ const tick = async () => {
 };
 
 /**
- * Runs the next tick now instead of in up to five minutes — for the song
+ * Runs the next tick now instead of in up to five minutes - for the song
  * panel's "take them out", where the artist is watching. Does nothing when
  * this server isn't the one running the cron, or a tick is already going:
  * the no-overlap rule matters more than the wait.
@@ -173,7 +173,7 @@ export const startScheduler = (why: string) => {
     process.env.CRON_SECRET = `${crypto.randomUUID()}${crypto.randomUUID()}`;
     s.ephemeralSecret = true;
     console.warn(
-      "[scheduler] CRON_SECRET is not set — using a per-process one. " +
+      "[scheduler] CRON_SECRET is not set - using a per-process one. " +
         "Set it on Railway to trigger /api/cron/* by hand."
     );
   }
@@ -182,7 +182,7 @@ export const startScheduler = (why: string) => {
   s.off = null;
   s.startedAt = new Date().toISOString();
   s.nextTickAt = new Date(Date.now() + TICK_MS).toISOString();
-  console.log(`[scheduler] on (${why}) — first run in 5 minutes, then every 5 minutes`);
+  console.log(`[scheduler] on (${why}) - first run in 5 minutes, then every 5 minutes`);
 
   let interval: ReturnType<typeof setInterval> | null = null;
   const first = setTimeout(() => {

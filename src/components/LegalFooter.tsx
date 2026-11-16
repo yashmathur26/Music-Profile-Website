@@ -4,7 +4,7 @@ import Link from "next/link";
  * The site's only persistent link to the legal pages, pinned bottom-right.
  *
  * Fixed rather than appended to each page because every page scrolls inside
- * its own `overflow-y-auto` column — there is no shared end-of-document to
+ * its own `overflow-y-auto` column - there is no shared end-of-document to
  * hang a normal footer off. The pill backdrop is what keeps it readable when
  * it floats over artwork or a track list.
  */

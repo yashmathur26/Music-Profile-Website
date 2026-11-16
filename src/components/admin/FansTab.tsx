@@ -7,7 +7,7 @@ import { Empty, Section, StatTile, Status, compact } from "@/components/admin/st
 
 /**
  * The admin "Fans" tab: everyone who has downloaded, who they are on
- * SoundCloud, and how they engage with you — what they downloaded and
+ * SoundCloud, and how they engage with you - what they downloaded and
  * whether they still like it, whether they follow you, and whether your next
  * release will like and repost from their account. Replaces the separate
  * Downloads and Saved fans tabs; the live download feed sits on top.
@@ -130,9 +130,9 @@ const leaveAloneText = (fan: Fan, rules: FansPayload["rules"]) => {
     case "you_follow":
       return "You follow them, so a like or repost would look like a personal shout-out.";
     case "big_account":
-      return `Big account — ${compact(fan.followers ?? 0)} followers (the limit is ${rules.followers.toLocaleString()}).`;
+      return `Big account - ${compact(fan.followers ?? 0)} followers (the limit is ${rules.followers.toLocaleString()}).`;
     case "many_uploads":
-      return `Puts out their own music — ${fan.uploads} uploads (the limit is ${rules.uploads}).`;
+      return `Puts out their own music - ${fan.uploads} uploads (the limit is ${rules.uploads}).`;
     case "gone":
       return "Their SoundCloud account no longer exists.";
     default:
@@ -159,14 +159,14 @@ const ReleaseLine = ({ release }: { release: FanRelease }) => {
   if (release.leftAlone) {
     return (
       <li className="text-white/45">
-        <span className="text-white/70">{release.title}</span> — skipped, they were left alone.
+        <span className="text-white/70">{release.title}</span> - skipped, they were left alone.
       </li>
     );
   }
   if (!release.liked && !release.reposted) {
     return (
       <li className="text-white/45">
-        <span className="text-white/70">{release.title}</span> — didn&apos;t go through
+        <span className="text-white/70">{release.title}</span> - didn&apos;t go through
         {release.error ? ` (${release.error})` : ""}. It&apos;s retried on the next pass.
       </li>
     );
@@ -174,7 +174,7 @@ const ReleaseLine = ({ release }: { release: FanRelease }) => {
   if (release.removedAt) {
     return (
       <li className="text-white/45">
-        <span className="text-white/70">{release.title}</span> — taken back off on{" "}
+        <span className="text-white/70">{release.title}</span> - taken back off on{" "}
         {date(release.removedAt)}, as the song&apos;s settings asked.
       </li>
     );
@@ -356,8 +356,8 @@ const FanCard = ({ fan, rules }: { fan: Fan; rules: FansPayload["rules"] }) => {
                   <p className="mt-1.5 text-xs text-white/40">
                     Saved {date(fan.saved.savedAt)}.{" "}
                     {!fan.saved.lastCheckedAt || fan.saved.lastCheckedAt === fan.saved.savedAt
-                      ? "Connection not checked yet — it's tested within a day of saving."
-                      : `Connection working — last checked ${ago(fan.saved.lastCheckedAt)}.`}
+                      ? "Connection not checked yet - it's tested within a day of saving."
+                      : `Connection working - last checked ${ago(fan.saved.lastCheckedAt)}.`}
                   </p>
                 </>
               )}
@@ -521,12 +521,12 @@ export default function FansTab({ token }: { token: string }) {
 
   useEffect(() => setShown(PAGE), [filter, sort, query]);
 
-  const pct = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : "—");
+  const pct = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : " - ");
 
   return (
     <div className="space-y-8">
       <p className="text-center text-sm text-white/60">
-        Everyone who&apos;s downloaded from you — who they are on SoundCloud, and how they&apos;ve
+        Everyone who&apos;s downloaded from you - who they are on SoundCloud, and how they&apos;ve
         stuck with you since.
       </p>
 

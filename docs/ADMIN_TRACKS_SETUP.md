@@ -1,4 +1,4 @@
-# Admin track gates — one-time setup
+# Admin track gates - one-time setup
 
 The admin page (`/admin/<TRIGGER_SAVES_SECRET>`) can mint new download gates
 from a Google Drive link + a SoundCloud link. Runtime-added tracks are stored
@@ -48,7 +48,7 @@ alter table public.gate_tracks add column if not exists subscriber_gap_seconds i
 -- policies means the anon/public key can't read or write anything.
 alter table public.gate_tracks enable row level security;
 
--- One row per download click — feeds the admin overview's history.
+-- One row per download click - feeds the admin overview's history.
 create table if not exists public.downloads (
   id uuid primary key default gen_random_uuid(),
   track_slug text not null,
@@ -86,7 +86,7 @@ Set it in `.env.local` for local dev and in the Railway service's variables
 variables for production. Unset, the password falls back to
 `TRIGGER_SAVES_SECRET`, so the admin is never locked out by a missing variable.
 
-Unlocking mints a signed, http-only cookie that lasts 12 hours — the password
+Unlocking mints a signed, http-only cookie that lasts 12 hours - the password
 itself is never stored in the browser. **Lock** under the dashboard title ends
 it early. A wrong password costs a second, which keeps network guessing slow.
 

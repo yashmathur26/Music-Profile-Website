@@ -23,14 +23,14 @@ export const dynamic = "force-dynamic";
 // invalidate each other. lib/scheduler.ts never starts a run while one is
 // still going, so nothing here needs a time limit to keep them apart.
 
-/** How much of a tick a pass may spend spacing its writes — well inside the
+/** How much of a tick a pass may spend spacing its writes - well inside the
  * five minutes lib/scheduler.ts waits between ticks, so a pass is finished
  * before the next one. A gate's gap that doesn't fit carries over: the next
  * tick knows when the last fan was reached. */
 const SPREAD_MS = 200_000;
 
 /** Hard ceiling on fans per announcement pass, whatever the pacing works
- * out — one tick should never become a burst from a single client id. */
+ * out - one tick should never become a burst from a single client id. */
 const ANNOUNCE_CHUNK = 150;
 /** Fans per keepalive pass. */
 const KEEPALIVE_CHUNK = 100;
@@ -51,11 +51,11 @@ const KEEPALIVE_AFTER_MS = 20 * 60 * 60 * 1000;
  * Announcements outrank teardowns, which outrank the keepalive. A release is
  * time-sensitive to the minute; a teardown deadline is set in days, so losing
  * a few ticks to a rollout costs it nothing. The one exception is a fan the
- * artist took out by hand, which goes first — they asked for it now.
+ * artist took out by hand, which goes first - they asked for it now.
  *
  * One cron rather than two on purpose. SoundCloud's refresh tokens are
  * single-use, so two jobs refreshing the same fan at the same moment would
- * leave the loser holding a token SoundCloud has already retired — which
+ * leave the loser holding a token SoundCloud has already retired - which
  * comes back as `invalid_grant`, indistinguishable from a fan who revoked
  * access, and would unsubscribe them for good. Serialising the work removes
  * that race by construction instead of hoping the schedules never collide.
@@ -110,7 +110,7 @@ const handle = async (request: NextRequest) => {
 };
 
 /**
- * Takes expired likes and reposts back off. See lib/releaseTeardown.ts — the
+ * Takes expired likes and reposts back off. See lib/releaseTeardown.ts - the
  * route's only job here is to run a chunk and report it.
  */
 const teardown = async () => {
@@ -160,7 +160,7 @@ const announce = async (
   }
 
   const { summary } = result;
-  // Being told to back off is not failure — the work is kept and the next
+  // Being told to back off is not failure - the work is kept and the next
   // tick resumes it. Only a run that can't start at all is a failure.
   const blocked = summary.abortedReason;
   const done = summary.remaining <= 0 && !blocked;
@@ -196,13 +196,13 @@ const announce = async (
  * Touches each grant once a day.
  *
  * An unused refresh token can be aged out, and a fan revoking access on
- * SoundCloud's side notifies us of nothing — without this we'd only find out
+ * SoundCloud's side notifies us of nothing - without this we'd only find out
  * mid-release. Dead grants are retired here instead, so the subscriber count
  * the portal shows is honest.
  */
 const keepalive = async () => {
   // Prove the app's own credentials first. With a wrong secret every refresh
-  // below would fail, and none of those failures would be the fans' doing —
+  // below would fail, and none of those failures would be the fans' doing - 
   // better to touch nobody and say why.
   try {
     await getClientToken();

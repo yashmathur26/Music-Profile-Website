@@ -17,7 +17,7 @@ const authorized = (request: NextRequest) => {
 /**
  * Queues "like + repost this from every subscriber" for one gate.
  *
- * Only ever enqueues — the fan-out itself belongs to
+ * Only ever enqueues - the fan-out itself belongs to
  * /api/cron/process-announcements, because it can outlive any request and
  * because trickling it out beats firing every account at SoundCloud in the
  * same second. The portal ticks this on gate creation, or fires it from the
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Couldn't queue it — the release_announcements table may be missing. " +
+          "Couldn't queue it - the release_announcements table may be missing. " +
           "See docs/RELEASE_SUBSCRIBERS_SETUP.md."
       },
       { status: 503 }

@@ -27,9 +27,9 @@ export type GateTrackRow = {
   download_url: string;
   soundcloud_url: string;
   soundcloud_track_id: string | null;
-  /** Profiles the gate follows for this song — see TrackConfig.followTargets. */
+  /** Profiles the gate follows for this song - see TrackConfig.followTargets. */
   follow_targets: string[] | null;
-  /** The release fan-out's remit on saved accounts — see SubscriberPlan.
+  /** The release fan-out's remit on saved accounts - see SubscriberPlan.
    * All four are nullable so a database that predates them reads as the
    * default plan rather than as "do nothing". */
   subscriber_like?: boolean | null;
@@ -50,7 +50,7 @@ let warnedMissingTable = false;
 
 /**
  * True when PostgREST rejected the write because the table has no
- * follow_targets column — the newest migration hasn't been run yet. The write
+ * follow_targets column - the newest migration hasn't been run yet. The write
  * is retried without the follow list so gates keep working meanwhile.
  */
 const isMissingFollowColumn = (error: { message?: string }) =>
@@ -73,7 +73,7 @@ const warnMissingFollowColumn = () => {
   if (warnedMissingFollowColumn) return;
   warnedMissingFollowColumn = true;
   console.warn(
-    `[tracks] "${TABLE}.follow_targets" column missing — run the SQL in ` +
+    `[tracks] "${TABLE}.follow_targets" column missing - run the SQL in ` +
       "docs/ADMIN_TRACKS_SETUP.md. Gates save without their follow list until then."
   );
 };
@@ -84,7 +84,7 @@ const warnMissingPlanColumns = () => {
   if (warnedMissingPlanColumns) return;
   warnedMissingPlanColumns = true;
   console.warn(
-    `[tracks] "${TABLE}" has no subscriber_* columns — run the SQL in ` +
+    `[tracks] "${TABLE}" has no subscriber_* columns - run the SQL in ` +
       "docs/ADMIN_TRACKS_SETUP.md. Gates save without their subscriber " +
       "settings until then, and the fan-out uses the default plan."
   );
@@ -104,7 +104,7 @@ const withoutPlan = (row: GateTrackRow) => {
   return rest;
 };
 
-/** True for "relation does not exist" — the migration hasn't been run yet. */
+/** True for "relation does not exist" - the migration hasn't been run yet. */
 const isMissingTable = (error: { code?: string; message?: string }) =>
   error?.code === "42P01" || /relation .* does not exist/i.test(error?.message || "");
 
@@ -113,7 +113,7 @@ const tolerate = (context: string, error: unknown): null => {
     if (!warnedMissingTable) {
       warnedMissingTable = true;
       console.warn(
-        `[tracks] "${TABLE}" table missing — run the SQL in docs/ADMIN_TRACKS_SETUP.md. ` +
+        `[tracks] "${TABLE}" table missing - run the SQL in docs/ADMIN_TRACKS_SETUP.md. ` +
           "Serving hard-coded tracks only."
       );
     }
@@ -136,8 +136,8 @@ const rowToTrack = (row: GateTrackRow): TrackConfig => ({
 });
 
 /**
- * A row's subscriber plan. A column that is null — never set, or not in the
- * database yet — falls back to the default for that field, so every gate has
+ * A row's subscriber plan. A column that is null - never set, or not in the
+ * database yet - falls back to the default for that field, so every gate has
  * a complete plan whether or not the migration has run.
  */
 const rowToPlan = (row: GateTrackRow): SubscriberPlan =>
@@ -208,13 +208,13 @@ export const findTrack = async (slug: string): Promise<TrackConfig | undefined> 
 
 /**
  * What a write did. `followTargetsStored` is false when the database predates
- * the follow_targets column — the gate still saves, but the admin page has to
+ * the follow_targets column - the gate still saves, but the admin page has to
  * say the follow list didn't stick.
  */
 export type TrackWrite = {
   track: TrackConfig;
   followTargetsStored: boolean;
-  /** False when the database predates the subscriber_* columns — the gate
+  /** False when the database predates the subscriber_* columns - the gate
    * saves, but its like/repost/retention settings didn't stick. */
   planStored: boolean;
 };
@@ -224,7 +224,7 @@ export type TrackWrite = {
  * PostgREST says they don't exist.
  *
  * Two migrations have added columns to this table since gates shipped, and a
- * site whose SQL is a migration behind must still be able to save a gate —
+ * site whose SQL is a migration behind must still be able to save a gate - 
  * losing a setting is recoverable, losing the ability to publish a song is
  * not. The caller is told which parts didn't land so it can say so.
  */
@@ -271,7 +271,7 @@ const writeTolerantly = async (
   return { error: null, followTargetsStored, planStored };
 };
 
-/** Insert fails loudly here — the admin flow needs the real error. */
+/** Insert fails loudly here - the admin flow needs the real error. */
 export const insertTrack = async (row: GateTrackRow): Promise<TrackWrite> => {
   if (!supabase) {
     throw new Error("Supabase is not configured on the server.");
@@ -283,7 +283,7 @@ export const insertTrack = async (row: GateTrackRow): Promise<TrackWrite> => {
   if (error) {
     if (isMissingTable(error as { code?: string })) {
       throw new Error(
-        `The "${TABLE}" table doesn't exist yet — run the SQL in docs/ADMIN_TRACKS_SETUP.md.`
+        `The "${TABLE}" table doesn't exist yet - run the SQL in docs/ADMIN_TRACKS_SETUP.md.`
       );
     }
     throw new Error((error as { message?: string }).message || "Insert failed.");
@@ -295,7 +295,7 @@ export const insertTrack = async (row: GateTrackRow): Promise<TrackWrite> => {
  * Validates a gate's follow list on its way in: shape first, then the profiles
  * themselves against SoundCloud so a typo'd handle is caught while the artist
  * is still looking at the field. Returns an error message, or null when the
- * list is good. A SoundCloud outage never blocks a save — only a definite 404
+ * list is good. A SoundCloud outage never blocks a save - only a definite 404
  * (no such account) or a link to something that isn't a profile rejects.
  */
 export const checkFollowTargets = async (
@@ -305,14 +305,14 @@ export const checkFollowTargets = async (
     return `A gate follows at most ${MAX_FOLLOW_TARGETS} accounts.`;
   }
   if (normalizeFollowTargets(submitted).length !== submitted.length) {
-    return "Each account must be a soundcloud.com profile link, e.g. https://soundcloud.com/yvshh — and no duplicates.";
+    return "Each account must be a soundcloud.com profile link, e.g. https://soundcloud.com/yvshh - and no duplicates.";
   }
 
   for (const url of normalizeFollowTargets(submitted)) {
     try {
       const { kind } = await resolveProfile(url);
       if (kind && kind !== "user") {
-        return `${url} is a ${kind}, not a profile — link the account itself.`;
+        return `${url} is a ${kind}, not a profile - link the account itself.`;
       }
     } catch (error) {
       if (error instanceof SoundcloudApiError && error.status === 404) {
@@ -341,7 +341,7 @@ const staticRow = (slug: string): GateTrackRow | null => {
 };
 
 /**
- * Edits an existing gate — title, artwork, download link, SoundCloud link,
+ * Edits an existing gate - title, artwork, download link, SoundCloud link,
  * who it follows, even its slug. A hard-coded track has no row to update, so
  * editing one copies it into the database first: DB rows win over the static
  * array for the same slug, so the gate keeps working and stays editable.
@@ -390,7 +390,7 @@ export const updateTrack = async (
   if (error) {
     if (isMissingTable(error as { code?: string })) {
       throw new Error(
-        `The "${TABLE}" table doesn't exist yet — run the SQL in docs/ADMIN_TRACKS_SETUP.md.`
+        `The "${TABLE}" table doesn't exist yet - run the SQL in docs/ADMIN_TRACKS_SETUP.md.`
       );
     }
     throw new Error((error as { message?: string }).message || "Save failed.");

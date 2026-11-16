@@ -8,12 +8,12 @@ import { SoundcloudApiError, refreshAccessToken } from "@/lib/soundcloud";
  * This is the only place in the app that holds a SoundCloud token beyond the
  * fan's own visit, so two rules apply everywhere below:
  *
- *  - a row exists only because someone checked an unchecked box, and
- *  - `revoke_token` must stay usable forever, because it is the one link that
+ * - a row exists only because someone checked an unchecked box, and
+ * - `revoke_token` must stay usable forever, because it is the one link that
  *    lets them undo that without logging in anywhere.
  *
  * Unlike the gate's session mirror in db.ts, Supabase is the source of truth
- * here — there is no cookie to fall back to weeks later — so these helpers
+ * here - there is no cookie to fall back to weeks later - so these helpers
  * surface failures to their callers instead of swallowing them.
  */
 export type ReleaseSubscriber = {
@@ -43,7 +43,7 @@ export type ReleaseAction = {
   /** When the like/repost should come back off, per the gate's retention
    * setting. Null means the gate keeps them permanently. */
   remove_after: string | null;
-  /** Set once the teardown has run, successfully or not — it is the flag that
+  /** Set once the teardown has run, successfully or not - it is the flag that
    * stops the job retrying the same row every tick. */
   removed_at: string | null;
   /** Why a removal couldn't happen (the fan revoked us, SoundCloud refused).
@@ -58,7 +58,7 @@ export type ReleaseAction = {
   updated_at: string;
 };
 
-/** Attempts before a row is written off — see `remove_attempts`. */
+/** Attempts before a row is written off - see `remove_attempts`. */
 export const MAX_REMOVAL_ATTEMPTS = 5;
 
 /** A due removal with the fan's credentials attached, in one query. */
@@ -87,7 +87,7 @@ const client = () => {
   return supabase;
 };
 
-/** Whether the opt-in can be offered at all — the gate hides the box if not. */
+/** Whether the opt-in can be offered at all - the gate hides the box if not. */
 export const subscriptionsConfigured = () => Boolean(supabase);
 
 const newRevokeToken = () => randomBytes(24).toString("base64url");
@@ -167,7 +167,7 @@ export const findByRevokeToken = async (
 };
 
 /** Everyone still opted in, oldest first. */
-/** How many fans are opted in right now — the number the admin portal shows
+/** How many fans are opted in right now - the number the admin portal shows
  * next to the "tell my subscribers" checkbox, so the artist knows what the
  * box will actually do before ticking it. */
 export const countActive = async (): Promise<number> => {
@@ -195,7 +195,7 @@ export const listActive = async (): Promise<ReleaseSubscriber[]> => {
   return (data ?? []) as ReleaseSubscriber[];
 };
 
-/** Everyone ever saved, revoked included, newest first — for the admin page. */
+/** Everyone ever saved, revoked included, newest first - for the admin page. */
 export const listAllSubscribers = async (): Promise<ReleaseSubscriber[]> => {
   const { data, error } = await client()
     .from(SUBSCRIBERS)
@@ -205,7 +205,7 @@ export const listAllSubscribers = async (): Promise<ReleaseSubscriber[]> => {
   return (data ?? []) as ReleaseSubscriber[];
 };
 
-/** Every release action across every song — for the admin page. */
+/** Every release action across every song - for the admin page. */
 export const listAllActions = async (): Promise<ReleaseAction[]> => {
   const { data, error } = await client().from(ACTIONS).select("*");
   if (error) throw error;
@@ -214,7 +214,7 @@ export const listAllActions = async (): Promise<ReleaseAction[]> => {
 
 /**
  * Ends a subscription. The row stays so the same fan's revoke link keeps
- * working and a later re-tick lands on the same id, but the tokens are wiped —
+ * working and a later re-tick lands on the same id, but the tokens are wiped - 
  * we have no business holding them once consent is withdrawn.
  *
  * `reason` is "fan" for a revoke-link click, or the failure that killed the
@@ -258,7 +258,7 @@ const storeTokens = async (
 };
 
 /**
- * A refresh token SoundCloud no longer recognises — the grant is gone.
+ * A refresh token SoundCloud no longer recognises - the grant is gone.
  *
  * `invalid_grant` only. Retiring a fan wipes their token for good, so it must
  * never follow from a problem on our side: a wrong or missing client secret
@@ -272,9 +272,9 @@ const isDeadGrant = (error: unknown) =>
 
 export type TokenResult =
   | { ok: true; accessToken: string; refreshed: boolean }
-  /** The grant is dead and the row has been revoked — don't retry this fan. */
+  /** The grant is dead and the row has been revoked - don't retry this fan. */
   | { ok: false; dead: true; reason: string }
-  /** Transient (SoundCloud down, rate limited) — worth retrying later. */
+  /** Transient (SoundCloud down, rate limited) - worth retrying later. */
   | { ok: false; dead: false; reason: string };
 
 /**
@@ -282,12 +282,12 @@ export type TokenResult =
  * within five minutes of expiry.
  *
  * SoundCloud's refresh tokens are single-use, so the replacement is written
- * back before the token is handed out — if that write fails we must treat the
+ * back before the token is handed out - if that write fails we must treat the
  * whole thing as a failure rather than use a token whose successor is lost.
  * For the same reason only one job may refresh a given fan at a time: two
  * concurrent callers would leave the loser holding a retired token, which
  * comes back as `invalid_grant` and is indistinguishable from a fan who
- * revoked access — so it would unsubscribe them for good. Everything
+ * revoked access - so it would unsubscribe them for good. Everything
  * background therefore runs through the single cron in
  * /api/cron/subscribers, which never does two jobs at once.
  */
@@ -390,8 +390,8 @@ export const recordAction = async (params: {
  * Likes and reposts whose time is up, oldest deadline first, with the fan's
  * tokens embedded so the teardown doesn't make one query per row.
  *
- * Rows where nothing was ever placed are skipped — there is nothing to take
- * back — and so are rows already torn down, which is what keeps this from
+ * Rows where nothing was ever placed are skipped - there is nothing to take
+ * back - and so are rows already torn down, which is what keeps this from
  * re-running against the same fan on every tick.
  */
 export const listDueRemovals = async (limit: number): Promise<DueRemoval[]> => {
@@ -408,7 +408,7 @@ export const listDueRemovals = async (limit: number): Promise<DueRemoval[]> => {
   return (data ?? []) as DueRemoval[];
 };
 
-/** How many removals are waiting — for the admin portal's gate row. */
+/** How many removals are waiting - for the admin portal's gate row. */
 export const countDueRemovals = async (): Promise<number> => {
   if (!supabase) return 0;
   try {
@@ -427,7 +427,7 @@ export const countDueRemovals = async (): Promise<number> => {
 };
 
 /**
- * Removals the artist asked for by hand — "take them out" on the song panel.
+ * Removals the artist asked for by hand - "take them out" on the song panel.
  * These jump ahead of a rollout in the cron, because "now" is what was asked;
  * scheduled ones wait, since their deadline is measured in days.
  */
@@ -523,7 +523,7 @@ export const putBack = async (params: {
 };
 
 /**
- * Moves the deadline on likes and reposts that are still in place — the
+ * Moves the deadline on likes and reposts that are still in place - the
  * song panel's "keep it up for". `due` gets each row's current state and
  * returns its new deadline, so the caller decides what "a week" counts from.
  * Rows already taken off, or taken out by hand, are left as they are.
@@ -592,7 +592,7 @@ export const findAnnouncement = async (
  * what it couldn't take off alongside the reason.
  *
  * `removed_at` is set either way. A removal that failed for a reason that
- * won't change — the fan revoked us, so we have no credentials — must not be
+ * won't change - the fan revoked us, so we have no credentials - must not be
  * retried forever, and the reason stays on the row to say why the like is
  * still there.
  */
@@ -655,8 +655,8 @@ export const noteRemovalFailure = async (params: {
 /**
  * The queue behind the admin portal's "tell my subscribers" checkbox.
  *
- * Creating a gate can't wait on the fan-out — hundreds of fans times two API
- * calls each outlives any request — so ticking the box only records the intent
+ * Creating a gate can't wait on the fan-out - hundreds of fans times two API
+ * calls each outlives any request - so ticking the box only records the intent
  * here, and the cron in /api/cron/subscribers drains it in chunks.
  * That also spreads the writes out instead of firing every account at
  * SoundCloud in the same second.
@@ -677,7 +677,7 @@ export type ReleaseAnnouncement = {
   last_error: string | null;
 };
 
-/** Queues a release, or re-opens one that already ran — re-running is safe,
+/** Queues a release, or re-opens one that already ran - re-running is safe,
  * since each fan's result is recorded per release and skipped next time. */
 export const requestAnnouncement = async (
   trackSlug: string

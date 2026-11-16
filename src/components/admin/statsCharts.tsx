@@ -4,12 +4,12 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 
 /**
- * The chart kit behind the admin Stats tab — inline SVG, no library.
+ * The chart kit behind the admin Stats tab - inline SVG, no library.
  *
  * Colours are the validated dark-mode steps, checked against the admin card
  * surface (#14101c, white at 4% over the page) for lightness band, chroma,
  * colour-blind separation and contrast. Three categorical slots pass every
- * check there; nothing here uses a fourth. Text never wears a series colour —
+ * check there; nothing here uses a fourth. Text never wears a series colour - 
  * identity comes from the swatch or line key beside it.
  */
 export const VIZ = {
@@ -41,7 +41,7 @@ export const compact = (n: number) => {
 };
 
 export const pct = (part: number, whole: number) =>
-  whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
+  whole > 0 ? `${Math.round((part / whole) * 100)}%` : " - ";
 
 /** Clean axis steps: 1, 2, 5 × 10^n, never more than ~5 ticks. */
 export const niceTicks = (max: number, count = 4) => {
@@ -80,7 +80,7 @@ const cardClass =
   "rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur";
 
 /**
- * A chart in a card, with the table view one click away — every value a
+ * A chart in a card, with the table view one click away - every value a
  * chart shows is reachable without hovering.
  */
 export function ChartCard({
@@ -150,7 +150,7 @@ export function Empty({ children }: { children: ReactNode }) {
   );
 }
 
-/** A plain table — the accessible twin of every chart. */
+/** A plain table - the accessible twin of every chart. */
 export function DataTable({
   columns,
   rows,
@@ -306,7 +306,7 @@ function Tooltip({ tip, width }: { tip: Tip | null; width: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Columns — counts per day, with an optional average line             */
+/* Columns - counts per day, with an optional average line             */
 /* ------------------------------------------------------------------ */
 
 export type ColumnPoint = { key: string; label: string; value: number; avg?: number };
@@ -425,7 +425,7 @@ export function ColumnChart({
 }
 
 /* ------------------------------------------------------------------ */
-/* Lines — values over time, one shared axis                           */
+/* Lines - values over time, one shared axis                           */
 /* ------------------------------------------------------------------ */
 
 export type LineSeries = {
@@ -576,7 +576,7 @@ export function LineChart({
 }
 
 /* ------------------------------------------------------------------ */
-/* Horizontal bars — ranked lists                                      */
+/* Horizontal bars - ranked lists                                      */
 /* ------------------------------------------------------------------ */
 
 export type BarRow = { key: string; label: ReactNode; value: number; note?: ReactNode; title?: string };
@@ -616,7 +616,7 @@ export function HBars({
 }
 
 /* ------------------------------------------------------------------ */
-/* Funnel — ordered steps, one hue, conversion between them            */
+/* Funnel - ordered steps, one hue, conversion between them            */
 /* ------------------------------------------------------------------ */
 
 export function Funnel({ steps }: { steps: { label: string; value: number; hint?: string }[] }) {
@@ -653,7 +653,7 @@ export function Funnel({ steps }: { steps: { label: string; value: number; hint?
 }
 
 /* ------------------------------------------------------------------ */
-/* Heatmap — day of week × hour                                        */
+/* Heatmap - day of week × hour                                        */
 /* ------------------------------------------------------------------ */
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -716,7 +716,7 @@ export function Heatmap({ grid }: { grid: number[][] }) {
 /* ------------------------------------------------------------------ */
 
 export function Sparkline({ values, width = 88, height = 22 }: { values: number[]; width?: number; height?: number }) {
-  if (values.length < 2) return <span className="text-white/25">—</span>;
+  if (values.length < 2) return <span className="text-white/25"> - </span>;
   const max = Math.max(1, ...values);
   const step = width / (values.length - 1);
   const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - 2 - (v / max) * (height - 4)).toFixed(1)}`);

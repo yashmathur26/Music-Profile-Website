@@ -20,7 +20,7 @@ export const adminPassword = () =>
   process.env.TRIGGER_SAVES_SECRET?.trim() ||
   "";
 
-/** Signing key for the session cookie — server-only, never the password. */
+/** Signing key for the session cookie - server-only, never the password. */
 const signingKey = () =>
   process.env.GATE_SECRET ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||

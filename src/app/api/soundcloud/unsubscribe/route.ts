@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * Signing in proves which account they are, which is all the off switch
  * needs. It goes through the gate's own callback (SoundCloud only allows the
  * one redirect address), marked so the callback switches them off and does
- * nothing else — no follow, no like, and no token kept.
+ * nothing else - no follow, no like, and no token kept.
  */
 export async function GET(request: Request) {
   if (!soundcloudConfigured()) {

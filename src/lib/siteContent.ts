@@ -1,6 +1,6 @@
 /**
  * Client-safe half of the site config: the shape, the defaults, and the
- * embed builder. Server-side load/save lives in siteConfig.ts — keep
+ * embed builder. Server-side load/save lives in siteConfig.ts - keep
  * anything that touches Supabase out of here, this file ships to the
  * browser (home page + admin mockup).
  */

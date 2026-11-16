@@ -53,8 +53,8 @@ let warnedAboutMigration = false;
 let warnedAboutOutage = false;
 
 /**
- * Supabase is a best-effort mirror for the gate — the encrypted gate cookie is
- * the source of truth — so an unreachable project must never break a download.
+ * Supabase is a best-effort mirror for the gate - the encrypted gate cookie is
+ * the source of truth - so an unreachable project must never break a download.
  */
 const tolerate = (context: string, error: unknown) => {
   if (!warnedAboutOutage) {

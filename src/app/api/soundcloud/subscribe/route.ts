@@ -93,7 +93,7 @@ const enrol = async (trackSlug: string) => {
    *
    * Enrolment is automatic on download, so without this check a fan who
    * deliberately unsubscribed would be re-enrolled by their very next
-   * download — turning an aggressive default into overriding an explicit no,
+   * download - turning an aggressive default into overriding an explicit no,
    * which is the one version of this nobody can defend. A grant that merely
    * died on SoundCloud's side carries 'token_invalid' instead and is fair to
    * re-enrol.
@@ -103,7 +103,7 @@ const enrol = async (trackSlug: string) => {
   }
 
   if (!gate.refreshToken) {
-    // Nothing durable to keep — the cookie's token was already surrendered.
+    // Nothing durable to keep - the cookie's token was already surrendered.
     return NextResponse.json({ ok: false, reason: "no_refresh_token" });
   }
 
@@ -113,7 +113,7 @@ const enrol = async (trackSlug: string) => {
    *
    * SoundCloud's refresh tokens are single-use: if the subscription and the
    * gate cookie both held the same one, whichever refreshed first would
-   * silently invalidate the other — and the one that loses is usually the
+   * silently invalidate the other - and the one that loses is usually the
    * subscription, weeks later, with nobody watching. So we rotate once here,
    * hand the new refresh token to the database, and strip it from the cookie.
    * The access token below keeps this visit working for its remaining hour,

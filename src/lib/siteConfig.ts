@@ -24,7 +24,7 @@ const warnOnce = (error: unknown) => {
   if (missing && !warnedMissingTable) {
     warnedMissingTable = true;
     console.warn(
-      `[site] "${TABLE}" table missing — run the SQL in docs/ADMIN_TRACKS_SETUP.md. ` +
+      `[site] "${TABLE}" table missing - run the SQL in docs/ADMIN_TRACKS_SETUP.md. ` +
         "Serving the hard-coded home page content."
     );
   }
@@ -80,7 +80,7 @@ export const saveSiteConfig = async (patch: Partial<SiteConfig>) => {
     warnOnce(error);
     throw new Error(
       /relation .* does not exist/i.test(error.message)
-        ? 'The "site_config" table doesn’t exist yet — run the SQL in docs/ADMIN_TRACKS_SETUP.md.'
+        ? 'The "site_config" table doesn’t exist yet - run the SQL in docs/ADMIN_TRACKS_SETUP.md.'
         : error.message
     );
   }

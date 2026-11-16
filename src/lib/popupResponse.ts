@@ -28,7 +28,7 @@ export const popupResponse = (
     <script>
       (function () {
         var payload = Object.assign({ type: ${safeJson(MESSAGE_TYPE)} }, ${safeJson(payload)});
-        // The opener may be on the www or the apex host — post to both forms
+        // The opener may be on the www or the apex host - post to both forms
         // so the message lands wherever the gate is running.
         var origins = [window.location.origin];
         var swapped = window.location.origin.indexOf("://www.") !== -1
@@ -42,7 +42,7 @@ export const popupResponse = (
             }
             window.close();
             document.getElementById("msg").textContent =
-              "Done — you can close this tab.";
+              "Done - you can close this tab.";
             return;
           }
         } catch (e) {}

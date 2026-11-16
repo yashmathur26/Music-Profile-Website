@@ -1,7 +1,7 @@
 /**
  * The accounts a download gate follows on the fan's behalf. Each gate carries
- * its own list — a flip with a collaborator follows both of you, a solo track
- * just follows you — so these helpers are shared by the admin editor (client),
+ * its own list - a flip with a collaborator follows both of you, a solo track
+ * just follows you - so these helpers are shared by the admin editor (client),
  * the track API (server) and the gate itself.
  */
 

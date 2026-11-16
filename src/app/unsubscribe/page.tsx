@@ -24,10 +24,10 @@ export const metadata = {
  *
  * Reached two ways, and both have to work:
  *
- *  - `?t=<revoke token>` — the permanent link handed to the fan the moment
+ * - `?t=<revoke token>` - the permanent link handed to the fan the moment
  *    they opted in. No session, no login, works forever and from any device,
  *    because the subscription it ends lasts just as long.
- *  - no query at all — the link in the Terms. Nobody arriving that way has a
+ * - no query at all - the link in the Terms. Nobody arriving that way has a
  *    token, so we identify them by their gate cookie instead; that only works
  *    in the browser they downloaded from, which the copy below says plainly.
  */
@@ -39,7 +39,7 @@ export default async function UnsubscribePage({
   const accent = "#a78bfa";
   const token = (searchParams.t || "").trim();
   const artistName = process.env.NEXT_PUBLIC_ARTIST_NAME?.trim() || "YVSH";
-  // Back from "Sign in with SoundCloud to turn it off" — see
+  // Back from "Sign in with SoundCloud to turn it off" - see
   // /api/soundcloud/unsubscribe. The handle is only ever shown, never trusted.
   const signed = searchParams.signed || "";
   const signedAs = (searchParams.u || "").slice(0, 60);
@@ -62,7 +62,7 @@ export default async function UnsubscribePage({
 
   const active = Boolean(subscriber && !subscriber.revoked_at);
   // Only pass the token along if it actually resolved the subscriber we're
-  // about to act on — otherwise the form must go through the cookie.
+  // about to act on - otherwise the form must go through the cookie.
   const formToken =
     token && subscriber && subscriber.revoke_token === token ? token : null;
 
@@ -85,7 +85,7 @@ export default async function UnsubscribePage({
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-white/70">
             {signed === "off"
-              ? `Nothing will happen on${signedAs ? ` @${signedAs}` : " your account"} again, and the token we were keeping has been deleted. Anything already liked or reposted stays as it is — you can undo those on SoundCloud yourself.`
+              ? `Nothing will happen on${signedAs ? ` @${signedAs}` : " your account"} again, and the token we were keeping has been deleted. Anything already liked or reposted stays as it is - you can undo those on SoundCloud yourself.`
               : `Automatic likes and reposts were already off${signedAs ? ` for @${signedAs}` : ""}. We hold no token for you and nothing runs on your account.`}
           </p>
           <Link
@@ -137,7 +137,7 @@ export default async function UnsubscribePage({
       return (
         <p className="mt-4 text-sm leading-relaxed text-white/70">
           We couldn&rsquo;t reach the database just now, so we can&rsquo;t show
-          you the right thing. Please reload in a minute — or{" "}
+          you the right thing. Please reload in a minute - or{" "}
           <Link
             href="/contact"
             className="underline underline-offset-2"
@@ -197,7 +197,7 @@ export default async function UnsubscribePage({
         <p className="mt-4 text-sm leading-relaxed text-white/70">
           We can&rsquo;t tell who you are from this browser. Sign in with the
           SoundCloud account you downloaded with and we&rsquo;ll switch it off
-          straight away — the sign-in is only used to find you, and nothing
+          straight away - the sign-in is only used to find you, and nothing
           else happens on your account.
         </p>
         <SignInButton />

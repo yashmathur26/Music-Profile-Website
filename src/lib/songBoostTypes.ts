@@ -4,13 +4,13 @@ import type { SubscriberPlan } from "@/lib/subscriberPlan";
 
 /**
  * Where one saved fan stands on this song:
- *  - waiting: the send hasn't reached them yet
- *  - live: their like/repost is up
- *  - came_off: it was up, and came back off on schedule
- *  - taken_out: you took them out by hand
- *  - skipped: left alone on purpose (big account, someone you follow…)
- *  - failed: SoundCloud refused, or their connection had died
- *  - not_sent: you haven't sent this song to your fans
+ * - waiting: the send hasn't reached them yet
+ * - live: their like/repost is up
+ * - came_off: it was up, and came back off on schedule
+ * - taken_out: you took them out by hand
+ * - skipped: left alone on purpose (big account, someone you follow…)
+ * - failed: SoundCloud refused, or their connection had died
+ * - not_sent: you haven't sent this song to your fans
  */
 export type BoostState =
   | "waiting"
@@ -22,7 +22,7 @@ export type BoostState =
   | "not_sent";
 
 export type BoostPerson = {
-  /** Their saved-fan id — what the edit actions take. */
+  /** Their saved-fan id - what the edit actions take. */
   id: string;
   username: string;
   profileUrl: string | null;
@@ -40,7 +40,7 @@ export type BoostPerson = {
   removeAfter: string | null;
   /** Best guess at when the send reaches them, while they're waiting. */
   dueAt: string | null;
-  /** Best guess at when the take-off actually runs — the first scheduler
+  /** Best guess at when the take-off actually runs - the first scheduler
    * run at or after `removeAfter`. */
   offAt: string | null;
   removedAt: string | null;

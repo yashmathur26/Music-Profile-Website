@@ -311,7 +311,7 @@ function Overview({
             Downloads
           </p>
           <p className="mt-1 text-3xl font-bold tabular-nums text-white">
-            {total ?? "—"}
+            {total ?? " - "}
           </p>
         </div>
         <div className={clsx(card, "px-5 py-4")}>
@@ -319,7 +319,7 @@ function Overview({
             Live gates
           </p>
           <p className="mt-1 text-3xl font-bold tabular-nums text-white">
-            {gateCount ?? "—"}
+            {gateCount ?? " - "}
           </p>
         </div>
       </div>
@@ -339,7 +339,7 @@ function Overview({
         {recent.length === 0 ? (
           <p className="mt-3 text-sm text-white/40">
             {total === 0
-              ? "No downloads recorded yet — they’ll show up here as fans grab tracks."
+              ? "No downloads recorded yet - they’ll show up here as fans grab tracks."
               : "Loading…"}
           </p>
         ) : (
@@ -455,7 +455,7 @@ const removalLabel = (minutes: number) =>
 const stayLabel = (days: number | null) =>
   STAY_OPTIONS.find((o) => o.days === days)?.label.toLowerCase() ||
   `${days} day${days === 1 ? "" : "s"}`;
-/** "about 23 minutes" — roughly how long a send to `fans` takes. */
+/** "about 23 minutes" - roughly how long a send to `fans` takes. */
 const totalLabel = (plan: SubscriberPlan, fans: number) => {
   const minutes = Math.round((Math.max(0, fans - 1) * plan.gapSeconds) / 60);
   if (minutes < 1) return "a minute or so";
@@ -465,13 +465,13 @@ const totalLabel = (plan: SubscriberPlan, fans: number) => {
 };
 
 /**
- * The plan in one plain sentence, for the card and the send confirmation —
+ * The plan in one plain sentence, for the card and the send confirmation - 
  * "When you send it, up to 14 fans like and repost it, one fan every 1 min
  * (about 13 minutes for everyone). It comes off on its own after 1 week."
  */
 const planSentence = (plan: SubscriberPlan, fans: number) => {
   const actions = [plan.like && "like", plan.repost && "repost"].filter(Boolean).join(" and ");
-  if (!actions) return "Pick Like, Repost or both — right now sending would do nothing.";
+  if (!actions) return "Pick Like, Repost or both - right now sending would do nothing.";
   const who = fans > 0 ? `up to ${fans} fan${fans === 1 ? "" : "s"}` : "your saved fans";
   const when =
     `one fan every ${gapLabel(plan.gapSeconds)}` +
@@ -517,7 +517,7 @@ function Choice<T>({
 /**
  * The per-gate controls over unattended activity: which actions the release
  * fan-out may take on a saved account, how long they stay there, and how
- * slowly they arrive — as a few taps rather than numbers to type.
+ * slowly they arrive - as a few taps rather than numbers to type.
  *
  * Separate from everything else on the form because it is the only part of a
  * gate that acts on other people's accounts while they are nowhere near the
@@ -619,8 +619,8 @@ function SubscriberPlanFields({
       </div>
 
       <div className="mt-4 flex gap-2">
-        {action("like", "♥", "Like", "Private — only the like count goes up.")}
-        {action("repost", "↻", "Repost", "Public — shows on their profile and feed.")}
+        {action("like", "♥", "Like", "Private - only the like count goes up.")}
+        {action("repost", "↻", "Repost", "Public - shows on their profile and feed.")}
       </div>
 
       <div className="mt-4 space-y-3">
@@ -665,7 +665,7 @@ function SubscriberPlanFields({
         )}
       >
         {send && !send.on && fans > 0 && !planIsNoop(plan)
-          ? `Not sending yet — you can send it later from the song's row. ${planSentence(plan, fans)}`
+          ? `Not sending yet - you can send it later from the song's row. ${planSentence(plan, fans)}`
           : planSentence(plan, fans)}
         {send?.on && " Only works once the track is public on SoundCloud."}
       </p>
@@ -675,7 +675,7 @@ function SubscriberPlanFields({
 
 /**
  * "Like this song whenever a fan downloads one of my other songs." One
- * switch, because it's one yes/no — the gate names the songs to the fan.
+ * switch, because it's one yes/no - the gate names the songs to the fan.
  */
 function CrossLikeField({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   return (
@@ -711,7 +711,7 @@ function CrossLikeField({ on, onChange }: { on: boolean; onChange: (on: boolean)
 }
 
 /* ------------------------------------------------------------------ */
-/* Who a gate follows — up to three accounts, followed simultaneously  */
+/* Who a gate follows - up to three accounts, followed simultaneously  */
 /* ------------------------------------------------------------------ */
 
 /** Pre-fills row one of a new gate: the artist's own profile. */
@@ -784,7 +784,7 @@ function FollowTargetFields({
 
       {bad && (
         <p className="text-xs text-amber-300/80">
-          {bad} isn’t a SoundCloud profile link — it should look like
+          {bad} isn’t a SoundCloud profile link - it should look like
           https://soundcloud.com/handle
         </p>
       )}
@@ -793,7 +793,7 @@ function FollowTargetFields({
 }
 
 /**
- * One live gate: the summary line, and an editor for everything about it —
+ * One live gate: the summary line, and an editor for everything about it - 
  * title, public link, the file, the SoundCloud track, artwork, and the
  * accounts fans have to follow. Editing a hard-coded gate copies it into the
  * database on save, which is what makes it editable (and deletable) from then
@@ -1022,9 +1022,9 @@ function GateRow({
       {announcement?.last_error && (
         <p className="border-t border-white/10 px-3 py-2 text-[11px] text-amber-300/80">
           {announcement.last_error === "api_blocked"
-            ? "SoundCloud is refusing the writes right now — it'll pick up again on its own."
+            ? "SoundCloud is refusing the writes right now - it'll pick up again on its own."
             : announcement.last_error === "rate_limited"
-              ? "SoundCloud rate-limited us — the rest goes out on the next pass."
+              ? "SoundCloud rate-limited us - the rest goes out on the next pass."
               : announcement.last_error}
         </p>
       )}
@@ -1035,7 +1035,7 @@ function GateRow({
           {field(
             "Link",
             "slug",
-            `Fans open /${draft.slug || track.slug} — renaming breaks the old link.`
+            `Fans open /${draft.slug || track.slug} - renaming breaks the old link.`
           )}
           {field(
             "Song file",
@@ -1109,7 +1109,7 @@ function TracksManager({ token }: { token: string }) {
   const [followRows, setFollowRows] = useState<string[]>([ARTIST_PROFILE]);
   // What this gate will be allowed to do on saved accounts, and for how long.
   const [planDraft, setPlanDraft] = useState<PlanDraft>(DEFAULT_PLAN_DRAFT);
-  // Opted-in fans. Zero hides the whole feature — there is nothing to tell.
+  // Opted-in fans. Zero hides the whole feature - there is nothing to tell.
   const [subscribers, setSubscribers] = useState(0);
   // Off by default here too: sending a release to every subscriber's account
   // is a deliberate act, not the default consequence of adding a song.
@@ -1234,7 +1234,7 @@ function TracksManager({ token }: { token: string }) {
       <div className={clsx(card, "p-6")}>
         <p className="text-sm font-medium text-white/70">New download gate</p>
         <p className="mt-1 text-xs text-white/45">
-          Paste the Google Drive link to the file and the SoundCloud track link —
+          Paste the Google Drive link to the file and the SoundCloud track link - 
           title and artwork come from SoundCloud automatically.
         </p>
 
@@ -1270,7 +1270,7 @@ function TracksManager({ token }: { token: string }) {
               </span>
             </div>
             <p className="mb-3 text-xs text-white/45">
-              One tap on the gate follows all of these at the same time — add a
+              One tap on the gate follows all of these at the same time - add a
               collaborator or your alt account for this song.
             </p>
             <FollowTargetFields rows={followRows} onChange={setFollowRows} />
@@ -1349,7 +1349,7 @@ function TracksManager({ token }: { token: string }) {
                 Live at <span className="font-semibold">{createdPath}</span>
                 {announcedOnCreate && (
                   <span className="block text-xs text-emerald-300/70">
-                    Queued for your subscribers — watch the gate below for
+                    Queued for your subscribers - watch the gate below for
                     progress.
                   </span>
                 )}
@@ -1534,7 +1534,7 @@ function HomeEditor({ token }: { token: string }) {
       <p className="text-xs text-white/45">
         This is a live mockup of your home page. Click any text to rewrite it,
         click a social button to change its link, and swap the Now Playing
-        track — nothing goes live until you hit Save.
+        track - nothing goes live until you hit Save.
       </p>
 
       {/* The mockup */}
@@ -1566,7 +1566,7 @@ function HomeEditor({ token }: { token: string }) {
               />
             </div>
 
-            {/* Social buttons — click to edit their links */}
+            {/* Social buttons - click to edit their links */}
             <div className="mt-5 flex items-center gap-3">
               {(Object.keys(SOCIAL_META) as SocialKey[]).map((key) => {
                 const meta = SOCIAL_META[key];
@@ -1710,7 +1710,7 @@ function HomeEditor({ token }: { token: string }) {
           className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[min(92%,42rem)] items-center justify-between rounded-2xl border border-white/10 bg-[#150820]/95 px-5 py-3 shadow-2xl backdrop-blur"
         >
           <p className="text-sm text-white/70">
-            {flash && !dirty ? "Saved — it’s live." : "Unsaved changes"}
+            {flash && !dirty ? "Saved - it’s live." : "Unsaved changes"}
           </p>
           {dirty && (
             <div className="flex gap-2">

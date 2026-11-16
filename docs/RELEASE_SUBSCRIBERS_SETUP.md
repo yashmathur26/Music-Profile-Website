@@ -1,4 +1,4 @@
-# Automatic likes & reposts on new releases — Setup
+# Automatic likes & reposts on new releases - Setup
 
 Downloading a track enrols the fan: we keep the SoundCloud connection they
 used to unlock the gate, refresh it daily, and when you drop a new song one
@@ -13,8 +13,8 @@ download screen.
 
 Three rules are enforced in code, and they are what keeps this defensible:
 
-- **Only like and repost ever run unattended.** Never a follow — a fan who
-  unfollowed shouldn't be re-followed behind their back — and never a comment,
+- **Only like and repost ever run unattended.** Never a follow - a fan who
+  unfollowed shouldn't be re-followed behind their back - and never a comment,
   which isn't idempotent, so a retry would post twice.
 - **An explicit opt-out is permanent.** `/unsubscribe` sets
   `revoked_reason = 'fan'`, and enrolment skips those rows forever. Without
@@ -143,12 +143,12 @@ the gate already uses. Miss any of them and the checkbox simply doesn't render.
 
 One job, `/api/cron/subscribers`, does all the background work, authorised
 with `CRON_SECRET`. On Railway, `src/lib/scheduler.ts` calls it every five
-minutes from inside the server (only where `RUN_SCHEDULER=1` — see
+minutes from inside the server (only where `RUN_SCHEDULER=1` - see
 docs/RAILWAY_SETUP.md), and never starts a run while one is still going.
 
 Never add a second trigger for it (an external cron, a second service with
 `RUN_SCHEDULER=1`): two runs at once race on the same single-use refresh
-tokens. `TICK_MS` in the route assumes five minutes — change the two together.
+tokens. `TICK_MS` in the route assumes five minutes - change the two together.
 
 (While the site was on Vercel's Hobby plan, which only allows daily crons,
 every deploy from 8bf45e9b to afdb470d failed on a sub-daily schedule. That
@@ -156,7 +156,7 @@ is why the schedule now lives in the server.)
 
 Every tick it does exactly one of three jobs, never two.
 
-**Draining the release queue** — the oldest unfinished release, one fan at a
+**Draining the release queue** - the oldest unfinished release, one fan at a
 time with the gap the gate asks for between them. Each gap is randomised to
 between 70% and 130% of the setting, so there's no fixed rhythm. A tick fits
 as many fans as the gap allows inside its first 200 seconds; a gap longer than
@@ -167,16 +167,16 @@ can outlive any single request (a slow send would otherwise read back to you
 as "the song didn't save"), and because trickling the writes beats firing every
 account at SoundCloud in the same second.
 
-**Taking expired likes and reposts back off** — any gate with a retention set
+**Taking expired likes and reposts back off** - any gate with a retention set
 gives each like and repost a deadline, and this removes them once it passes.
 It only runs on ticks with no release going out; a teardown deadline is in
 days, so losing a few ticks to a rollout costs it nothing. A fan who revoked
-us in the meantime can't be undone — there are no credentials left — and the
+us in the meantime can't be undone - there are no credentials left - and the
 row records `no_grant` and says so rather than claiming a removal it didn't
 make. Follows are never removed: the fan followed to unlock a download, which
 was their own action.
 
-**Keepalive** — when the queue is empty, it refreshes the grants untouched for
+**Keepalive** - when the queue is empty, it refreshes the grants untouched for
 20 hours, 100 per tick. An unused refresh token can be aged out, and a fan
 revoking access on SoundCloud's side notifies us of nothing, so without this
 we'd only find out mid-release. Dead grants are retired here instead, marked
@@ -184,11 +184,11 @@ we'd only find out mid-release. Dead grants are retired here instead, marked
 
 ### Why one cron and not two
 
-This started as two — a daily keepalive and a frequent queue drain — and
+This started as two - a daily keepalive and a frequent queue drain - and
 that was a bug. `*/5 * * * *` fires at 04:00 as well, so once a day both
 would refresh the same fan at the same moment. SoundCloud's refresh tokens are
 single-use: the loser of that race ends up holding a token SoundCloud has
-already retired, which comes back as `invalid_grant` — indistinguishable from
+already retired, which comes back as `invalid_grant` - indistinguishable from
 a fan who revoked access, so the code would unsubscribe them for good. Silent
 daily attrition, visible only as a subscriber count that drifts down.
 
@@ -204,7 +204,7 @@ create form and in **Edit** on the gate itself:
 | Setting | Default | What it does |
 | --- | --- | --- |
 | **Like the song** | on | Likes it from each saved account. Private; only a count moves. |
-| **Repost it** | on | The public one — it shows on their profile and in their followers' feeds. |
+| **Repost it** | on | The public one - it shows on their profile and in their followers' feeds. |
 | **Take it back off after** | empty | 1–14 days, then the teardown removes the like and repost. Empty leaves them permanently. |
 | **Time between each fan** | 1 min | How long after one fan's like/repost the next one goes out, randomised ±30%. Needs `subscriber_gap_seconds`. |
 | **Comes off over** | 2 hours | Once the retention runs out, each fan's like and repost comes off at their own random moment inside this window, not all on one tick. Needs `subscriber_removal_minutes` (docs/ADMIN_TRACKS_SETUP.md). |
@@ -213,7 +213,7 @@ Both actions off means there is nothing to send, and the fan-out refuses the
 release rather than queueing an empty one.
 
 The retention cap is two weeks on purpose. Past that it isn't a temporary
-boost on someone's profile, it's just a repost they didn't ask for — and the
+boost on someone's profile, it's just a repost they didn't ask for - and the
 longer it sits there, the more of a problem it is that the consent for it came
 bundled into a Terms checkbox (see **Known exposure** above).
 
@@ -230,15 +230,15 @@ SoundCloud, tick **Tell my subscribers** on the create form and the release is
 queued the moment the gate is created. The checkbox only appears when you
 actually have subscribers, and it says how many.
 
-Each live gate also carries a button with the same effect — **Like + repost
-from N** — for a song whose gate already existed, or to retry one that
+Each live gate also carries a button with the same effect - **Like + repost
+from N** - for a song whose gate already existed, or to retry one that
 stopped. The button doubles as the progress readout: *Sending… 40/150*, then
 *Sent to 150*. Re-running is safe; anyone the gate has already done is
-skipped — including, deliberately, anyone whose like and repost were since
+skipped - including, deliberately, anyone whose like and repost were since
 removed on retention, because putting them back is what pressing the button
 again means.
 
-### Editing a send afterwards — the song panel
+### Editing a send afterwards - the song panel
 
 Tap a song in **Live gates** to open its panel: SoundCloud's all-time plays,
 likes, reposts and comments, the gate's views and downloads, and every saved
@@ -279,7 +279,7 @@ press a button for.
 The manual endpoint runs the fan-out inline instead of queueing it:
 
 ```bash
-# Dry run first — counts only, touches nobody.
+# Dry run first - counts only, touches nobody.
 curl -X POST https://yvshmusic.com/api/releases/announce \
   -H "Authorization: Bearer $RELEASE_TRIGGER_SECRET" \
   -H "Content-Type: application/json" \
@@ -300,27 +300,27 @@ The response reports `subscribers`, `liked`, `reposted`, `failed`,
   was missed.
 - **Long lists:** pass `{"limit": 200}` and call it again until `remaining` is
   0. Smaller chunks keep each call short and the progress saved between them.
-- **`abortedReason: "rate_limited"`** — SoundCloud pushed back. Wait and
+- **`abortedReason: "rate_limited"`** - SoundCloud pushed back. Wait and
   re-run; progress is kept.
-- **`abortedReason: "api_blocked"`** — five consecutive 403s, so the run stops
+- **`abortedReason: "api_blocked"`** - five consecutive 403s, so the run stops
   rather than hammering the API. That's the June 2026 write-API pause described
   in `SOUNDCLOUD_GATE_SETUP.md`; the subscriptions keep accruing and a re-run
   later catches everyone up.
 
 ## How a token's lifetime actually works
 
-SoundCloud's refresh tokens are **single-use** — refreshing returns a new one
+SoundCloud's refresh tokens are **single-use** - refreshing returns a new one
 and invalidates the old. Two places could hold the same token, so:
 
 - At opt-in, `/api/soundcloud/subscribe` refreshes **once** to mint a pair for
   the subscription, stores it, and **strips the refresh token from the gate
   cookie**. Otherwise the gate and the subscription would rotate each other's
-  token out from under them — and the loser is usually the subscription, weeks
+  token out from under them - and the loser is usually the subscription, weeks
   later, silently. The visit keeps working on its access token.
 - Only one job may refresh a given fan at a time, which is why the single cron
   does the fan-out, the teardown and the keepalive on separate ticks and never
   two at once. Anything that does slip through shows up as `failed` rows, not
-  corruption — re-run it.
+  corruption - re-run it.
 - If writing the rotated token back to Supabase fails, the access token is
   thrown away rather than used, because its successor is lost.
 
@@ -329,9 +329,9 @@ and invalidates the old. Two places could hold the same token, so:
 `/unsubscribe` has to work both with and without a token, because it is
 advertised in two places:
 
-- **`?t=<revoke_token>`** — the personal link shown on the download screen.
+- **`?t=<revoke_token>`** - the personal link shown on the download screen.
   Works forever, from any device, no login. This is the one that matters.
-- **No query string** — the "Turn off automatic likes and reposts" link in the
+- **No query string** - the "Turn off automatic likes and reposts" link in the
   Terms, reachable from the bottom-right corner of every page. There is no
   token in that case, so the page identifies the visitor from their gate
   cookie. That only works in the browser they downloaded from; when it finds
@@ -341,7 +341,7 @@ advertised in two places:
 A token that doesn't resolve falls back to the cookie rather than dead-ending,
 so a fan who mangled their link still has a way through.
 
-- **Sign in with SoundCloud** — when neither of those finds them, the page
+- **Sign in with SoundCloud** - when neither of those finds them, the page
   offers a SoundCloud sign-in (`/api/soundcloud/unsubscribe`). It goes through
   the gate's normal callback, marked so the callback only looks up who signed
   in, switches that account off, and sends them back to `/unsubscribe` with
@@ -363,7 +363,7 @@ Or send them `https://yvshmusic.com/unsubscribe?t=<their revoke_token>`.
 
 - **Unsubscribing doesn't take back what is already there.** `/unsubscribe`
   wipes the tokens, which is the right thing to do the moment consent is
-  withdrawn — but it also means the one credential that could remove an
+  withdrawn - but it also means the one credential that could remove an
   existing like or repost is gone, so those stay on the fan's profile. A
   teardown scheduled for them afterwards records `no_grant` and stops. Doing
   better means removing them *before* the wipe, inside the unsubscribe

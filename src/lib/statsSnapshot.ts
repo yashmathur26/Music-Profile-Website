@@ -13,14 +13,14 @@ import { ARTIST_SOUNDCLOUD_URL, getTrackPermalink } from "@/lib/tracks";
  *
  * The downloads table records the moment a file went out; it can't say
  * whether that fan still follows you a month later, or how many plays a song
- * has picked up since. So once a day this asks SoundCloud — on the app's own
- * token, never a fan's — and stores the answer as one row per day. The Stats
+ * has picked up since. So once a day this asks SoundCloud - on the app's own
+ * token, never a fan's - and stores the answer as one row per day. The Stats
  * tab draws its "over time" charts from the run of rows, and its
  * retention/bypass checks from the newest one.
  *
  * It costs a fixed handful of paged reads (your followers, each song's
  * likers) plus one lookup per fan who has ever downloaded. Day-to-day state
- * that matters — when someone stopped following — is carried forward from
+ * that matters - when someone stopped following - is carried forward from
  * the previous row, so the history survives without keeping every day's
  * full fan list around to diff.
  */
@@ -32,7 +32,7 @@ export type TrackSnapshot = {
   likes: number;
   reposts: number;
   comments: number;
-  /** SoundCloud's own download counter — separate from the gate's. */
+  /** SoundCloud's own download counter - separate from the gate's. */
   scDownloads: number;
 };
 
@@ -46,7 +46,7 @@ export type FanSnapshot = {
   tracks: number;
   city: string | null;
   country: string | null;
-  /** This is your own account downloading — kept out of every fan stat. */
+  /** This is your own account downloading - kept out of every fan stat. */
   isArtist: boolean;
   followsArtist: boolean;
   /** The first day we saw them not following, carried forward while it
@@ -59,7 +59,7 @@ export type FanSnapshot = {
 
 export type UnresolvedFan = {
   unresolved: true;
-  /** First day the profile stopped resolving — deleted or renamed. */
+  /** First day the profile stopped resolving - deleted or renamed. */
   since: string;
 };
 
@@ -179,7 +179,7 @@ export const latestSnapshot = async (
 
 /**
  * Takes today's snapshot and stores it, replacing any earlier one from the
- * same UTC day — so the admin's "refresh now" button and the cron can both
+ * same UTC day - so the admin's "refresh now" button and the cron can both
  * run without stacking duplicates.
  */
 export const takeSnapshot = async (): Promise<SnapshotData> => {
@@ -194,7 +194,7 @@ export const takeSnapshot = async (): Promise<SnapshotData> => {
   // the right thing to carry forward.
   const previous = (await latestSnapshot())?.data || null;
 
-  // You, and everyone who follows you — one paged read, then set lookups.
+  // You, and everyone who follows you - one paged read, then set lookups.
   const artist = await appGet<ScUser>(
     `/resolve?url=${encodeURIComponent(ARTIST_SOUNDCLOUD_URL)}`
   );
@@ -233,12 +233,12 @@ export const takeSnapshot = async (): Promise<SnapshotData> => {
     } catch (error) {
       errors.push(`track ${track.slug}: ${String(error).slice(0, 160)}`);
       // One bad answer from SoundCloud shouldn't blank this song's numbers
-      // for the day — keep the last good ones (fans' likes are carried below).
+      // for the day - keep the last good ones (fans' likes are carried below).
       if (previous?.tracks[track.slug]) tracks[track.slug] = previous.tracks[track.slug];
     }
   }
 
-  // Every downloader, looked up by id where we already know it — ids survive
+  // Every downloader, looked up by id where we already know it - ids survive
   // a renamed profile, URLs don't.
   const downloaders = await loadDownloaders();
   const fans: SnapshotData["fans"] = {};

@@ -8,7 +8,7 @@ export type { LeaveAloneReason };
 /**
  * Who a release may act on.
  *
- * The release fan-out is meant for ordinary listeners — DJs who use SoundCloud
+ * The release fan-out is meant for ordinary listeners - DJs who use SoundCloud
  * to find and download music. A like or repost from someone with an audience
  * of their own, or from someone the artist personally follows, reads as a
  * personal endorsement, and that isn't ours to borrow. So those fans stay
@@ -110,7 +110,7 @@ export const screenProfile = (
   return { ok: true };
 };
 
-/** How a release records a fan it skipped on purpose — see releaseRun.ts. */
+/** How a release records a fan it skipped on purpose - see releaseRun.ts. */
 export const LEFT_ALONE_PREFIX = "left_alone:";
 
 /**

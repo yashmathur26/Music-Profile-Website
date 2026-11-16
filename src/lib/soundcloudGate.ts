@@ -22,7 +22,7 @@ import { env } from "@/utils/env";
 
 /** One account the gate follows, and whether that's done. */
 export type FollowTarget = {
-  /** soundcloud.com profile URL — the key this target is stored under. */
+  /** soundcloud.com profile URL - the key this target is stored under. */
   url: string;
   /** SoundCloud's display name once resolved, else the @permalink. */
   name: string;
@@ -37,13 +37,13 @@ export type GateStatus = {
   username: string | null;
   /** Every configured account the gate follows, with its own state. */
   follows: FollowTarget[];
-  /** Shorthand for "every follow target is done" — what the gate unlocks on. */
+  /** Shorthand for "every follow target is done" - what the gate unlocks on. */
   followed: boolean;
   liked: boolean;
   reposted: boolean;
   commented: boolean;
   unlocked: boolean;
-  /** The connected account IS the artist — nothing to follow or like. */
+  /** The connected account IS the artist - nothing to follow or like. */
   isArtist: boolean;
   /** Set when SoundCloud rejected the write calls and the UI should fall back
    * to the manual "open SoundCloud yourself" flow. */
@@ -103,7 +103,7 @@ export const getFollowTargetUrls = async (
   return configured.length ? configured : [ARTIST_SOUNDCLOUD_URL];
 };
 
-/** URL + display name, with no SoundCloud call — for the pre-connect list. */
+/** URL + display name, with no SoundCloud call - for the pre-connect list. */
 const listFollowTargets = async (
   trackSlug: string
 ): Promise<{ url: string; name: string }[]> =>
@@ -201,7 +201,7 @@ const detailOf = (error: unknown) =>
     : String(error);
 
 /** How long a download waits on the extra likes before handing over the file
- * anyway — the fan is waiting on the button. */
+ * anyway - the fan is waiting on the button. */
 const CROSS_LIKE_BUDGET_MS = 6_000;
 
 /**
@@ -257,8 +257,8 @@ export const likeOtherSongs = async (downloadedSlug: string): Promise<string[]> 
 };
 
 /**
- * Runs the actions the gate promises — follow every configured account, like
- * the track, and optionally repost and comment — on the fan's behalf, then
+ * Runs the actions the gate promises - follow every configured account, like
+ * the track, and optionally repost and comment - on the fan's behalf, then
  * records the result. Follow/like/repost are idempotent, so retries are safe;
  * the comment is guarded by the `commented` flag because SoundCloud will
  * happily post it twice.
@@ -298,7 +298,7 @@ export const runEngagement = async (
   status.reposted = Boolean(previous.reposted);
   status.commented = Boolean(previous.commented);
 
-  // Every follow fires at the same time — one round trip's worth of waiting no
+  // Every follow fires at the same time - one round trip's worth of waiting no
   // matter how many accounts are configured.
   const followed = await Promise.all(
     targets.map(async (target) => {
@@ -320,7 +320,7 @@ export const runEngagement = async (
       } catch (error) {
         console.log(`[gate] follow ${target.url} FAILED: ${detailOf(error)}`);
         const kind = describeError(error);
-        // The write may be blocked while the fan already follows manually —
+        // The write may be blocked while the fan already follows manually - 
         // a read-only check still lets them through.
         try {
           return {
@@ -336,7 +336,7 @@ export const runEngagement = async (
   );
 
   // A target that won't resolve stays in the checklist as pending and keeps
-  // the gate shut — the admin page verifies every profile on save, so this is
+  // the gate shut - the admin page verifies every profile on save, so this is
   // SoundCloud being unreachable, and a retry is the right answer.
   status.follows = followed.map(({ url, name, followed: done }) => ({
     url,
@@ -370,7 +370,7 @@ export const runEngagement = async (
   }
 
   // Repost is opt-out (the checkbox defaults to on). Failures here never
-  // block the download — the follows are the gate.
+  // block the download - the follows are the gate.
   if (prefs.repost !== false && !status.reposted) {
     try {
       const trackId = await getTrackId(accessToken, trackSlug);
@@ -428,7 +428,7 @@ export const readStatus = async (trackSlug: string): Promise<GateStatus> => {
     return status;
   }
 
-  // The accounts to follow are public config — the gate page lists them before
+  // The accounts to follow are public config - the gate page lists them before
   // anyone connects, so this half runs with or without a session.
   const targets = await listFollowTargets(trackSlug);
 

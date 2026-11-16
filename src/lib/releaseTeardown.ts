@@ -23,7 +23,7 @@ import { getTrackPermalink } from "@/lib/tracks";
  * isn't left with a repost on their profile for good. It is the part of the
  * feature that makes the unattended writes a loan rather than a permanent
  * mark on a stranger's account, which means a removal that quietly fails is
- * worse than one that never ran — every outcome below is written to the row.
+ * worse than one that never ran - every outcome below is written to the row.
  *
  * Deliberately never touches follows. The fan followed to unlock a download;
  * that was their own action, and unfollowing behind their back would be a
@@ -33,7 +33,7 @@ import { getTrackPermalink } from "@/lib/tracks";
 /** Rows per pass. The cron calls this on ticks where nothing is going out. */
 export const TEARDOWN_CHUNK = 60;
 
-/** Consecutive 403s that mean SoundCloud has shut the write API — same
+/** Consecutive 403s that mean SoundCloud has shut the write API - same
  * breaker as the fan-out, for the same reason. */
 const BLOCKED_STREAK_LIMIT = 5;
 
@@ -47,7 +47,7 @@ export type TeardownSummary = {
   processed: number;
   unliked: number;
   unreposted: number;
-  /** Rows written off because we can never remove them — the fan revoked us,
+  /** Rows written off because we can never remove them - the fan revoked us,
    * or the gate they came from is gone. */
   abandoned: number;
   failed: number;
@@ -61,7 +61,7 @@ const describe = (error: unknown) =>
 
 /**
  * The SoundCloud track id for a slug, resolved over the app token and cached
- * for the pass. `null` means the gate is gone and nothing can be resolved —
+ * for the pass. `null` means the gate is gone and nothing can be resolved - 
  * permanent, and the caller writes those rows off. A throw means SoundCloud
  * couldn't answer, which is worth retrying.
  */
@@ -101,7 +101,7 @@ const trackIdResolver = () => {
   };
 };
 
-/** Nothing left to remove with — the grant is gone, so say so and stop. */
+/** Nothing left to remove with - the grant is gone, so say so and stop. */
 const hasUsableGrant = (row: DueRemoval) =>
   Boolean(row.subscriber && !row.subscriber.revoked_at && row.subscriber.refresh_token);
 
@@ -110,7 +110,7 @@ const hasUsableGrant = (row: DueRemoval) =>
  *
  * A fan who downloaded two songs has two rows here, and they usually fall due
  * together. Calling getAccessToken for each would refresh twice off the same
- * snapshot — and SoundCloud's refresh tokens are single-use, so the second
+ * snapshot - and SoundCloud's refresh tokens are single-use, so the second
  * call presents one that has already been retired. That comes back as
  * `invalid_grant`, which this codebase cannot tell apart from a fan who
  * revoked access, so it would unsubscribe them for good. Resolving once per

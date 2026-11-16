@@ -40,7 +40,7 @@ export default function PrivacyPage() {
     },
     {
       title: "How we use it",
-      body: "We use your SoundCloud connection to complete the follow and like a download gate asks for, and — only if automatic likes and reposts are on — to like and repost future releases. We do not use your data for advertising or share it with third parties for marketing.",
+      body: "We use your SoundCloud connection to complete the follow and like a download gate asks for, and - only if automatic likes and reposts are on - to like and repost future releases. We do not use your data for advertising or share it with third parties for marketing.",
     },
     {
       title: "Cookies",

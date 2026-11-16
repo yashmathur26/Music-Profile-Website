@@ -1,8 +1,8 @@
-# YVSH Website Rebuild — Spotify Presave System
+# YVSH Website Rebuild - Spotify Presave System
 
 ## Overview
 
-Rebuild yvshmusic.com into a custom Next.js site with a **true Spotify presave system** — the same thing HyperEdit, Feature.fm, and ToneDen do, but self-hosted on your domain. Fan clicks presave → logs into Spotify → on release day, the track auto-saves to their library. No third-party branding, no monthly fees, you own all the data.
+Rebuild yvshmusic.com into a custom Next.js site with a **true Spotify presave system** - the same thing HyperEdit, Feature.fm, and ToneDen do, but self-hosted on your domain. Fan clicks presave → logs into Spotify → on release day, the track auto-saves to their library. No third-party branding, no monthly fees, you own all the data.
 
 ---
 
@@ -38,10 +38,10 @@ The "presave" is really just: **collect permissions now, use them later.**
 
 When a track gets saved to hundreds of libraries simultaneously on Day 1, Spotify's algorithm interprets this as strong organic interest. This directly influences:
 
-- **Release Radar** — fans who presaved get it in their Release Radar automatically
-- **Discover Weekly** — the save signal feeds into recommendation models
-- **Editorial playlists** — Spotify's editorial team sees high Day 1 save rates as a signal worth investigating
-- **Algorithmic playlists** — more saves = more playlist placements = more listeners = snowball effect
+- **Release Radar** - fans who presaved get it in their Release Radar automatically
+- **Discover Weekly** - the save signal feeds into recommendation models
+- **Editorial playlists** - Spotify's editorial team sees high Day 1 save rates as a signal worth investigating
+- **Algorithmic playlists** - more saves = more playlist placements = more listeners = snowball effect
 
 The key metric is **Day 1 saves**. A presave system front-loads those saves so they all hit at once instead of trickling in over days.
 
@@ -58,7 +58,7 @@ https://accounts.spotify.com/authorize?
   &scope=user-library-modify
 ```
 
-The `user-library-modify` scope is the key — it lets your app save tracks to the fan's library on their behalf.
+The `user-library-modify` scope is the key - it lets your app save tracks to the fan's library on their behalf.
 
 **Step 2: Fan logs in and approves**
 
@@ -71,8 +71,8 @@ Spotify redirects to `https://yvshmusic.com/api/spotify/callback?code=XXXXX`. Yo
 **Step 4: Your server exchanges the code for tokens**
 
 Your backend calls Spotify's token endpoint with the authorization code. Spotify responds with:
-- `access_token` — works for 1 hour (useless for presaves since release is days/weeks away)
-- `refresh_token` — **works indefinitely** until the fan manually revokes it. THIS is what you store.
+- `access_token` - works for 1 hour (useless for presaves since release is days/weeks away)
+- `refresh_token` - **works indefinitely** until the fan manually revokes it. THIS is what you store.
 
 **Step 5: Store the refresh token in the database**
 
@@ -90,7 +90,7 @@ Your server saves:
 
 Redirect fan to a success page: *"You're locked in! 10 outta 10 will be saved to your Spotify on March 1st."* Optionally show a presave counter for social proof (*"312 fans presaved"*).
 
-**Step 7: RELEASE DAY — Trigger the saves**
+**Step 7: RELEASE DAY - Trigger the saves**
 
 Once your track is live on Spotify, grab the Spotify URI (looks like `spotify:track:4iV5W9uYEdYUVa79Axb7Rh`). Then your server:
 
@@ -145,7 +145,7 @@ Once your track is live on Spotify, grab the Spotify URI (looks like `spotify:tr
 ```
 WEEKS BEFORE RELEASE:
 1. Drop cover art in /public/covers/
-2. Edit campaign.ts — track title, date, isActive: true
+2. Edit campaign.ts - track title, date, isActive: true
 3. git push → presave page is live in 30 seconds
 4. Share yvshmusic.com on TikTok/IG/socials
 5. Fans presave, tokens accumulate in your database
@@ -171,7 +171,7 @@ NEXT RELEASE:
 
 ## Tech Stack
 
-You're already on Vercel with React, so we're building on what you have. The recommendation is Next.js (App Router) since it's still React — same components, same JSX, same hooks — but with API routes for the backend and better SEO. Vercel made Next.js so they work perfectly together.
+You're already on Vercel with React, so we're building on what you have. The recommendation is Next.js (App Router) since it's still React - same components, same JSX, same hooks - but with API routes for the backend and better SEO. Vercel made Next.js so they work perfectly together.
 
 | Layer | Tool | Why |
 |-------|------|-----|
@@ -243,7 +243,7 @@ export const campaign = {
 | `coverArt` | Displayed on splash page and presave section with glow effects |
 | `releaseDate` | Powers the countdown timer + triggers presave→stream link auto-switch |
 | `spotify.trackUri` | Paste this on release day to trigger the auto-save for all fans |
-| `additionalLinks` | Secondary platform buttons (SoundCloud, Apple, etc.) — just links, no OAuth |
+| `additionalLinks` | Secondary platform buttons (SoundCloud, Apple, etc.) - just links, no OAuth |
 | `streamLinks` | Replace everything after release date passes |
 | `accentColor` | Tints the campaign section, glow effects, buttons |
 | `showPresaveCount` | Queries the database to show how many fans presaved |
@@ -272,7 +272,7 @@ Based on your current sidebar, add "Pre-save" as a new nav item:
 
 The "Pre-save" nav item only appears when `campaign.isActive === true`. When the campaign is off, it disappears and the sidebar looks exactly like it does now.
 
-### Routing — Everything Points To `/presave`
+### Routing - Everything Points To `/presave`
 
 All presave CTAs across the site funnel to one dedicated page:
 
@@ -287,14 +287,14 @@ Fan clicks presave indicator on homepage hero section
   → navigates to /presave
 
 /presave is THE presave page with full functionality:
-  - Cover art, track title, countdown
-  - Spotify OAuth presave button
-  - Additional platform links
-  - Email capture
-  - Presave counter
+ - Cover art, track title, countdown
+ - Spotify OAuth presave button
+ - Additional platform links
+ - Email capture
+ - Presave counter
 ```
 
-This keeps things clean — there's one presave page, and every CTA across the site just routes there. No duplicated presave UI in multiple places.
+This keeps things clean - there's one presave page, and every CTA across the site just routes there. No duplicated presave UI in multiple places.
 
 ### File Structure
 
@@ -355,7 +355,7 @@ src/
 
 ### Page 1: Splash / Landing (`/`)
 
-Full viewport, centered, animated starfield background. **No sidebar on this page** — it's the gateway.
+Full viewport, centered, animated starfield background. **No sidebar on this page** - it's the gateway.
 
 **When campaign is active (`isActive: true`):**
 - Glowing "NEW MUSIC" badge with pulsing dot
@@ -386,43 +386,43 @@ The sidebar is rendered in the root layout so it persists across Home, Pre-save,
 
 **Main Content Area (right of sidebar):**
 
-**Section 1 — Hero:**
+**Section 1 - Hero:**
 - YVSH logo (large), artist name, bio/tagline
 - Social link buttons (SoundCloud, IG, TikTok)
-- If campaign active: a banner or card teaser that says something like "10 outta 10 — dropping March 1st" with a **"Pre-save now →"** button that navigates to `/presave`
+- If campaign active: a banner or card teaser that says something like "10 outta 10 - dropping March 1st" with a **"Pre-save now →"** button that navigates to `/presave`
 
-**Section 2 — Now Playing:**
+**Section 2 - Now Playing:**
 - SoundCloud embed player
 - Spotify embed
 - Configurable via config file
 
-**Section 3 — Footer:**
+**Section 3 - Footer:**
 - © 2026 YVSH + social links
 
-### Page 3: Pre-save Page (`/presave`) — THE DEDICATED PRESAVE PAGE
+### Page 3: Pre-save Page (`/presave`) - THE DEDICATED PRESAVE PAGE
 
 This is the full presave experience. Everything presave-related lives here. Sidebar stays visible on the left, presave content fills the main area.
 
 **Layout (within the main content area, right of sidebar):**
 
-- **Cover Art** — large, centered, with glow shadow tinted to `accentColor`. Floating animation.
-- **Track Title** — big, bold, gradient text
-- **Artist tag** — "YVSH" below title
-- **Description/tagline** — from config
+- **Cover Art** - large, centered, with glow shadow tinted to `accentColor`. Floating animation.
+- **Track Title** - big, bold, gradient text
+- **Artist tag** - "YVSH" below title
+- **Description/tagline** - from config
 - **Countdown Timer** (if `showCountdown: true`):
-  - Days | Hours | Minutes | Seconds
-  - When ≤ 0: displays "OUT NOW"
-- **Spotify Presave Button** — the big OAuth-triggering CTA
-  - Before release: "Pre-save on Spotify" → triggers OAuth flow
-  - After release: "Listen on Spotify" → direct link to track
-  - If fan already presaved (localStorage check): "Presaved ✓"
-- **Presave Counter** — "312 fans presaved" with live updates
-- **Additional Platform Links** — secondary buttons for SoundCloud, Apple Music, etc.
-- **Email Capture** (if enabled) — glassmorphism card with email input
-- **Share Section** — "Share this with your friends" with copy-link and social share buttons
+ - Days | Hours | Minutes | Seconds
+ - When ≤ 0: displays "OUT NOW"
+- **Spotify Presave Button** - the big OAuth-triggering CTA
+ - Before release: "Pre-save on Spotify" → triggers OAuth flow
+ - After release: "Listen on Spotify" → direct link to track
+ - If fan already presaved (localStorage check): "Presaved ✓"
+- **Presave Counter** - "312 fans presaved" with live updates
+- **Additional Platform Links** - secondary buttons for SoundCloud, Apple Music, etc.
+- **Email Capture** (if enabled) - glassmorphism card with email input
+- **Share Section** - "Share this with your friends" with copy-link and social share buttons
 
 **Visual Treatment:**
-- The presave content should feel premium — centered, spacious, with the cover art as the hero element
+- The presave content should feel premium - centered, spacious, with the cover art as the hero element
 - Glassmorphism card containing the presave controls
 - Accent color from config tints the glow, buttons, and countdown
 - Animate in with Framer Motion (fade up + stagger)
@@ -469,9 +469,9 @@ Returns the count of presaves for the current campaign. Used by the PresaveCount
 1. Reads `spotify.trackUri` from the config (or accepts it as a body parameter)
 2. Fetches all refresh tokens for the current campaign from Supabase
 3. For each token:
-   - Exchanges refresh token for a fresh access token
-   - Calls `PUT /v1/me/tracks` with the track URI
-   - Marks the record as "saved" or "failed" in the database
+  - Exchanges refresh token for a fresh access token
+  - Calls `PUT /v1/me/tracks` with the track URI
+  - Marks the record as "saved" or "failed" in the database
 4. Returns a summary: `{ total: 312, saved: 308, failed: 4 }`
 
 This can also be triggered automatically via a Vercel Cron Job that checks if `releaseDate` has passed and `trackUri` is set.
@@ -491,11 +491,11 @@ This only needs to be done once:
 3. Set the redirect URI to: `https://yvshmusic.com/api/spotify/callback`
 4. Copy the **Client ID** and **Client Secret**
 5. Add them as environment variables in Vercel:
-   - `SPOTIFY_CLIENT_ID=xxxxx`
-   - `SPOTIFY_CLIENT_SECRET=xxxxx`
+  - `SPOTIFY_CLIENT_ID=xxxxx`
+  - `SPOTIFY_CLIENT_SECRET=xxxxx`
 6. Done. Never touch this again.
 
-**Important:** Spotify apps start in "Development Mode" which allows up to 25 users. To allow unlimited fans to presave, you need to submit a **quota extension request** through the Spotify Developer Dashboard. This is free — you just describe what your app does and Spotify approves it (usually within a few days). Do this BEFORE your first campaign.
+**Important:** Spotify apps start in "Development Mode" which allows up to 25 users. To allow unlimited fans to presave, you need to submit a **quota extension request** through the Spotify Developer Dashboard. This is free - you just describe what your app does and Spotify approves it (usually within a few days). Do this BEFORE your first campaign.
 
 ---
 
@@ -508,7 +508,7 @@ One table handles everything:
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid (primary key) | Auto-generated |
-| `campaign_id` | text | e.g. "10-outta-10" — ties to the campaign config |
+| `campaign_id` | text | e.g. "10-outta-10" - ties to the campaign config |
 | `spotify_user_id` | text | Fan's Spotify user ID |
 | `refresh_token` | text | Encrypted. The token used to save tracks on their behalf. |
 | `email` | text (nullable) | Fan's email if they provided it |
@@ -535,7 +535,7 @@ One table handles everything:
 - Active page highlighted (same as current site behavior)
 - Collapsible (same as current)
 - Rendered in root layout so it persists across `/home`, `/presave`, `/shop`, `/downloads`
-- NOT shown on the splash landing page (`/`) — splash is full-screen with no sidebar
+- NOT shown on the splash landing page (`/`) - splash is full-screen with no sidebar
 - Mobile: collapses into a hamburger menu or bottom nav
 
 ### Spotify Presave Button
@@ -557,7 +557,7 @@ One table handles everything:
 - Fetches from `/api/presave-count` on mount
 - Displays: "312 fans presaved" with a subtle pulse animation
 - Updates periodically (every 30s) for live feel
-- Social proof — fans see others have presaved
+- Social proof - fans see others have presaved
 
 ### Platform Links
 - Grid of buttons for secondary platforms (SoundCloud, Apple Music, YouTube)
@@ -620,7 +620,7 @@ One table handles everything:
 
 ## Development Phases
 
-### Phase 1 — Foundation
+### Phase 1 - Foundation
 - Next.js project setup with Tailwind, Framer Motion
 - Campaign config file with TypeScript types
 - Starfield component
@@ -628,13 +628,13 @@ One table handles everything:
 - Splash page (both campaign and non-campaign states)
 - Page transition splash → main
 
-### Phase 2 — Main Page
+### Phase 2 - Main Page
 - Navbar
 - Hero section (name, bio, socials)
 - Now Playing section with embeds
 - Footer
 
-### Phase 3 — Spotify Presave Backend
+### Phase 3 - Spotify Presave Backend
 - Spotify Developer App setup instructions
 - Supabase database setup + `presaves` table
 - `/api/spotify/authorize` route
@@ -642,7 +642,7 @@ One table handles everything:
 - `/api/presave-count` route
 - Presave success page
 
-### Phase 4 — Presave Frontend
+### Phase 4 - Presave Frontend
 - PresaveSection component
 - SpotifyPresaveButton component (triggers OAuth)
 - CountdownTimer component
@@ -650,15 +650,15 @@ One table handles everything:
 - PlatformLinks component
 - Wire splash page CTA to presave flow
 
-### Phase 5 — Release Day System
+### Phase 5 - Release Day System
 - `/api/trigger-saves` endpoint
 - Vercel Cron Job setup (checks if release date passed + trackUri is set)
 - Automatic presave→stream link switching
 - Test the full lifecycle
 
-### Phase 6 — Fan Engagement + Polish
+### Phase 6 - Fan Engagement + Polish
 - Email capture component + `/api/email-capture` route
-- Responsive design pass (mobile-first — fans hit this from their phones)
+- Responsive design pass (mobile-first - fans hit this from their phones)
 - SEO meta tags + Open Graph (cover art + track name when shared on socials)
 - Performance optimization
 - Presave success page share buttons
@@ -695,7 +695,7 @@ TRIGGER_SAVES_SECRET=a_random_secret_string_you_make_up
 
 ## Key Notes For Cursor
 
-1. **The config file is the single source of truth** for all campaign UI. Components import from it — never hardcode campaign info in components.
+1. **The config file is the single source of truth** for all campaign UI. Components import from it - never hardcode campaign info in components.
 
 2. **The presave→stream auto-switch is client-side.** Compare `releaseDate` to `Date.now()` on render. Even if the config isn't updated, the UI auto-switches.
 
@@ -707,7 +707,7 @@ TRIGGER_SAVES_SECRET=a_random_secret_string_you_make_up
 
 6. **The starfield must render in root layout** so it persists across pages without remounting.
 
-7. **Mobile-first is critical.** Fans will visit from TikTok/IG bio link on their phones. The presave flow must be seamless on mobile — the Spotify OAuth popup works in mobile browsers but test thoroughly.
+7. **Mobile-first is critical.** Fans will visit from TikTok/IG bio link on their phones. The presave flow must be seamless on mobile - the Spotify OAuth popup works in mobile browsers but test thoroughly.
 
 8. **Open Graph tags should be dynamic.** When campaign is active, social share previews should show cover art + track title. Use Next.js metadata API to set these based on the config.
 
@@ -719,4 +719,4 @@ TRIGGER_SAVES_SECRET=a_random_secret_string_you_make_up
 
 12. **Rate limits.** Spotify API has rate limits. When triggering saves for hundreds of fans, add a small delay (100-200ms) between requests to avoid getting throttled. Process in batches of 50.
 
-13. **Vercel free tier has a 10-second function timeout.** The `/api/trigger-saves` endpoint needs to process fans in batches, not all at once. If you have 500 presaves, process 50 at a time across multiple invocations (e.g., a queue or chained fetch calls). Alternatively, Vercel Pro ($20/mo) gives 60-second limits. Design the trigger endpoint to handle this gracefully — return partial progress and allow re-triggering to continue where it left off.
+13. **Vercel free tier has a 10-second function timeout.** The `/api/trigger-saves` endpoint needs to process fans in batches, not all at once. If you have 500 presaves, process 50 at a time across multiple invocations (e.g., a queue or chained fetch calls). Alternatively, Vercel Pro ($20/mo) gives 60-second limits. Design the trigger endpoint to handle this gracefully - return partial progress and allow re-triggering to continue where it left off.

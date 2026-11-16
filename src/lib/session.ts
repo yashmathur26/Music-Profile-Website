@@ -13,7 +13,7 @@ export type OauthPrefs = {
   repost: boolean;
   comment?: string;
   /** Set when the sign-in is only to prove who they are on the off-switch
-   * page — the callback switches them off and does nothing else. */
+   * page - the callback switches them off and does nothing else. */
   purpose?: "unsubscribe";
 };
 

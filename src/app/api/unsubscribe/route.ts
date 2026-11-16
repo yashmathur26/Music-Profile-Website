@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * Turns off a fan's "like + repost my future releases" subscription.
  *
  * Deliberately POST-only and keyed on the long random revoke token: no login,
- * no session, nothing for the fan to remember — but also not something a link
+ * no session, nothing for the fan to remember - but also not something a link
  * prefetcher or an email client's image proxy can trigger by accident, which a
  * GET would be.
  */

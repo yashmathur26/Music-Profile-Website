@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
   // NOT searchParams.get(): that decodes "+" as a space (form-encoding
   // rules), silently corrupting any authorization code that contains "+".
-  // SoundCloud then rejects the mangled code as `invalid_request` — while
+  // SoundCloud then rejects the mangled code as `invalid_request` - while
   // synthetic test codes without "+" behave perfectly. Parse the raw query
   // and percent-decode only.
   const rawQuery = new URL(request.url).search;
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
   }
 
   // The off switch: they've proved which account they are, so turn it off
-  // and stop. The token is dropped here — nothing is written to the gate
+  // and stop. The token is dropped here - nothing is written to the gate
   // cookie and nothing runs on their account.
   if (unsubscribing) {
     try {
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     });
 
     // This is the moment the fan asked for: follow the artist, like the
-    // track, and repost/comment if they opted in — all in one go.
+    // track, and repost/comment if they opted in - all in one go.
     const status = await runEngagement(slug, prefs);
 
     const country = countryFrom(request.headers);

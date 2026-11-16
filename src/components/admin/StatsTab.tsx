@@ -44,7 +44,7 @@ const RANGES = [
 type RangeKey = (typeof RANGES)[number]["key"];
 type Resolved = Exclude<StatsFanState, { unresolvedSince: string }>;
 
-/** Local calendar day — the artist reads dates in their own timezone. */
+/** Local calendar day - the artist reads dates in their own timezone. */
 const dayKey = (ms: number) => {
   const d = new Date(ms);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -165,7 +165,7 @@ export default function StatsTab({ token }: { token: string }) {
         if (!res.ok) throw new Error(body.error || "Refresh failed.");
         if (!auto) {
           setRefreshNote(
-            `Checked ${body.fans} fans on SoundCloud${body.partial ? " (ran out of time — the rest keep yesterday's answer)" : ""}.`
+            `Checked ${body.fans} fans on SoundCloud${body.partial ? " (ran out of time - the rest keep yesterday's answer)" : ""}.`
           );
         }
         if (!body.skipped) await load();
@@ -200,7 +200,7 @@ export default function StatsTab({ token }: { token: string }) {
 
   return (
     <div className={clsx("space-y-10 transition-opacity", loading && "opacity-90")}>
-      {/* Filters — one row, scoping everything below. */}
+      {/* Filters - one row, scoping everything below. */}
       <div className="sticky top-0 z-20 -mx-2 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#120d1b]/90 px-3 py-2.5 backdrop-blur">
         <div className="flex rounded-xl bg-white/5 p-0.5">
           {RANGES.map((r) => (
@@ -251,7 +251,7 @@ export default function StatsTab({ token }: { token: string }) {
           {refreshNote && <p className="rounded-xl bg-white/5 px-4 py-2.5 text-xs text-white/70">{refreshNote}</p>}
           {data.missing.length > 0 && (
             <p className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
-              Not available yet: {data.missing.join(", ")}. Run the SQL in docs/ADMIN_STATS_SETUP.md — the rest of the page works without it.
+              Not available yet: {data.missing.join(", ")}. Run the SQL in docs/ADMIN_STATS_SETUP.md - the rest of the page works without it.
             </p>
           )}
         </div>
@@ -291,7 +291,7 @@ export default function StatsTab({ token }: { token: string }) {
             />
             <StatTile
               label="SoundCloud followers"
-              value={data.artist.followers !== null ? data.artist.followers.toLocaleString() : "—"}
+              value={data.artist.followers !== null ? data.artist.followers.toLocaleString() : " - "}
               delta={view.followerDelta !== null ? { value: view.followerDelta, vs: `start of range` } : null}
               sub={view.followerDelta === null ? "history builds daily" : undefined}
             />
@@ -338,7 +338,7 @@ export default function StatsTab({ token }: { token: string }) {
             <Empty>Not enough days yet.</Empty>
           )}
         </ChartCard>
-        <ChartCard title="When fans download" subtitle="Day of the week × hour, in your local time — post when your fans are around.">
+        <ChartCard title="When fans download" subtitle="Day of the week × hour, in your local time - post when your fans are around.">
           <Heatmap grid={view.heatmap} />
           {view.peak && <p className="mt-3 text-xs text-white/60">Busiest slot: <span className="text-white">{view.peak}</span></p>}
         </ChartCard>
@@ -383,12 +383,12 @@ export default function StatsTab({ token }: { token: string }) {
               s.firstWeek,
               s.perDay.toFixed(2),
               s.daysLive,
-              s.sc ? compact(s.sc.plays) : "—",
-              s.playsDelta !== null ? `${s.playsDelta >= 0 ? "+" : ""}${compact(s.playsDelta)}` : "—",
-              s.sc ? compact(s.sc.likes) : "—",
-              s.sc ? compact(s.sc.reposts) : "—",
-              s.sc ? compact(s.sc.comments) : "—",
-              s.sc && s.allDownloads ? (s.sc.plays / s.allDownloads).toFixed(0) : "—",
+              s.sc ? compact(s.sc.plays) : " - ",
+              s.playsDelta !== null ? `${s.playsDelta >= 0 ? "+" : ""}${compact(s.playsDelta)}` : " - ",
+              s.sc ? compact(s.sc.likes) : " - ",
+              s.sc ? compact(s.sc.reposts) : " - ",
+              s.sc ? compact(s.sc.comments) : " - ",
+              s.sc && s.allDownloads ? (s.sc.plays / s.allDownloads).toFixed(0) : " - ",
               pct(s.following, s.followChecked),
               pct(s.liking, s.likeChecked)
             ])}
@@ -404,7 +404,7 @@ export default function StatsTab({ token }: { token: string }) {
         {data.events.rows.length === 0 ? (
           <Empty>
             The step-by-step log starts the moment this version is live: page views, Connect presses, unlocks and
-            every download&rsquo;s gate state. Nothing before that can be reconstructed — the old site didn&rsquo;t record it.
+            every download&rsquo;s gate state. Nothing before that can be reconstructed - the old site didn&rsquo;t record it.
           </Empty>
         ) : (
           <>
@@ -429,12 +429,12 @@ export default function StatsTab({ token }: { token: string }) {
               />
               {view.funnel.manual > 0 && (
                 <p className="mt-3 text-xs text-white/50">
-                  {view.funnel.manual} visitor{view.funnel.manual === 1 ? "" : "s"} took the manual &ldquo;open SoundCloud yourself&rdquo; route instead — that route is on trust.
+                  {view.funnel.manual} visitor{view.funnel.manual === 1 ? "" : "s"} took the manual &ldquo;open SoundCloud yourself&rdquo; route instead - that route is on trust.
                 </p>
               )}
             </ChartCard>
             <div className="grid gap-4 md:grid-cols-2">
-              <ChartCard title="Where visitors come from" subtitle="Add ?utm_source=instagram (etc.) to links you post — in-app browsers often hide the rest.">
+              <ChartCard title="Where visitors come from" subtitle="Add ?utm_source=instagram (etc.) to links you post - in-app browsers often hide the rest.">
                 <HBars rows={view.sources} />
               </ChartCard>
               <ChartCard title="Visitors by country">
@@ -450,8 +450,8 @@ export default function StatsTab({ token }: { token: string }) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile label="Downloads with no SoundCloud account" value={view.integrity.noAccount.length} sub="manual route or a bypass" />
           <StatTile label="Possible bypasses" value={view.integrity.bypass} sub={data.events.since ? "no connection, no manual route" : "logged from this deploy on"} />
-          <StatTile label="No longer following" value={data.snapshot ? view.integrity.unfollowed.length : "—"} sub={data.snapshot ? `of ${view.retention.checked} fans checked` : "after the first refresh"} />
-          <StatTile label="Accounts gone" value={data.snapshot ? view.integrity.gone : "—"} sub="deleted or renamed" />
+          <StatTile label="No longer following" value={data.snapshot ? view.integrity.unfollowed.length : " - "} sub={data.snapshot ? `of ${view.retention.checked} fans checked` : "after the first refresh"} />
+          <StatTile label="Accounts gone" value={data.snapshot ? view.integrity.gone : " - "} sub="deleted or renamed" />
         </div>
         {view.integrity.states.length > 0 && (
           <ChartCard title="How each download got through" subtitle="What the server could see at the moment it handed out the file.">
@@ -475,7 +475,7 @@ export default function StatsTab({ token }: { token: string }) {
                 <FanLink key="f" url={u.url} name={u.name} />,
                 u.songs,
                 shortDate(u.first),
-                u.since ? shortDate(u.since) : "—"
+                u.since ? shortDate(u.since) : " - "
               ])}
             />
           </ChartCard>
@@ -486,7 +486,7 @@ export default function StatsTab({ token }: { token: string }) {
                 <FanLink key="f" url={u.url} name={u.name} />,
                 u.song,
                 shortDate(u.at),
-                u.since ? shortDate(u.since) : "—"
+                u.since ? shortDate(u.since) : " - "
               ])}
             />
           </ChartCard>
@@ -507,19 +507,19 @@ export default function StatsTab({ token }: { token: string }) {
           <StatTile label="Fans in range" value={view.fans.count} />
           {/* Follower counts only exist once a refresh has looked the fans up;
               before that "0" would be a claim, not an absence. */}
-          <StatTile label="Combined reach" value={data.snapshot ? compact(view.fans.reach) : "—"} sub={data.snapshot ? "their followers, added up" : "after the first refresh"} />
-          <StatTile label="Typical fan's followers" value={data.snapshot ? compact(view.fans.median) : "—"} sub="median" />
-          <StatTile label="Fans with 1K+ followers" value={data.snapshot ? view.fans.big : "—"} />
+          <StatTile label="Combined reach" value={data.snapshot ? compact(view.fans.reach) : " - "} sub={data.snapshot ? "their followers, added up" : "after the first refresh"} />
+          <StatTile label="Typical fan's followers" value={data.snapshot ? compact(view.fans.median) : " - "} sub="median" />
+          <StatTile label="Fans with 1K+ followers" value={data.snapshot ? view.fans.big : " - "} />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          <ChartCard title="Biggest fans" subtitle="By their own follower count — a repost from them goes furthest.">
+          <ChartCard title="Biggest fans" subtitle="By their own follower count - a repost from them goes furthest.">
             <DataTable
               columns={[{ label: "Fan" }, { label: "Followers", align: "right" }, { label: "Downloads", align: "right" }, { label: "Follows you" }]}
               rows={view.fans.biggest.map((f) => [
                 <FanLink key="f" url={f.url} name={f.name} />,
                 compact(f.followers),
                 f.downloads,
-                f.follows === null ? "—" : f.follows ? <Status key="s" kind="good">Yes</Status> : <Status key="s" kind="critical">No</Status>
+                f.follows === null ? " - " : f.follows ? <Status key="s" kind="good">Yes</Status> : <Status key="s" kind="critical">No</Status>
               ])}
             />
           </ChartCard>
@@ -548,20 +548,20 @@ export default function StatsTab({ token }: { token: string }) {
           table={
             <DataTable
               columns={[{ label: "Day" }, { label: "Followers", align: "right" }, { label: "Change", align: "right" }]}
-              rows={[...view.followerSeries].reverse().map((p, i, arr) => [shortDate(p.t), p.v.toLocaleString(), i < arr.length - 1 ? `${p.v - arr[i + 1].v >= 0 ? "+" : ""}${p.v - arr[i + 1].v}` : "—"])}
+              rows={[...view.followerSeries].reverse().map((p, i, arr) => [shortDate(p.t), p.v.toLocaleString(), i < arr.length - 1 ? `${p.v - arr[i + 1].v >= 0 ? "+" : ""}${p.v - arr[i + 1].v}` : " - "])}
             />
           }
         >
           {view.followerSeries.length > 1 ? (
             <LineChart series={[{ name: "Followers", color: VIZ.s1, points: view.followerSeries }]} zeroBased={false} />
           ) : (
-            <Empty>One point so far. The chart fills in as the daily refresh runs — come back tomorrow.</Empty>
+            <Empty>One point so far. The chart fills in as the daily refresh runs - come back tomorrow.</Empty>
           )}
         </ChartCard>
         {view.gateShare && (
           <p className="text-xs text-white/55">
             Over this range you gained <span className="text-white">{view.gateShare.gained}</span> followers and the gates brought in{" "}
-            <span className="text-white">{view.gateShare.gateFans}</span> new fans who still follow you — roughly{" "}
+            <span className="text-white">{view.gateShare.gateFans}</span> new fans who still follow you - roughly{" "}
             <span className="text-white">{pct(Math.min(view.gateShare.gateFans, view.gateShare.gained), view.gateShare.gained)}</span> of your growth.
           </p>
         )}
@@ -604,7 +604,7 @@ export default function StatsTab({ token }: { token: string }) {
               ]}
             />
           ) : (
-            <Empty>No fans saved yet — the first one appears after the next connected download.</Empty>
+            <Empty>No fans saved yet - the first one appears after the next connected download.</Empty>
           )}
         </ChartCard>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -887,7 +887,7 @@ function derive(data: StatsPayload, range: RangeKey, song: string) {
         { label: "Did the gate (connected and unlocked)", value: unlockedN, kind: "good" },
         { label: "Took the manual route (on trust)", value: manualN, kind: "warning" },
         { label: "Connected, but follows never went through", value: connectedOnly, kind: "warning" },
-        { label: "No connection, no manual route — possible bypass", value: bypass, kind: "critical" }
+        { label: "No connection, no manual route - possible bypass", value: bypass, kind: "critical" }
       ] as const).filter((s) => s.value > 0)
     : [];
 

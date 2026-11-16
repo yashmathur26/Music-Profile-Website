@@ -29,7 +29,7 @@ const followDriveConfirm = async (html: string): Promise<Response | null> => {
   return fetch(url, { redirect: "follow", cache: "no-store" });
 };
 
-/** "Song Title.wav" — what the file saves as when the source doesn't say. */
+/** "Song Title.wav" - what the file saves as when the source doesn't say. */
 const fallbackName = (title: string, contentType: string | null) => {
   const ext = /wav/.test(contentType || "") ? "wav" : /mpeg|mp3/.test(contentType || "") ? "mp3" : "wav";
   return `${title.replace(/[\\/:*?"<>|]+/g, "").trim() || "download"}.${ext}`;

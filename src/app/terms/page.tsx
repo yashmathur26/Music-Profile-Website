@@ -54,8 +54,8 @@ export default function TermsPage() {
             style={{ color: accent }}
           >
             Turn off automatic likes and reposts
-          </Link>{" "}
-          &mdash; that page works at any time and from any device: if
+          </Link>
+          . That page works at any time and from any device: if
           we can&rsquo;t tell who you are from your browser, sign in with
           SoundCloud there and we switch your account off. It deletes the
           SoundCloud token we hold for you, and once you use it we will not opt
@@ -70,11 +70,23 @@ export default function TermsPage() {
         <>
           When you download a track with SoundCloud connected, we may also use
           that connection to like other {artistName} tracks from your account
-          at the same time &mdash; likes only, never reposts, follows or
+          at the same time - likes only, never reposts, follows or
           comments. A like is visible on your profile&rsquo;s Likes and in the
           track&rsquo;s like count, and you can remove it on SoundCloud like
           any other. Revoking this site&rsquo;s access in your SoundCloud
           settings (Settings &rarr; Connections) stops it.
+        </>
+      ),
+    },
+    {
+      title: "Newest track after download",
+      body: (
+        <>
+          After a download finishes, this site may show a thank-you screen with
+          the official SoundCloud player for {artistName}&rsquo;s newest drop.
+          Playback is visible on the page and uses SoundCloud&rsquo;s embed,
+          not a background or hidden stream. You can pause or mute the
+          player at any time.
         </>
       ),
     },

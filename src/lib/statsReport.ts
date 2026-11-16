@@ -55,7 +55,7 @@ const selectAll = async <T>(
   return out;
 };
 
-/** Index-of with insertion — builds the lookup tables for the tuples. */
+/** Index-of with insertion - builds the lookup tables for the tuples. */
 const indexer = () => {
   const values: string[] = [];
   const index = new Map<string, number>();
@@ -204,7 +204,7 @@ export const buildStatsReport = async (): Promise<StatsPayload> => {
       ),
       attempt(
         "subscribers",
-        // Never the token columns — the browser has no business with them.
+        // Never the token columns - the browser has no business with them.
         () =>
           selectAll<{
             created_at: string;

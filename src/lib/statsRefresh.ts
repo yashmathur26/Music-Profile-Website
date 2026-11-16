@@ -8,13 +8,13 @@ import { takeSnapshot } from "@/lib/statsSnapshot";
  * A snapshot walks every downloader on SoundCloud, so downloads don't each
  * get their own:
  *
- *  - it starts a minute after the download, which gives SoundCloud time to
+ * - it starts a minute after the download, which gives SoundCloud time to
  *    show the follow and like the gate just placed, and lets a burst of
  *    downloads share one run;
- *  - runs start at least five minutes apart;
- *  - a download during a run queues exactly one more run after it.
+ * - runs start at least five minutes apart;
+ * - a download during a run queues exactly one more run after it.
  *
- * Only the app's own token is used — never a fan's — so this can't collide
+ * Only the app's own token is used - never a fan's - so this can't collide
  * with the subscriber cron's single-use refresh tokens. It runs in the
  * background of the download request, which is fine on Railway's long-lived
  * server; on a serverless host it would die with the request.
@@ -52,7 +52,7 @@ const run = async () => {
   try {
     const snapshot = await takeSnapshot();
     console.log(
-      `[stats] refreshed after download — ${Object.keys(snapshot.fans).length} fans` +
+      `[stats] refreshed after download - ${Object.keys(snapshot.fans).length} fans` +
         (snapshot.partial ? " (partial)" : "")
     );
   } catch (error) {

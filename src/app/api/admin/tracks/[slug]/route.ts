@@ -17,11 +17,11 @@ export const dynamic = "force-dynamic";
 
 /** Shown when the database predates the per-gate follow list. */
 const MIGRATION_WARNING =
-  "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again.";
+  "Saved - but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again.";
 
 /** Shown when it predates the per-gate subscriber settings. */
 const PLAN_MIGRATION_WARNING =
-  "Saved — but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again.";
+  "Saved - but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again.";
 
 const authorized = (request: NextRequest) => {
   const secret = process.env.TRIGGER_SAVES_SECRET;
@@ -42,7 +42,7 @@ type EditBody = {
 };
 
 /**
- * Edits one gate in place. Every field is optional — the admin page sends the
+ * Edits one gate in place. Every field is optional - the admin page sends the
  * whole form, and anything it leaves out keeps its current value. Changing the
  * SoundCloud link re-resolves the track so the gate's like/repost calls keep
  * pointing at the right upload.
@@ -105,7 +105,7 @@ export async function PATCH(
       );
     }
     if (url !== current.soundcloudUrl) {
-      // A new link means a new track id — resolve it now so the gate never
+      // A new link means a new track id - resolve it now so the gate never
       // likes or reposts the wrong upload.
       try {
         const meta = await resolveTrackMeta(url);

@@ -3,7 +3,7 @@ import { env } from "@/utils/env";
 
 const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
 /**
- * secure.soundcloud.com/oauth/token IS the right endpoint for every grant —
+ * secure.soundcloud.com/oauth/token IS the right endpoint for every grant - 
  * but only over HTTP Basic auth, and it answers *any* malformed or unknown
  * authorization_code request (bogus code, missing verifier, body creds) with
  * the same blanket `invalid_request`, which is what made it look broken.
@@ -81,8 +81,8 @@ const parseTokenResponse = (payload: {
 
 /**
  * SoundCloud authenticates the client with HTTP Basic auth on this endpoint.
- * Passing client_id/client_secret in the form body — which is legal in plain
- * OAuth 2.0 — is rejected here with `401 invalid_client`, so every code
+ * Passing client_id/client_secret in the form body - which is legal in plain
+ * OAuth 2.0 - is rejected here with `401 invalid_client`, so every code
  * exchange and refresh silently failed. Verified against the live endpoint:
  * body credentials -> 401, Basic auth -> 200 + token.
  */
@@ -125,7 +125,7 @@ export const exchangeCodeForToken = (code: string, codeVerifier: string) =>
  * Exchange with fallbacks: the expected winner is the secure host over Basic
  * auth (see TOKEN_URL note), but the older shapes stay as fallbacks and the
  * total-failure path still reports the per-variant matrix to the popup.
- * Basic auth and client_id in the body must never be combined — the secure
+ * Basic auth and client_id in the body must never be combined - the secure
  * host answers that mix with `invalid_client`.
  */
 export const exchangeCodeMatrix = async (
@@ -242,12 +242,12 @@ export const exchangeCodeMatrix = async (
 };
 
 /**
- * Refresh tokens are single-use — always persist the new one you get back.
+ * Refresh tokens are single-use - always persist the new one you get back.
  *
  * Unlike the code exchange and client_credentials, this grant only works with
  * the client credentials in the form BODY. Over Basic auth the secure host
- * answers `400 invalid_request` for every request — right secret or wrong,
- * real token or none — so every refresh failed: no fan was ever saved, and a
+ * answers `400 invalid_request` for every request - right secret or wrong,
+ * real token or none - so every refresh failed: no fan was ever saved, and a
  * returning fan's session couldn't be renewed. Verified against the live
  * endpoint (Oct 2026): Basic -> invalid_request whatever is sent; body
  * credentials -> invalid_client on a wrong secret, invalid_grant on a fake
@@ -279,7 +279,7 @@ export const refreshAccessToken = async (refreshToken: string) => {
 };
 
 /**
- * `soundcloud_<status>` plus SoundCloud's own error code when it sent one —
+ * `soundcloud_<status>` plus SoundCloud's own error code when it sent one - 
  * "soundcloud_400" alone hid the fact that every refresh was being rejected
  * for its shape, not its token.
  */
@@ -378,7 +378,7 @@ export const getClientToken = async () => {
 };
 
 /**
- * A read against the public API on the app's own token — no fan involved.
+ * A read against the public API on the app's own token - no fan involved.
  * Accepts either a path or a full `next_href`, so paged endpoints can be
  * walked by feeding the previous page's link straight back in.
  */
@@ -434,7 +434,7 @@ export const resolveTrackMeta = async (
     title: data.title || "",
     // The API hands back the 100x100 "-large" crop; the gate page wants more.
     artworkUrl: (data.artwork_url || "").replace("-large", "-t500x500"),
-    // permalink_url arrives with ?utm_… tracking params appended — drop them,
+    // permalink_url arrives with ?utm_… tracking params appended - drop them,
     // they'd otherwise leak into the slug and the stored permalink.
     permalinkUrl: (data.permalink_url || "").split(/[?#]/)[0]
   };
@@ -442,7 +442,7 @@ export const resolveTrackMeta = async (
 
 /**
  * Resolves a soundcloud.com permalink to its API resource (user or track).
- * `name` is the display name for users — the gate labels each follow row with
+ * `name` is the display name for users - the gate labels each follow row with
  * it instead of the raw permalink.
  */
 export const resolvePermalink = async (accessToken: string, url: string) => {
@@ -473,7 +473,7 @@ export const resolveProfile = async (url: string) =>
   resolvePermalink(await getClientToken(), url);
 
 /**
- * PUT /me/followings/:id — idempotent on SoundCloud's side, and a 409 just
+ * PUT /me/followings/:id - idempotent on SoundCloud's side, and a 409 just
  * means the fan already follows, which is still a pass for the gate.
  */
 export const followUser = async (accessToken: string, userId: string) => {
@@ -488,7 +488,7 @@ export const followUser = async (accessToken: string, userId: string) => {
   }
 };
 
-/** POST /likes/tracks/:id — same idempotency story as the follow above. */
+/** POST /likes/tracks/:id - same idempotency story as the follow above. */
 export const likeTrack = async (accessToken: string, trackId: string) => {
   try {
     await apiRequest(`/likes/tracks/${trackId}`, accessToken, {
@@ -504,7 +504,7 @@ export const likeTrack = async (accessToken: string, trackId: string) => {
 };
 
 /**
- * POST /reposts/tracks/:id — puts the track on the fan's profile feed.
+ * POST /reposts/tracks/:id - puts the track on the fan's profile feed.
  * Idempotent like the others; 409 means it's already reposted.
  */
 export const repostTrack = async (accessToken: string, trackId: string) => {
@@ -522,7 +522,7 @@ export const repostTrack = async (accessToken: string, trackId: string) => {
 };
 
 /**
- * DELETE /likes/tracks/:id — takes the like back off the fan's account.
+ * DELETE /likes/tracks/:id - takes the like back off the fan's account.
  *
  * A 404 means it isn't there any more (the fan unliked it themselves, or we
  * already removed it), which is the state the caller asked for, so it counts
@@ -543,7 +543,7 @@ export const unlikeTrack = async (accessToken: string, trackId: string) => {
   }
 };
 
-/** DELETE /reposts/tracks/:id — same 404-is-success story as the unlike. */
+/** DELETE /reposts/tracks/:id - same 404-is-success story as the unlike. */
 export const unrepostTrack = async (accessToken: string, trackId: string) => {
   try {
     await apiRequest(`/reposts/tracks/${trackId}`, accessToken, {
@@ -559,7 +559,7 @@ export const unrepostTrack = async (accessToken: string, trackId: string) => {
 };
 
 /**
- * POST /tracks/:id/comments — body is nested under `comment`.
+ * POST /tracks/:id/comments - body is nested under `comment`.
  * Not idempotent: re-running posts a second comment, so callers must only
  * fire this once per fan per track.
  */

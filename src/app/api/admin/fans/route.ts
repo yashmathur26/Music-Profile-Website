@@ -121,7 +121,7 @@ const loadDownloads = async (): Promise<DownloadRow[]> => {
   return out;
 };
 
-/** Where each username last downloaded from, by IP — the fallback location. */
+/** Where each username last downloaded from, by IP - the fallback location. */
 const loadDownloadCountries = async (): Promise<Map<string, string>> => {
   const supabase = createServerSupabase();
   const out = new Map<string, string>();
@@ -145,12 +145,12 @@ const loadDownloadCountries = async (): Promise<Map<string, string>> => {
  * Everyone who has downloaded, with what SoundCloud says about them and how
  * they engage with you: what they downloaded and whether they still like it,
  * whether they follow you, and their standing in "like + repost future
- * releases" — including what each release did on their profile.
+ * releases" - including what each release did on their profile.
  *
  * Live where it matters and is cheap (who follows you, who likes each song,
  * the saved fans' profiles); everyone else's profile numbers come from the
  * stats snapshot, which is re-taken after every download. All on the app's
- * own token — no fan's credentials are touched to draw this page.
+ * own token - no fan's credentials are touched to draw this page.
  */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) {
@@ -234,8 +234,8 @@ export async function GET(request: NextRequest) {
 
   // Live answers from SoundCloud, only where the snapshot isn't enough: who
   // you follow and the saved fans' profiles (the leave-alone check has to be
-  // current), and what releases left on their profiles. Everything else —
-  // follows, likes on downloads — comes from the snapshot, which is re-taken
+  // current), and what releases left on their profiles. Everything else - 
+  // follows, likes on downloads - comes from the snapshot, which is re-taken
   // after every download. Reading every song's likers on every page load is
   // what ran the app into SoundCloud's rate limit, and that limit is shared
   // with the live site.
@@ -302,7 +302,7 @@ export async function GET(request: NextRequest) {
     let saved: FanSaved | null = null;
     if (sub) {
       // Judged on the live profile when there is one, else on the snapshot's
-      // numbers — the release itself always checks live before acting.
+      // numbers - the release itself always checks live before acting.
       const basis: ScProfile | null | undefined =
         profile !== undefined
           ? profile

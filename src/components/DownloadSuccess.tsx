@@ -2,32 +2,104 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Variants } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 type DownloadSuccessProps = {
   show: boolean;
   trackTitle?: string;
+  /** Featured / newest track to play after a successful download. */
+  featuredEmbedUrl?: string;
+  featuredTitle?: string;
 };
 
 /** Longer than the check path so the stroke is fully hidden at rest. */
 const CHECK_DASH = 24;
 
+type ScWidget = {
+  bind: (event: string, fn: () => void) => void;
+  play: () => void;
+  setVolume: (n: number) => void;
+};
+
 /**
  * Post-download confirmation.
  *
- * Everything here is driven by one variant tree ("hidden" → "visible") so the
- * parent's stagger reaches the badge and the check path. Mixing explicit
- * initial/animate objects into children breaks that propagation, which silently
- * leaves the check fully drawn instead of drawing itself in.
- *
- * Only transform/opacity (and the path's dash offset) animate, the ring burst
- * plays once rather than looping, and reduced motion collapses it to a fade so
- * the confirmation still appears.
+ * After the file lands, this doubles as a short thank-you with the artist's
+ * featured track playing in the official SoundCloud Widget - visible and
+ * audible, started from the download click. Reduced motion keeps the
+ * confirmation but skips the bounce choreography.
  */
 export default function DownloadSuccess({
   show,
-  trackTitle
+  trackTitle,
+  featuredEmbedUrl,
+  featuredTitle
 }: DownloadSuccessProps) {
   const reduce = useReducedMotion();
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    if (!show || !featuredEmbedUrl) return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const start = () => {
+      const iframe = iframeRef.current;
+      if (!iframe?.contentWindow || cancelled) return;
+      const SC = (
+        window as unknown as {
+          SC?: {
+            Widget: ((el: HTMLIFrameElement) => ScWidget) & {
+              Events: { READY: string };
+            };
+          };
+        }
+      ).SC;
+      if (!SC?.Widget) return;
+      try {
+        const widget = SC.Widget(iframe);
+        widget.bind(SC.Widget.Events.READY, () => {
+          if (cancelled) return;
+          try {
+            // Keep it listenable - this is the thank-you play, not a mute farm.
+            widget.setVolume(80);
+            widget.play();
+          } catch {
+            /* widget torn down */
+          }
+        });
+      } catch {
+        /* iframe not ready */
+      }
+    };
+
+    const existing = document.querySelector(
+      'script[src="https://w.soundcloud.com/player/api.js"]'
+    ) as HTMLScriptElement | null;
+
+    if (existing && (window as unknown as { SC?: unknown }).SC) {
+      timeoutId = setTimeout(start, 400);
+    } else {
+      const script =
+        existing ||
+        Object.assign(document.createElement("script"), {
+          src: "https://w.soundcloud.com/player/api.js",
+          async: true
+        });
+      if (!existing) document.body.appendChild(script);
+      const onLoad = () => {
+        if (!cancelled) timeoutId = setTimeout(start, 400);
+      };
+      if ((window as unknown as { SC?: unknown }).SC) onLoad();
+      else script.addEventListener("load", onLoad, { once: true });
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [show, featuredEmbedUrl]);
 
   const container: Variants = {
     hidden: { opacity: 0, y: reduce ? 0 : 10, scale: reduce ? 1 : 0.97 },
@@ -136,7 +208,6 @@ export default function DownloadSuccess({
                 strokeLinejoin="round"
                 aria-hidden
               >
-                {/* Draws itself in, left to right. */}
                 <motion.path
                   d="M5 13l4 4L19 7"
                   style={{ strokeDasharray: CHECK_DASH }}
@@ -150,17 +221,37 @@ export default function DownloadSuccess({
                 variants={item}
                 className="text-sm font-semibold text-emerald-100"
               >
-                Downloaded
+                Thank you
+                {trackTitle ? ` - ${trackTitle}` : ""}
               </motion.p>
-              {/* Titles run long, so this wraps instead of truncating. */}
               <motion.p
                 variants={item}
                 className="mt-0.5 text-xs leading-snug text-emerald-200/60"
               >
-                Check your downloads folder.
+                {featuredEmbedUrl
+                  ? "Check your downloads folder. Here’s what’s playing next."
+                  : "Check your downloads folder."}
               </motion.p>
             </div>
           </div>
+
+          {featuredEmbedUrl && (
+            <motion.div variants={item} className="mt-4 overflow-hidden rounded-xl bg-black/40 ring-1 ring-white/10">
+              {featuredTitle && (
+                <p className="truncate px-3 pt-2.5 text-[11px] font-medium uppercase tracking-wider text-white/45">
+                  Newest drop · {featuredTitle}
+                </p>
+              )}
+              <iframe
+                ref={iframeRef}
+                key={featuredEmbedUrl}
+                title={featuredTitle ? `${featuredTitle} on SoundCloud` : "Featured track on SoundCloud"}
+                src={featuredEmbedUrl}
+                allow="autoplay; encrypted-media"
+                className="block h-[120px] w-full border-0"
+              />
+            </motion.div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

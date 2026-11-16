@@ -6,13 +6,13 @@ export type GateEngagement = Record<
   {
     /** Every configured follow target is done. */
     followed?: boolean;
-    /** Per-target follow state, keyed by the profile URL from the site config —
+    /** Per-target follow state, keyed by the profile URL from the site config - 
      * the gate follows up to three accounts, and each is tracked separately so
      * a newly added target isn't skipped for a returning fan. */
     follows?: Record<string, boolean>;
     liked?: boolean;
     reposted?: boolean;
-    /** Comments are not idempotent on SoundCloud — this flag is the only thing
+    /** Comments are not idempotent on SoundCloud - this flag is the only thing
      * standing between a retry and a duplicate comment. */
     commented?: boolean;
   }
@@ -21,7 +21,7 @@ export type GateEngagement = Record<
 export type GateCookie = {
   userId?: string;
   username?: string;
-  /** soundcloud.com/<permalink> — links the dashboard's history to the fan. */
+  /** soundcloud.com/<permalink> - links the dashboard's history to the fan. */
   profileUrl?: string;
   accessToken?: string;
   refreshToken?: string;

@@ -1,4 +1,4 @@
-# Admin Stats tab — setup
+# Admin Stats tab - setup
 
 The **Stats** tab in the admin dashboard reads three kinds of data:
 
@@ -52,7 +52,7 @@ subscriber job's single-use refresh tokens. Opening the Stats tab also
 refreshes, unless a refresh finished in the last two minutes.
 
 Each run reads your follower list and each song's likers once (paged), then
-looks up every fan who has ever downloaded — about one request per fan. It
+looks up every fan who has ever downloaded - about one request per fan. It
 stops starting new lookups after four minutes; anyone it didn't reach keeps
 the previous day's answer and the run is marked *partial*.
 
@@ -63,16 +63,16 @@ today's row, so pressing it twice is harmless.
 
 A download is logged with what the server could see at that moment:
 
-- **Did the gate** — connected, and the follows went through.
-- **Manual route** — no SoundCloud connection, but the same visitor took the
+- **Did the gate** - connected, and the follows went through.
+- **Manual route** - no SoundCloud connection, but the same visitor took the
   "open SoundCloud yourself" fallback first. That route works on trust.
-- **Connected, but follows never went through** — usually SoundCloud blocking
+- **Connected, but follows never went through** - usually SoundCloud blocking
   the follow call.
-- **Possible bypass** — no connection and no manual route. Someone fetched the
+- **Possible bypass** - no connection and no manual route. Someone fetched the
   download link directly.
 
 "No longer following" and "unliked" come from the daily snapshot. Collaborator
-accounts on multi-follow gates aren't checked — only your own account.
+accounts on multi-follow gates aren't checked - only your own account.
 
 ## 4. Tag your links
 

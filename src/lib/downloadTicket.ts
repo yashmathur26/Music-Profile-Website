@@ -5,7 +5,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
  * /api/download only after the server has checked the gate was unlocked.
  *
  * The file itself is streamed by /api/download/file, so the Drive link never
- * reaches the browser — there is nothing to copy out of the network tab and
+ * reaches the browser - there is nothing to copy out of the network tab and
  * share. A ticket is signed with a server-only secret (unforgeable), names the
  * track (no swapping in another song), expires in a few minutes, and is bound
  * to the SoundCloud account in the fan's encrypted gate cookie, so the link is

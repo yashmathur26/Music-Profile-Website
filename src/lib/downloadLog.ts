@@ -1,6 +1,6 @@
 import { createServerSupabase } from "@/lib/supabaseServer";
 
-/** One row per download click — the admin overview's history feed. */
+/** One row per download click - the admin overview's history feed. */
 export type DownloadRow = {
   id?: string;
   track_slug: string;
@@ -18,7 +18,7 @@ const tolerate = (error: unknown) => {
   if (!warned) {
     warned = true;
     console.warn(
-      `[downloads] logging unavailable (missing "${TABLE}" table or Supabase down) — ` +
+      `[downloads] logging unavailable (missing "${TABLE}" table or Supabase down) - ` +
         "downloads still work, history just isn't recorded.",
       error
     );
@@ -27,7 +27,7 @@ const tolerate = (error: unknown) => {
 
 /**
  * Callers must AWAIT this (a dangling promise dies when the serverless
- * function freezes after responding) — but it never throws, so a logging
+ * function freezes after responding) - but it never throws, so a logging
  * failure can't block the download itself.
  */
 export const recordDownload = async (
@@ -43,7 +43,7 @@ export const recordDownload = async (
       sc_profile_url: scProfileUrl || null
     });
     if (!error) return;
-    // Deploys can outrun the ALTER TABLE for sc_profile_url — keep the row.
+    // Deploys can outrun the ALTER TABLE for sc_profile_url - keep the row.
     if (error.code === "PGRST204" || /sc_profile_url/.test(error.message || "")) {
       const { error: retryError } = await supabase
         .from(TABLE)

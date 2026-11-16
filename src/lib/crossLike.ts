@@ -5,7 +5,7 @@ import { createServerSupabase } from "@/lib/supabaseServer";
  *
  * The artist switches this on per song from the admin portal. A fan who
  * unlocks one download is connected to SoundCloud at that moment, so the
- * download also likes each switched-on song from their account — likes only,
+ * download also likes each switched-on song from their account - likes only,
  * never a repost, since a like is private and a repost lands in their
  * followers' feeds. The Terms cover it, under "Likes on other songs".
  *
@@ -46,7 +46,7 @@ const save = async (slugs: string[]) => {
   if (error) {
     throw new Error(
       /relation .* does not exist/i.test(error.message)
-        ? 'The "site_config" table doesn’t exist yet — run the SQL in docs/ADMIN_TRACKS_SETUP.md.'
+        ? 'The "site_config" table doesn’t exist yet - run the SQL in docs/ADMIN_TRACKS_SETUP.md.'
         : error.message
     );
   }

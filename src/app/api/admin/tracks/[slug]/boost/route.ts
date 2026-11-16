@@ -99,7 +99,7 @@ const NOTES: Record<string, string> = {
 const noteFor = (code: string | null) =>
   !code ? null : NOTES[code] || (code.startsWith("profile_") ? "Couldn't look them up" : code);
 
-/** Where one fan stands on this song — see BoostState. */
+/** Where one fan stands on this song - see BoostState. */
 const stateOf = (
   action: ReleaseAction | undefined,
   sent: boolean
@@ -192,7 +192,7 @@ const loadHistory = async (slug: string): Promise<SongBoost["history"]> => {
 /**
  * Everything the song panel shows: SoundCloud's all-time counters for the
  * track, what the gate did, and where every saved fan stands on this song's
- * boost — who it reached, what's on their profile right now, and when it
+ * boost - who it reached, what's on their profile right now, and when it
  * comes off.
  */
 export async function GET(request: NextRequest, { params }: { params: { slug: string } }) {
@@ -395,8 +395,8 @@ export async function GET(request: NextRequest, { params }: { params: { slug: st
 /**
  * Edits one song's boost after it's gone out: take fans out (one, several or
  * everyone), put them back, change how long it stays up, or change how fast
- * the rest goes out. Every SoundCloud write still happens in the cron — this
- * only moves deadlines and markers — so nothing here can race the rollout on
+ * the rest goes out. Every SoundCloud write still happens in the cron - this
+ * only moves deadlines and markers - so nothing here can race the rollout on
  * a fan's single-use refresh token.
  */
 export async function POST(request: NextRequest, { params }: { params: { slug: string } }) {
@@ -469,7 +469,7 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
           removeAfter: removalDueAt(plan)
         });
         // Anything that already came off goes back up on a send. Only when
-        // this song has been sent before — putting someone back isn't a
+        // this song has been sent before - putting someone back isn't a
         // reason to send a song you haven't.
         const announcement = await findAnnouncement(slug).catch(() => null);
         if (announcement && !planIsNoop(plan)) await requestAnnouncement(slug);

@@ -11,15 +11,15 @@ import { SESSION_COOKIE } from "@/lib/session";
  * Each of those is one row here:
  *
  *   view       the gate page rendered in a browser (sent by the page itself)
- *   manual     a fan took the "open SoundCloud yourself" fallback — honour
+ *   manual     a fan took the "open SoundCloud yourself" fallback - honour
  *              system, so it is reported, never trusted
  *   connect    the fan pressed Connect and was sent to SoundCloud
  *   connected  SoundCloud sent them back with a working grant
  *   unlock     the follows (and like) went through and the gate opened
  *   enrol      the attempt to save the fan for future releases, and its
- *              outcome (`detail.ok`, `detail.reason`) — so a fan who should
+ *              outcome (`detail.ok`, `detail.reason`) - so a fan who should
  *              have been saved and wasn't leaves a reason behind
- *   download   the file link was handed out — `detail.gate` records what the
+ *   download   the file link was handed out - `detail.gate` records what the
  *              server could see of how they got there, which is what makes
  *              bypasses countable from here on
  *
@@ -59,7 +59,7 @@ let geo: GeoLookup | null | undefined;
 /**
  * The offline IP → country table, loaded on first use. It lives in this
  * process, so a visitor's IP is never sent anywhere to be looked up, and it
- * costs about 10 MB of memory — paid only on hosts that don't hand us a
+ * costs about 10 MB of memory - paid only on hosts that don't hand us a
  * country header.
  */
 const loadGeo = (): GeoLookup | null => {
@@ -73,7 +73,7 @@ const loadGeo = (): GeoLookup | null => {
   return geo;
 };
 
-/** Dotted IPv4 with no leading zeros — the only shape we hand the parser. */
+/** Dotted IPv4 with no leading zeros - the only shape we hand the parser. */
 const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 /** Plain IPv6: hex groups and colons only, bounded length. */
 const IPV6 = /^[0-9a-f:]{2,39}$/i;
@@ -85,7 +85,7 @@ const IPV6 = /^[0-9a-f:]{2,39}$/i;
  * the visitor; the first X-Forwarded-For entry can, so it's only a fallback.
  * Anything that isn't a plain IPv4/IPv6 is dropped before it reaches the
  * lookup table's parser, which has known bugs with odd input (leading-zero
- * octets, very long strings) — a spoofed header gets a blank country, never
+ * octets, very long strings) - a spoofed header gets a blank country, never
  * a slow or wrong parse.
  */
 const clientIp = (headers: Headers) => {
@@ -100,7 +100,7 @@ const clientIp = (headers: Headers) => {
 /**
  * The visitor's country. On Railway it comes from the offline table; a
  * Cloudflare or Vercel header wins if the site is ever put behind one. Only the
- * two-letter code is kept — the IP itself is never stored.
+ * two-letter code is kept - the IP itself is never stored.
  */
 export const countryFrom = (headers: Headers) => {
   const header =
@@ -123,8 +123,8 @@ export const currentSessionId = () => {
 };
 
 /**
- * Writes one event. Callers await it — on a serverless host an unawaited
- * insert dies with the function, and awaiting costs nothing here — but it never
+ * Writes one event. Callers await it - on a serverless host an unawaited
+ * insert dies with the function, and awaiting costs nothing here - but it never
  * throws, so stats can't break the gate.
  */
 export const logGateEvent = async (event: {
@@ -150,7 +150,7 @@ export const logGateEvent = async (event: {
     if (error && !warned) {
       warned = true;
       console.warn(
-        `[events] "${TABLE}" unavailable — run the SQL in docs/ADMIN_STATS_SETUP.md. ` +
+        `[events] "${TABLE}" unavailable - run the SQL in docs/ADMIN_STATS_SETUP.md. ` +
           "The gate works without it; the Stats tab just has no funnel.",
         error
       );
@@ -168,7 +168,7 @@ export const logGateEvent = async (event: {
  *
  * Instagram, TikTok and friends open links in their own in-app browsers and
  * often send no referrer at all, so a `utm_source` on the link wins when
- * there is one — tag the link you post and this column becomes exact.
+ * there is one - tag the link you post and this column becomes exact.
  */
 export const describeSource = (referrer: unknown, utmSource: unknown) => {
   if (typeof utmSource === "string" && utmSource.trim()) {

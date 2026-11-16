@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const dbSlugs = new Set(rows.map((row) => row.slug));
   const queued = new Map(announcements.map((row) => [row.track_slug, row]));
   return NextResponse.json({
-    // Drives the "tell my N subscribers" label — the artist should know what
+    // Drives the "tell my N subscribers" label - the artist should know what
     // the checkbox will do before ticking it.
     subscribers,
     tracks: all.map((track) => ({
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       downloadUrl: track.downloadUrl,
       // Static tracks keep their permalink inside the embed URL.
       soundcloudUrl: getTrackPermalink(track),
-      // Empty means "nobody set a list" — the gate follows the artist.
+      // Empty means "nobody set a list" - the gate follows the artist.
       followTargets: track.followTargets || [],
       // What the release fan-out may do on saved accounts, and for how long.
       subscriberPlan: normalizePlan(track.subscriberPlan),
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     announceToSubscribers?: boolean;
     /** Like this song whenever a fan downloads one of the others. */
     crossLike?: boolean;
-    /** What that fan-out may do, and for how long — see SubscriberPlan. */
+    /** What that fan-out may do, and for how long - see SubscriberPlan. */
     subscriberPlan?: unknown;
   };
 
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Who this particular song's gate follows. Blank rows are fine — the gate
+  // Who this particular song's gate follows. Blank rows are fine - the gate
   // falls back to the artist's own profile.
   const submittedTargets = Array.isArray(body.followTargets)
     ? body.followTargets.filter(
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Queued, never run inline: the fan-out outlives this request, and the
-  // gate is already created — a slow or failing announcement must not read
+  // gate is already created - a slow or failing announcement must not read
   // back to the artist as "the song didn't save".
   let announcementQueued = false;
   let announcementError: string | undefined;
@@ -224,9 +224,9 @@ export async function POST(request: NextRequest) {
     warning:
       announcementError ||
       (!followTargetsStored
-        ? "Saved — but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again."
+        ? "Saved - but the follow list needs one more column. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set it again."
         : !planStored
-          ? "Saved — but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again."
+          ? "Saved - but the subscriber settings need the newest columns. Run the SQL in docs/ADMIN_TRACKS_SETUP.md, then set them again."
           : undefined)
   });
 }
